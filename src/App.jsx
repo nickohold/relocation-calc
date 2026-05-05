@@ -1,63 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   TrendingUp,
-  MapPin,
   ShieldCheck,
-  Calculator,
   Wallet,
   Zap,
   Target,
-  Info,
   Lock,
   HelpCircle,
   LayoutGrid,
   Sun,
-  LayoutTemplate
 } from 'lucide-react';
-
-const FED_BRACKETS = [
-  { max: 11600, rate: 0.10 }, { max: 47150, rate: 0.12 }, { max: 100525, rate: 0.22 },
-  { max: 191950, rate: 0.24 }, { max: 243725, rate: 0.32 }, { max: 609350, rate: 0.35 },
-  { max: Infinity, rate: 0.37 }
-];
-
-const NY_STATE_BRACKETS = [
-  { max: 8500, rate: 0.04 }, { max: 11700, rate: 0.045 }, { max: 13900, rate: 0.0525 },
-  { max: 80650, rate: 0.0585 }, { max: 215400, rate: 0.0597 }, { max: 1077550, rate: 0.0685 },
-  { max: Infinity, rate: 0.109 }
-];
-
-const NYC_LOCAL_BRACKETS = [
-  { max: 12000, rate: 0.03078 }, { max: 25000, rate: 0.03762 },
-  { max: 50000, rate: 0.03819 }, { max: Infinity, rate: 0.03876 }
-];
-
-const NJ_STATE_BRACKETS = [
-  { max: 20000, rate: 0.014 }, { max: 35000, rate: 0.0175 }, { max: 40000, rate: 0.035 },
-  { max: 75000, rate: 0.05525 }, { max: 500000, rate: 0.0637 }, { max: 1000000, rate: 0.0897 },
-  { max: Infinity, rate: 0.1075 }
-];
-
-const LOCATIONS = {
-  'NYC': { name: 'Manhattan (UWS)', state: 'NY', city: 'NYC', defaultRent: 4500 },
-  'NJ': { name: 'Hoboken/JC', state: 'NJ', city: null, defaultRent: 3900 },
-  'WNY': { name: 'West NY/Guttenberg', state: 'NJ', city: null, defaultRent: 2900 },
-  'ATX': { name: 'Austin, TX', state: 'TX', city: null, defaultRent: 2600 },
-  'HOU': { name: 'Houston, TX', state: 'TX', city: null, defaultRent: 2200 },
-};
-
-const calcBrackets = (income, brackets) => {
-  let tax = 0;
-  let previousMax = 0;
-  for (const b of brackets) {
-    if (income > previousMax) {
-      const taxableInBracket = Math.min(income, b.max) - previousMax;
-      tax += taxableInBracket * b.rate;
-      previousMax = b.max;
-    } else break;
-  }
-  return tax;
-};
+import { runEngine, LOCATIONS } from './calc';
 
 const formatValue = (val) => val === 0 ? '--' : `${val < 0 ? '-' : ''}$${Math.abs(Math.round(val)).toLocaleString()}`;
 
@@ -77,141 +30,42 @@ const App = () => {
   const [usRent, setUsRent] = useState("4500");
   const [us401kMatchLimit, setUs401kMatchLimit] = useState("6");
   const [usMiscBurn, setUsMiscBurn] = useState("900");
+  const [includeSeverance, setIncludeSeverance] = useState(true);
 
-  const calc = useMemo(() => {
-    const _ilGross = Number(ilGross) || 0;
-    const _ilERPension = Number(ilERPension) || 0;
-    const _ilERSeverance = Number(ilERSeverance) || 0;
-    const _ilERKeren = Number(ilERKeren) || 0;
-    const _ilEEPension = Number(ilEEPension) || 0;
-    const _ilEEKeren = Number(ilEEKeren) || 0;
-    const _ilRent = Number(ilRent) || 0;
-    const _ilBurn = Number(ilBurn) || 0;
-    const _fxRate = Number(fxRate) || 0.27;
-    const _usGrossAnnual = Number(usGrossAnnual) || 0;
-    const _usRent = Number(usRent) || 0;
-    const _us401kMatchLimit = Number(us401kMatchLimit) || 0;
-    const _usMiscBurn = Number(usMiscBurn) || 0;
-
-    const totalILSPct = _ilEEPension + _ilEEKeren + _ilERPension + _ilERSeverance + _ilERKeren;
-
-    // Israel: Bituach Leumi (Social Security)
-    const btlThreshold = 7703;
-    const btlLow = Math.min(_ilGross, btlThreshold) * 0.035;
-    const btlHigh = Math.max(0, Math.min(_ilGross, 49030) - btlThreshold) * 0.12;
-    const ilBTL = btlLow + btlHigh;
-
-    // Israel: Mas Hachnasa (Income Tax) — 2024 monthly brackets
-    let tax = 0;
-    if (_ilGross > 0) tax += Math.min(_ilGross, 7010) * 0.10;
-    if (_ilGross > 7010) tax += Math.min(_ilGross - 7010, 3050) * 0.14;
-    if (_ilGross > 10060) tax += Math.min(_ilGross - 10060, 8940) * 0.20;
-    if (_ilGross > 19000) tax += Math.min(_ilGross - 19000, 6100) * 0.31;
-    if (_ilGross > 25100) tax += Math.min(_ilGross - 25100, 21590) * 0.35;
-    if (_ilGross > 46690) tax += Math.min(_ilGross - 46690, 13440) * 0.47;
-    if (_ilGross > 60130) tax += (_ilGross - 60130) * 0.50;
-    const creditPointsValue = 2.25 * 242; // 2.25 standard credit points
-    const ilMasHachnasa = Math.max(0, tax - creditPointsValue);
-
-    const ilEEPensionILS = _ilGross * (_ilEEPension / 100);
-    const ilEEKerenILS = _ilGross * (_ilEEKeren / 100);
-    const ilNet = _ilGross - ilBTL - ilMasHachnasa - ilEEPensionILS - ilEEKerenILS;
-
-    const ilTotalOutUSD = (_ilRent + _ilBurn) * _fxRate;
-    const ilLiquidFlowUSD = ilNet * _fxRate - ilTotalOutUSD;
-
-    const ilERMatchUSD = _ilGross * ((_ilERPension + _ilERSeverance + _ilERKeren) / 100) * _fxRate;
-    const ilEEMatchUSD = (ilEEPensionILS + ilEEKerenILS) * _fxRate;
-    const targetSavingsUSD = ilERMatchUSD + ilEEMatchUSD;
-
-    // US calc
-    const locData = LOCATIONS[selectedLoc] || LOCATIONS['NYC'];
-    const usGrossMonthly = _usGrossAnnual / 12;
-    const usBurnUSD = _ilBurn * _fxRate;
-    const usTotalOutUSD = _usRent + _usMiscBurn + usBurnUSD;
-    const maxERMatchUSD = usGrossMonthly * (_us401kMatchLimit / 100);
-
-    // 401k strategy: minimize personal contribution while hitting IL savings target.
-    // IRS limit caps EE contribution; anything beyond is a "Wealth Gap" (unrecoverable savings).
-    const IRS_401K_LIMIT_MONTHLY = 23500 / 12;
-    const employerUSD = maxERMatchUSD;
-    const requiredPersonalUSD = Math.max(0, targetSavingsUSD - employerUSD);
-    const personalUSD = Math.min(requiredPersonalUSD, IRS_401K_LIMIT_MONTHLY);
-    const wealthGapUSD = Math.max(0, requiredPersonalUSD - personalUSD);
-    const totalInvested = employerUSD + personalUSD;
-    const optimalPct = usGrossMonthly > 0 ? (personalUSD / usGrossMonthly) * 100 : 0;
-    const personalAnnual = personalUSD * 12;
-
-    // FICA: SS (capped) + Medicare + Additional Medicare on income > $200k
-    const ssTaxAnnual = Math.min(_usGrossAnnual, 168600) * 0.062;
-    const medTaxAnnual = _usGrossAnnual * 0.0145 + (_usGrossAnnual > 200000 ? (_usGrossAnnual - 200000) * 0.009 : 0);
-    const usFICAAnnual = ssTaxAnnual + medTaxAnnual;
-
-    // Federal income tax
-    const fedStandardDeduction = 14600;
-    const fedTaxable = Math.max(0, _usGrossAnnual - personalAnnual - fedStandardDeduction);
-    const usFedAnnual = calcBrackets(fedTaxable, FED_BRACKETS);
-
-    // State + City
-    let usStateAnnual = 0;
-    let usCityAnnual = 0;
-    if (locData.state === 'NY') {
-      const nyTaxable = Math.max(0, _usGrossAnnual - personalAnnual - 8000);
-      usStateAnnual = calcBrackets(nyTaxable, NY_STATE_BRACKETS);
-      if (locData.city === 'NYC') {
-        usCityAnnual = calcBrackets(nyTaxable, NYC_LOCAL_BRACKETS);
-      }
-    } else if (locData.state === 'NJ') {
-      const njTaxable = Math.max(0, _usGrossAnnual - personalAnnual - 1000);
-      usStateAnnual = calcBrackets(njTaxable, NJ_STATE_BRACKETS);
-    }
-
-    const usTaxesAnnual = usFICAAnnual + usFedAnnual + usStateAnnual + usCityAnnual;
-    const usTaxesMonthly = usTaxesAnnual / 12;
-    const netTakeHome = usGrossMonthly - personalUSD - usTaxesMonthly;
-    const liquidCashFlow = netTakeHome - usTotalOutUSD;
-    const liquidDelta = liquidCashFlow - ilLiquidFlowUSD;
-
-    return {
-      targetSavingsUSD,
-      optimalPct,
-      totalILSPct,
-      ilNet,
-      ilLiquidFlowUSD,
-      ilERMatchUSD,
-      ilEEMatchUSD,
-      usTotalOutUSD,
-      usBurnUSD,
-      personalUSD,
-      employerUSD,
-      totalInvested,
-      wealthGapUSD,
-      netTakeHome,
-      liquidCashFlow,
-      liquidDelta,
-      ilGrossUSD: _ilGross * _fxRate,
-      usGrossMonthly,
-      ilMasHachnasaUSD: ilMasHachnasa * _fxRate,
-      ilBTLUSD: ilBTL * _fxRate,
-      usFedMonthly: usFedAnnual / 12,
-      usFICAMonthly: usFICAAnnual / 12,
-      usStateMonthly: usStateAnnual / 12,
-      usCityMonthly: usCityAnnual / 12,
-      ilHousingUSD: _ilRent * _fxRate,
-      usRentUSD: _usRent,
-      usMiscBurnUSD: _usMiscBurn,
-      ilLifestyleUSD: _ilBurn * _fxRate,
-      usLifestyleUSD: usBurnUSD,
-      ilTotalOutUSD,
-      ilNetUSD: ilNet * _fxRate
-    };
-  }, [ilGross, ilERPension, ilERSeverance, ilERKeren, ilEEPension, ilEEKeren, ilRent, ilBurn, fxRate, selectedLoc, usGrossAnnual, usRent, us401kMatchLimit, usMiscBurn]);
+  const calc = useMemo(() => runEngine({
+    ilGross: Number(ilGross) || 0,
+    ilEEPension: Number(ilEEPension) || 0,
+    ilEEKeren: Number(ilEEKeren) || 0,
+    ilERPension: Number(ilERPension) || 0,
+    ilERSeverance: Number(ilERSeverance) || 0,
+    ilERKeren: Number(ilERKeren) || 0,
+    ilRent: Number(ilRent) || 0,
+    ilBurn: Number(ilBurn) || 0,
+    fxRate: Number(fxRate) || 0.27,
+    selectedLoc,
+    usGrossAnnual: Number(usGrossAnnual) || 0,
+    usRent: Number(usRent) || 0,
+    us401kMatchLimit: Number(us401kMatchLimit) || 0,
+    usMiscBurn: Number(usMiscBurn) || 0,
+    includeSeveranceInSavings: includeSeverance,
+  }), [ilGross, ilEEPension, ilEEKeren, ilERPension, ilERSeverance, ilERKeren,
+       ilRent, ilBurn, fxRate, selectedLoc, usGrossAnnual, usRent,
+       us401kMatchLimit, usMiscBurn, includeSeverance]);
 
   useEffect(() => {
     setUsRent(LOCATIONS[selectedLoc]?.defaultRent?.toString() || "4500");
   }, [selectedLoc]);
 
-  const coreState = { ...calc, ilGross, setIlGross, ilERPension, setIlERPension, ilERSeverance, setIlERSeverance, ilERKeren, setIlERKeren, ilEEPension, setIlEEPension, ilEEKeren, setIlEEKeren, ilRent, setIlRent, ilBurn, setIlBurn, selectedLoc, setSelectedLoc, usGrossAnnual, setUsGrossAnnual, usRent, setUsRent, us401kMatchLimit, setUs401kMatchLimit, usMiscBurn, setUsMiscBurn, calc };
+  const coreState = {
+    ...calc,
+    ilGross, setIlGross, ilERPension, setIlERPension, ilERSeverance, setIlERSeverance,
+    ilERKeren, setIlERKeren, ilEEPension, setIlEEPension, ilEEKeren, setIlEEKeren,
+    ilRent, setIlRent, ilBurn, setIlBurn, selectedLoc, setSelectedLoc,
+    usGrossAnnual, setUsGrossAnnual, usRent, setUsRent,
+    us401kMatchLimit, setUs401kMatchLimit, usMiscBurn, setUsMiscBurn,
+    includeSeverance, setIncludeSeverance,
+    calc,
+  };
 
   return (
     <div className={`min-h-screen p-4 md:p-8 transition-colors duration-300 ${activeLayout === 'sunrise' ? 'bg-slate-100' : 'bg-[#0B0F19]'}`}>
@@ -473,6 +327,18 @@ const LayoutSunrise = ({ calc, ...s }) => {
               </div>
               <SunriseInput label="Rent + Bills (ILS)" value={s.ilRent} onChange={s.setIlRent} tooltip="Monthly housing and utilities." />
               <SunriseInput label="Food, Fun & Living (ILS)" value={s.ilBurn} onChange={s.setIlBurn} tooltip="Remaining monthly spending. We convert this to USD to ensure your lifestyle doesn't drop." />
+              <label className="flex items-start gap-2 text-[11px] text-slate-600 font-medium leading-snug cursor-pointer mt-2 p-2 bg-white/40 border border-slate-200/60 rounded-lg hover:bg-white/70 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={s.includeSeverance}
+                  onChange={(e) => s.setIncludeSeverance(e.target.checked)}
+                  className="mt-0.5 accent-orange-500"
+                />
+                <span>
+                  Count <span className="font-bold">severance</span> ({s.ilERSeverance}%) as savings.
+                  <span className="block text-slate-500 font-normal">On if rolled into pension on exit. Off if you spend it.</span>
+                </span>
+              </label>
             </div>
           </section>
           <section className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 shadow-sm">
