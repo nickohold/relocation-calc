@@ -99,8 +99,27 @@ const App = () => {
     const usGrossMonthly = _usGrossAnnual / 12;
     const maxERMatchUSD = usGrossMonthly * (Number(us401kMatchLimit) / 100);
     let personalUSD = Math.max(0, targetSavingsUSD - maxERMatchUSD);
-    const usFedAnnual = calcBrackets(_usGrossAnnual - (personalUSD * 12) - 14600, FED_BRACKETS);
-    const usNet = usGrossMonthly - personalUSD - (usFedAnnual / 12);
+    const taxableAnnual = Math.max(0, _usGrossAnnual - (personalUSD * 12) - 14600);
+    const usFedAnnual = calcBrackets(taxableAnnual, FED_BRACKETS);
+
+    // FICA: 6.2% SS up to wage base + 1.45% Medicare on all wages
+    const SS_WAGE_BASE = 168600;
+    const usFICAAnnual = Math.min(_usGrossAnnual, SS_WAGE_BASE) * 0.062 + _usGrossAnnual * 0.0145;
+
+    // State + city tax based on selected location
+    const loc = LOCATIONS[selectedLoc];
+    let stateBrackets = null;
+    if (loc?.state === 'NY') stateBrackets = NY_STATE_BRACKETS;
+    else if (loc?.state === 'NJ') stateBrackets = NJ_STATE_BRACKETS;
+    const usStateAnnual = stateBrackets ? calcBrackets(taxableAnnual, stateBrackets) : 0;
+    const usCityAnnual = loc?.city === 'NYC' ? calcBrackets(taxableAnnual, NYC_LOCAL_BRACKETS) : 0;
+
+    const usFedMonthly = usFedAnnual / 12;
+    const usFICAMonthly = usFICAAnnual / 12;
+    const usStateMonthly = usStateAnnual / 12;
+    const usCityMonthly = usCityAnnual / 12;
+
+    const usNet = usGrossMonthly - personalUSD - usFedMonthly - usFICAMonthly - usStateMonthly - usCityMonthly;
 
     const liquidCashFlow = usNet - Number(usRent) - Number(usMiscBurn) - (Number(ilBurn) * _fxRate);
     const ilLiquidFlowUSD = (ilNet * _fxRate) - ((Number(ilRent) + Number(ilBurn)) * _fxRate);
@@ -126,7 +145,10 @@ const App = () => {
       usTotalOutUSD: Number(usRent) + Number(usMiscBurn) + (Number(ilBurn) * _fxRate),
       ilMasHachnasaUSD: ilMasHachnasa * _fxRate,
       ilBTLUSD: ilBTL * _fxRate,
-      usFedMonthly: usFedAnnual / 12,
+      usFedMonthly,
+      usFICAMonthly,
+      usStateMonthly,
+      usCityMonthly,
       ilEEMatchUSD,
       ilERMatchUSD,
       totalILSPct: (Number(ilEEPension) + Number(ilEEKeren) + Number(ilERPension) + Number(ilERSeverance) + Number(ilERKeren)),
