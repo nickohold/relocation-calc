@@ -131,9 +131,13 @@ const App = () => {
     const usTotalOutUSD = _usRent + _usMiscBurn + usBurnUSD;
     const maxERMatchUSD = usGrossMonthly * (_us401kMatchLimit / 100);
 
-    // 401k strategy: minimize personal contribution while hitting IL savings target
+    // 401k strategy: minimize personal contribution while hitting IL savings target.
+    // IRS limit caps EE contribution; anything beyond is a "Wealth Gap" (unrecoverable savings).
+    const IRS_401K_LIMIT_MONTHLY = 23500 / 12;
     const employerUSD = maxERMatchUSD;
-    const personalUSD = Math.max(0, targetSavingsUSD - employerUSD);
+    const requiredPersonalUSD = Math.max(0, targetSavingsUSD - employerUSD);
+    const personalUSD = Math.min(requiredPersonalUSD, IRS_401K_LIMIT_MONTHLY);
+    const wealthGapUSD = Math.max(0, requiredPersonalUSD - personalUSD);
     const totalInvested = employerUSD + personalUSD;
     const optimalPct = usGrossMonthly > 0 ? (personalUSD / usGrossMonthly) * 100 : 0;
     const personalAnnual = personalUSD * 12;
@@ -181,6 +185,7 @@ const App = () => {
       personalUSD,
       employerUSD,
       totalInvested,
+      wealthGapUSD,
       netTakeHome,
       liquidCashFlow,
       liquidDelta,
@@ -342,6 +347,19 @@ const LayoutBento = ({ calc, ...s }) => {
               <BentoStat label="Employer Pays" val={calc.employerUSD} color="text-indigo-400" />
             </div>
           </div>
+          {calc.wealthGapUSD > 0 && (
+            <div className="bg-rose-500/10 border border-rose-500/30 rounded-[2rem] p-6 shadow-2xl">
+              <div className="flex items-start gap-4">
+                <Lock className="text-rose-400 flex-shrink-0 mt-1" size={20} />
+                <div>
+                  <h4 className="text-sm font-black uppercase text-rose-300 mb-1">Wealth Gap: ${Math.round(calc.wealthGapUSD).toLocaleString()}/mo</h4>
+                  <p className="text-xs text-rose-200/80 font-medium leading-relaxed">
+                    Hitting your Israeli savings target requires <span className="font-bold">${Math.round(calc.wealthGapUSD).toLocaleString()}/mo more</span> than the IRS 401(k) limit allows ($23,500/yr). This move is a net-worth loss vs staying unless offset by RSUs / taxable brokerage.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] overflow-hidden shadow-2xl p-2">
             <table className="w-full text-left text-sm">
               <thead className="text-xs text-slate-500 uppercase tracking-widest font-bold">
@@ -488,6 +506,21 @@ const LayoutSunrise = ({ calc, ...s }) => {
               <SunriseStat label="Employer Pays" val={calc.employerUSD} color="text-emerald-600" />
             </div>
           </div>
+          {calc.wealthGapUSD > 0 && (
+            <div className="bg-rose-50 border-2 border-rose-300 rounded-3xl p-6 shadow-sm">
+              <div className="flex items-start gap-4">
+                <div className="bg-rose-200 p-3 rounded-2xl text-rose-700 flex-shrink-0">
+                  <Lock size={24} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black uppercase text-rose-800 mb-1">⚠ Wealth Gap: ${Math.round(calc.wealthGapUSD).toLocaleString()}/mo</h4>
+                  <p className="text-xs text-rose-700 font-medium leading-relaxed">
+                    Hitting your Israeli savings target requires <span className="font-bold">${Math.round(calc.wealthGapUSD).toLocaleString()}/mo more</span> than the IRS 401(k) limit allows ($23,500/yr). Even with positive lifestyle delta, this move is a <span className="font-bold">net-worth loss</span> versus staying — unless offset by RSUs, taxable brokerage, or other vehicles not modeled here.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="bg-slate-50 border border-slate-200/80 rounded-3xl overflow-hidden shadow-sm">
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-100/60 text-slate-500 uppercase font-black text-xs border-b border-slate-200/80">
