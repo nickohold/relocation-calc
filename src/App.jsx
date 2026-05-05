@@ -39,9 +39,11 @@ const NJ_STATE_BRACKETS = [
 ];
 
 const LOCATIONS = {
-  'NYC': { name: 'Manhattan', state: 'NY', city: 'NYC', defaultRent: 4500 },
-  'NJ': { name: 'Jersey City', state: 'NJ', city: null, defaultRent: 3900 },
-  'ATX': { name: 'Austin', state: 'TX', city: null, defaultRent: 2600 },
+  'NYC': { name: 'Manhattan (UWS)', state: 'NY', city: 'NYC', defaultRent: 4500 },
+  'NJ': { name: 'Hoboken/JC', state: 'NJ', city: null, defaultRent: 3900 },
+  'WNY': { name: 'West NY/Guttenberg', state: 'NJ', city: null, defaultRent: 2900 },
+  'ATX': { name: 'Austin, TX', state: 'TX', city: null, defaultRent: 2600 },
+  'HOU': { name: 'Houston, TX', state: 'TX', city: null, defaultRent: 2200 },
 };
 
 const calcBrackets = (income, brackets) => {
@@ -78,81 +80,129 @@ const App = () => {
 
   const calc = useMemo(() => {
     const _ilGross = Number(ilGross) || 0;
+    const _ilERPension = Number(ilERPension) || 0;
+    const _ilERSeverance = Number(ilERSeverance) || 0;
+    const _ilERKeren = Number(ilERKeren) || 0;
+    const _ilEEPension = Number(ilEEPension) || 0;
+    const _ilEEKeren = Number(ilEEKeren) || 0;
+    const _ilRent = Number(ilRent) || 0;
+    const _ilBurn = Number(ilBurn) || 0;
     const _fxRate = Number(fxRate) || 0.27;
     const _usGrossAnnual = Number(usGrossAnnual) || 0;
+    const _usRent = Number(usRent) || 0;
+    const _us401kMatchLimit = Number(us401kMatchLimit) || 0;
+    const _usMiscBurn = Number(usMiscBurn) || 0;
 
-    // Israel Tax & Net
-    const btlLow = Math.min(_ilGross, 7703) * 0.035;
-    const btlHigh = Math.max(0, Math.min(_ilGross, 49030) - 7703) * 0.12;
+    const totalILSPct = _ilEEPension + _ilEEKeren + _ilERPension + _ilERSeverance + _ilERKeren;
+
+    // Israel: Bituach Leumi (Social Security)
+    const btlThreshold = 7703;
+    const btlLow = Math.min(_ilGross, btlThreshold) * 0.035;
+    const btlHigh = Math.max(0, Math.min(_ilGross, 49030) - btlThreshold) * 0.12;
     const ilBTL = btlLow + btlHigh;
-    const ilMasHachnasa = 500; // Simplified for this block
-    const ilEEPensionILS = _ilGross * (Number(ilEEPension) / 100);
-    const ilEEKerenILS = _ilGross * (Number(ilEEKeren) / 100);
+
+    // Israel: Mas Hachnasa (Income Tax) — 2024 monthly brackets
+    let tax = 0;
+    if (_ilGross > 0) tax += Math.min(_ilGross, 7010) * 0.10;
+    if (_ilGross > 7010) tax += Math.min(_ilGross - 7010, 3050) * 0.14;
+    if (_ilGross > 10060) tax += Math.min(_ilGross - 10060, 8940) * 0.20;
+    if (_ilGross > 19000) tax += Math.min(_ilGross - 19000, 6100) * 0.31;
+    if (_ilGross > 25100) tax += Math.min(_ilGross - 25100, 21590) * 0.35;
+    if (_ilGross > 46690) tax += Math.min(_ilGross - 46690, 13440) * 0.47;
+    if (_ilGross > 60130) tax += (_ilGross - 60130) * 0.50;
+    const creditPointsValue = 2.25 * 242; // 2.25 standard credit points
+    const ilMasHachnasa = Math.max(0, tax - creditPointsValue);
+
+    const ilEEPensionILS = _ilGross * (_ilEEPension / 100);
+    const ilEEKerenILS = _ilGross * (_ilEEKeren / 100);
     const ilNet = _ilGross - ilBTL - ilMasHachnasa - ilEEPensionILS - ilEEKerenILS;
 
-    // Savings Target
-    const ilERMatchUSD = (_ilGross * ((Number(ilERPension) + Number(ilERSeverance) + Number(ilERKeren)) / 100)) * _fxRate;
+    const ilTotalOutUSD = (_ilRent + _ilBurn) * _fxRate;
+    const ilLiquidFlowUSD = ilNet * _fxRate - ilTotalOutUSD;
+
+    const ilERMatchUSD = _ilGross * ((_ilERPension + _ilERSeverance + _ilERKeren) / 100) * _fxRate;
     const ilEEMatchUSD = (ilEEPensionILS + ilEEKerenILS) * _fxRate;
     const targetSavingsUSD = ilERMatchUSD + ilEEMatchUSD;
 
-    // US Tax & Net
+    // US calc
+    const locData = LOCATIONS[selectedLoc] || LOCATIONS['NYC'];
     const usGrossMonthly = _usGrossAnnual / 12;
-    const maxERMatchUSD = usGrossMonthly * (Number(us401kMatchLimit) / 100);
-    let personalUSD = Math.max(0, targetSavingsUSD - maxERMatchUSD);
-    const taxableAnnual = Math.max(0, _usGrossAnnual - (personalUSD * 12) - 14600);
-    const usFedAnnual = calcBrackets(taxableAnnual, FED_BRACKETS);
+    const usBurnUSD = _ilBurn * _fxRate;
+    const usTotalOutUSD = _usRent + _usMiscBurn + usBurnUSD;
+    const maxERMatchUSD = usGrossMonthly * (_us401kMatchLimit / 100);
 
-    // FICA: 6.2% SS up to wage base + 1.45% Medicare on all wages
-    const SS_WAGE_BASE = 168600;
-    const usFICAAnnual = Math.min(_usGrossAnnual, SS_WAGE_BASE) * 0.062 + _usGrossAnnual * 0.0145;
+    // 401k strategy: capture full employer match, then top up personal to hit IL target
+    let employerUSD = maxERMatchUSD;
+    let personalUSD = maxERMatchUSD;
+    let totalInvested = employerUSD + personalUSD;
+    if (totalInvested < targetSavingsUSD) {
+      personalUSD += targetSavingsUSD - totalInvested;
+      totalInvested = personalUSD + employerUSD;
+    }
+    const optimalPct = usGrossMonthly > 0 ? (personalUSD / usGrossMonthly) * 100 : 0;
+    const personalAnnual = personalUSD * 12;
 
-    // State + city tax based on selected location
-    const loc = LOCATIONS[selectedLoc];
-    let stateBrackets = null;
-    if (loc?.state === 'NY') stateBrackets = NY_STATE_BRACKETS;
-    else if (loc?.state === 'NJ') stateBrackets = NJ_STATE_BRACKETS;
-    const usStateAnnual = stateBrackets ? calcBrackets(taxableAnnual, stateBrackets) : 0;
-    const usCityAnnual = loc?.city === 'NYC' ? calcBrackets(taxableAnnual, NYC_LOCAL_BRACKETS) : 0;
+    // FICA: SS (capped) + Medicare + Additional Medicare on income > $200k
+    const ssTaxAnnual = Math.min(_usGrossAnnual, 168600) * 0.062;
+    const medTaxAnnual = _usGrossAnnual * 0.0145 + (_usGrossAnnual > 200000 ? (_usGrossAnnual - 200000) * 0.009 : 0);
+    const usFICAAnnual = ssTaxAnnual + medTaxAnnual;
 
-    const usFedMonthly = usFedAnnual / 12;
-    const usFICAMonthly = usFICAAnnual / 12;
-    const usStateMonthly = usStateAnnual / 12;
-    const usCityMonthly = usCityAnnual / 12;
+    // Federal income tax
+    const fedStandardDeduction = 14600;
+    const fedTaxable = Math.max(0, _usGrossAnnual - personalAnnual - fedStandardDeduction);
+    const usFedAnnual = calcBrackets(fedTaxable, FED_BRACKETS);
 
-    const usNet = usGrossMonthly - personalUSD - usFedMonthly - usFICAMonthly - usStateMonthly - usCityMonthly;
+    // State + City
+    let usStateAnnual = 0;
+    let usCityAnnual = 0;
+    if (locData.state === 'NY') {
+      const nyTaxable = Math.max(0, _usGrossAnnual - personalAnnual - 8000);
+      usStateAnnual = calcBrackets(nyTaxable, NY_STATE_BRACKETS);
+      if (locData.city === 'NYC') {
+        usCityAnnual = calcBrackets(nyTaxable, NYC_LOCAL_BRACKETS);
+      }
+    } else if (locData.state === 'NJ') {
+      const njTaxable = Math.max(0, _usGrossAnnual - personalAnnual - 1000);
+      usStateAnnual = calcBrackets(njTaxable, NJ_STATE_BRACKETS);
+    }
 
-    const liquidCashFlow = usNet - Number(usRent) - Number(usMiscBurn) - (Number(ilBurn) * _fxRate);
-    const ilLiquidFlowUSD = (ilNet * _fxRate) - ((Number(ilRent) + Number(ilBurn)) * _fxRate);
+    const usTaxesAnnual = usFICAAnnual + usFedAnnual + usStateAnnual + usCityAnnual;
+    const usTaxesMonthly = usTaxesAnnual / 12;
+    const netTakeHome = usGrossMonthly - personalUSD - usTaxesMonthly;
+    const liquidCashFlow = netTakeHome - usTotalOutUSD;
+    const liquidDelta = liquidCashFlow - ilLiquidFlowUSD;
 
     return {
       targetSavingsUSD,
-      optimalPct: usGrossMonthly > 0 ? (personalUSD / usGrossMonthly) * 100 : 0,
-      netTakeHome: usNet,
+      optimalPct,
+      totalILSPct,
+      ilNet,
+      ilLiquidFlowUSD,
+      ilERMatchUSD,
+      ilEEMatchUSD,
+      usTotalOutUSD,
+      usBurnUSD,
+      personalUSD,
+      employerUSD,
+      totalInvested,
+      netTakeHome,
       liquidCashFlow,
-      liquidDelta: liquidCashFlow - ilLiquidFlowUSD,
+      liquidDelta,
       ilGrossUSD: _ilGross * _fxRate,
       usGrossMonthly,
-      personalUSD,
-      employerUSD: maxERMatchUSD,
-      totalInvested: personalUSD + maxERMatchUSD,
-      ilNetUSD: ilNet * _fxRate,
-      ilHousingUSD: Number(ilRent) * _fxRate,
-      usRentUSD: Number(usRent),
-      usMiscBurnUSD: Number(usMiscBurn),
-      ilLifestyleUSD: Number(ilBurn) * _fxRate,
-      usLifestyleUSD: Number(ilBurn) * _fxRate,
-      ilTotalOutUSD: (Number(ilRent) + Number(ilBurn)) * _fxRate,
-      usTotalOutUSD: Number(usRent) + Number(usMiscBurn) + (Number(ilBurn) * _fxRate),
       ilMasHachnasaUSD: ilMasHachnasa * _fxRate,
       ilBTLUSD: ilBTL * _fxRate,
-      usFedMonthly,
-      usFICAMonthly,
-      usStateMonthly,
-      usCityMonthly,
-      ilEEMatchUSD,
-      ilERMatchUSD,
-      totalILSPct: (Number(ilEEPension) + Number(ilEEKeren) + Number(ilERPension) + Number(ilERSeverance) + Number(ilERKeren)),
-      ilLiquidFlowUSD
+      usFedMonthly: usFedAnnual / 12,
+      usFICAMonthly: usFICAAnnual / 12,
+      usStateMonthly: usStateAnnual / 12,
+      usCityMonthly: usCityAnnual / 12,
+      ilHousingUSD: _ilRent * _fxRate,
+      usRentUSD: _usRent,
+      usMiscBurnUSD: _usMiscBurn,
+      ilLifestyleUSD: _ilBurn * _fxRate,
+      usLifestyleUSD: usBurnUSD,
+      ilTotalOutUSD,
+      ilNetUSD: ilNet * _fxRate
     };
   }, [ilGross, ilERPension, ilERSeverance, ilERKeren, ilEEPension, ilEEKeren, ilRent, ilBurn, fxRate, selectedLoc, usGrossAnnual, usRent, us401kMatchLimit, usMiscBurn]);
 
@@ -432,7 +482,7 @@ const LayoutSunrise = ({ calc, ...s }) => {
               <div className="bg-orange-100/80 p-3 rounded-2xl text-orange-600"><Lock size={24} /></div>
               <div>
                 <h4 className="text-sm font-black uppercase text-slate-900">Matching Your Israeli Savings</h4>
-                <p className="text-xs text-slate-500 mt-1 font-medium">We locked your US savings to match your total Israeli savings rate. You need to contribute <span className="text-orange-600 font-bold">{calc.optimalPct.toFixed(2)}%</span> to break even.</p>
+                <p className="text-xs text-slate-500 mt-1 font-medium">We locked your US savings to match your total Israeli savings rate. You need to contribute <span className="text-orange-600 font-bold">{calc.optimalPct.toFixed(2)}%</span> to break even on wealth building.</p>
               </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 border-t border-slate-200/60 pt-6">
