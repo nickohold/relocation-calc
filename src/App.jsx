@@ -131,14 +131,10 @@ const App = () => {
     const usTotalOutUSD = _usRent + _usMiscBurn + usBurnUSD;
     const maxERMatchUSD = usGrossMonthly * (_us401kMatchLimit / 100);
 
-    // 401k strategy: capture full employer match, then top up personal to hit IL target
-    let employerUSD = maxERMatchUSD;
-    let personalUSD = maxERMatchUSD;
-    let totalInvested = employerUSD + personalUSD;
-    if (totalInvested < targetSavingsUSD) {
-      personalUSD += targetSavingsUSD - totalInvested;
-      totalInvested = personalUSD + employerUSD;
-    }
+    // 401k strategy: minimize personal contribution while hitting IL savings target
+    const employerUSD = maxERMatchUSD;
+    const personalUSD = Math.max(0, targetSavingsUSD - employerUSD);
+    const totalInvested = employerUSD + personalUSD;
     const optimalPct = usGrossMonthly > 0 ? (personalUSD / usGrossMonthly) * 100 : 0;
     const personalAnnual = personalUSD * 12;
 
