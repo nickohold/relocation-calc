@@ -223,6 +223,16 @@ const App = () => {
           </div>
         </div>
         {activeLayout === 'sunrise' ? <LayoutSunrise {...coreState} /> : <LayoutBento {...coreState} />}
+        <footer className={`pt-8 pb-4 text-center text-[10px] font-mono tracking-widest uppercase ${activeLayout === 'sunrise' ? 'text-slate-400' : 'text-slate-600'}`}>
+          <a
+            href={`https://github.com/nickohold/relocation-calc/commit/${__APP_SHA__}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline"
+          >
+            {__APP_VERSION__} · {__APP_SHA__} · {__APP_BUILD_DATE__}
+          </a>
+        </footer>
       </div>
     </div>
   );

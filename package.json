@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "git fetch --unshallow 2>/dev/null || true && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
