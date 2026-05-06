@@ -62,15 +62,18 @@ export const CONSTANTS = {
   NY_STD_DEDUCTION_SINGLE: 8000,
   NJ_PERSONAL_EXEMPTION: 1000,
 
-  // Israel
-  BTL_THRESHOLD: 7703,
-  BTL_LOW_RATE: 0.035,
-  BTL_HIGH_RATE: 0.12,
-  BTL_CAP: 49030,
+  // Israel — 2026 figures from btl.gov.il
+  BTL_THRESHOLD: 7703,        // 60% of average wage; switch from reduced to regular rate
+  BTL_CAP: 51910,             // monthly ceiling for BTL+Health (no contribution above this)
+  BTL_LOW_RATE: 0.0104,       // employee BTL on income ≤ threshold
+  BTL_HIGH_RATE: 0.07,        // employee BTL on income > threshold (≤ cap)
+  HEALTH_LOW_RATE: 0.0323,    // employee Health (Mas Briut) on income ≤ threshold
+  HEALTH_HIGH_RATE: 0.0517,   // employee Health on income > threshold (≤ cap)
   CREDIT_POINT_VALUE_ILS: 242,
-  PENSION_CREDIT_RATE: 0.35,        // 35% credit on EE pension contributions
-  PENSION_CREDIT_INCOME_CAP: 9684,  // monthly insured salary cap for credit
-  PENSION_CREDIT_PCT_CAP: 0.07,     // up to 7% of insured salary
+  PENSION_CREDIT_RATE: 0.35,
+  PENSION_CREDIT_INCOME_CAP: 9684,
+  PENSION_CREDIT_PCT_CAP: 0.07,
+  KEREN_HISHTALMUT_SALARY_CAP: 15712,  // monthly insured-salary cap for tax-favored keren contribs
 };
 
 // Apply progressive tax brackets.
@@ -85,12 +88,20 @@ export const calcBrackets = (income, brackets) => {
   return tax;
 };
 
-// Bituach Leumi (Israeli social security + health) on monthly gross.
+// Bituach Leumi (BTL) + Health Tax (Mas Briut) on monthly gross — combined.
+// 2026 employee rates: BTL 1.04% + Health 3.23% = 4.27% below threshold;
+// BTL 7.0% + Health 5.17% = 12.17% above threshold (up to ceiling).
 export const calcBTL = (gross) => {
-  const { BTL_THRESHOLD, BTL_LOW_RATE, BTL_HIGH_RATE, BTL_CAP } = CONSTANTS;
-  const low = Math.min(gross, BTL_THRESHOLD) * BTL_LOW_RATE;
-  const high = Math.max(0, Math.min(gross, BTL_CAP) - BTL_THRESHOLD) * BTL_HIGH_RATE;
-  return low + high;
+  const {
+    BTL_THRESHOLD, BTL_CAP,
+    BTL_LOW_RATE, BTL_HIGH_RATE,
+    HEALTH_LOW_RATE, HEALTH_HIGH_RATE,
+  } = CONSTANTS;
+  const lowBase = Math.min(gross, BTL_THRESHOLD);
+  const highBase = Math.max(0, Math.min(gross, BTL_CAP) - BTL_THRESHOLD);
+  const btl = lowBase * BTL_LOW_RATE + highBase * BTL_HIGH_RATE;
+  const health = lowBase * HEALTH_LOW_RATE + highBase * HEALTH_HIGH_RATE;
+  return btl + health;
 };
 
 // 2024 Israeli monthly income tax brackets (Mas Hachnasa).
@@ -144,13 +155,18 @@ export const calcIL = ({
   const masHachnasa = Math.max(0, grossTax - creditPointsValue - pensionCredit);
 
   const eePensionILS = gross * (eePensionPct / 100);
-  const eeKerenILS   = gross * (eeKerenPct   / 100);
+  // Keren Hishtalmut contributions are tax-favorable only on insured salary
+  // up to the statutory cap. Above the cap, employers typically stop the deduction.
+  const kerenBase = Math.min(gross, CONSTANTS.KEREN_HISHTALMUT_SALARY_CAP);
+  const eeKerenILS = kerenBase * (eeKerenPct / 100);
   const net = gross - btl - masHachnasa - eePensionILS - eeKerenILS;
 
+  // ER pension is on full gross; ER keren is capped at the keren salary cap.
   // ER severance (pitzuim) is only "savings" if rolled over on job exit.
-  // Toggle lets caller decide.
-  const erSavingsPct = erPensionPct + erKerenPct + (includeSeveranceInSavings ? erSeverancePct : 0);
-  const erSavingsILS = gross * (erSavingsPct / 100);
+  const erPensionILS = gross * (erPensionPct / 100);
+  const erKerenILS = kerenBase * (erKerenPct / 100);
+  const erSeveranceILS = includeSeveranceInSavings ? gross * (erSeverancePct / 100) : 0;
+  const erSavingsILS = erPensionILS + erKerenILS + erSeveranceILS;
   const eeSavingsILS = eePensionILS + eeKerenILS;
   const totalSavingsILS = erSavingsILS + eeSavingsILS;
 
