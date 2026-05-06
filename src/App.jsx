@@ -170,7 +170,7 @@ const LayoutBento = ({ calc, ...s }) => {
                 <BentoInput label="Your Pension %" value={s.ilEEPension} onChange={s.setIlEEPension} step={0.1} />
                 <BentoInput label="Your Keren %" value={s.ilEEKeren} onChange={s.setIlEEKeren} step={0.1} />
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <BentoInput label="Employer Pension %" value={s.ilERPension} onChange={s.setIlERPension} step={0.1} />
                 <BentoInput label="Employer Severance %" value={s.ilERSeverance} onChange={s.setIlERSeverance} step={0.1} />
                 <BentoInput label="Employer Keren %" value={s.ilERKeren} onChange={s.setIlERKeren} step={0.1} />
@@ -374,7 +374,7 @@ const LayoutSunrise = ({ calc, ...s }) => {
                 <SunriseInput label="Your Pension %" value={s.ilEEPension} onChange={s.setIlEEPension} step={0.1} tooltip="The percentage YOU pay into your pension (usually 6%)." />
                 <SunriseInput label="Your Keren %" value={s.ilEEKeren} onChange={s.setIlEEKeren} step={0.1} tooltip="The percentage YOU pay into Keren Hishtalmut (usually 2.5%)." />
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <SunriseInput label="Employer Pension %" value={s.ilERPension} onChange={s.setIlERPension} step={0.1} tooltip="Employer Pension match (usually 6.5%)." />
                 <SunriseInput label="Employer Severance %" value={s.ilERSeverance} onChange={s.setIlERSeverance} step={0.1} tooltip="Employer Severance/Pitzuim (usually 8.33%)." />
                 <SunriseInput label="Employer Keren %" value={s.ilERKeren} onChange={s.setIlERKeren} step={0.1} tooltip="Employer Keren Hishtalmut (usually 7.5%)." />
