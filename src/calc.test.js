@@ -34,24 +34,29 @@ describe('calcBrackets — progressive bracket math', () => {
   });
 });
 
-describe('calcBTL — Israeli social security', () => {
+describe('calcBTL — BTL + Health Tax (2026 rates)', () => {
   it('is 0 at 0 gross', () => {
     expect(calcBTL(0)).toBe(0);
   });
 
-  it('charges 3.5% below threshold', () => {
-    expect(calcBTL(5000)).toBeCloseTo(175, 1); // 5000 × 0.035
+  it('charges combined 4.27% (1.04% BTL + 3.23% Health) below threshold', () => {
+    expect(calcBTL(5000)).toBeCloseTo(5000 * 0.0427, 2);
   });
 
-  it('charges 12% on income above 7,703 ILS', () => {
-    // 7703×0.035 + (15000−7703)×0.12 = 269.605 + 875.64 = 1145.245
-    expect(calcBTL(15000)).toBeCloseTo(1145.245, 2);
+  it('charges combined 12.17% (7% BTL + 5.17% Health) above threshold', () => {
+    // 7703×0.0427 + (15000−7703)×0.1217 = 328.92 + 887.36 = 1216.28
+    expect(calcBTL(15000)).toBeCloseTo(7703 * 0.0427 + (15000 - 7703) * 0.1217, 2);
   });
 
-  it('caps at the 49,030 ILS BTL ceiling', () => {
-    const atCap = calcBTL(49030);
+  it('caps at the 51,910 ILS ceiling', () => {
+    const atCap = calcBTL(51910);
     const above = calcBTL(80000);
     expect(above).toBeCloseTo(atCap, 2);
+  });
+
+  it('matches real payslip: BTL+Health on taxable ₪34,296 = ₪3,565', () => {
+    // From Nick's April 2026 slip: BTL ₪1,941.65 + Health ₪1,623.69 = ₪3,565.34
+    expect(calcBTL(34296)).toBeCloseTo(3565.34, 0);
   });
 });
 
@@ -131,6 +136,32 @@ describe('calcIL — Israel engine', () => {
     expect(r.btl).toBe(0);
     expect(r.masHachnasa).toBe(0);
     expect(r.net).toBe(0);
+  });
+
+  it('caps EE keren at the ₪15,712/mo statutory base (2026)', () => {
+    // At gross ₪32,000, EE keren is on min(32000, 15712) = 15712
+    // EE keren 2.5% = ₪392.80, NOT 2.5% × 32000 = ₪800
+    const r = calcIL({ ...baseIL, gross: 32000 });
+    expect(r.eeKerenILS).toBeCloseTo(15712 * 0.025, 2); // ₪392.80
+  });
+
+  it('caps ER keren at the ₪15,712/mo statutory base (2026)', () => {
+    // ER keren 7.5% × 15,712 = ₪1,178.40
+    const r = calcIL({ ...baseIL, gross: 32000 });
+    // Expect the ER keren component of erSavingsILS to reflect the cap
+    // erSavings = ER pension (full gross) + ER keren (capped) + ER severance (full gross)
+    const expectedERPension = 32000 * (baseIL.erPensionPct / 100);
+    const expectedERKeren = 15712 * (baseIL.erKerenPct / 100);
+    const expectedERSeverance = 32000 * (baseIL.erSeverancePct / 100);
+    expect(r.erSavingsILS).toBeCloseTo(
+      expectedERPension + expectedERKeren + expectedERSeverance, 1,
+    );
+  });
+
+  it('does NOT cap pension contributions (only keren is capped)', () => {
+    // EE pension stays at 6% × full gross
+    const r = calcIL({ ...baseIL, gross: 32000 });
+    expect(r.eePensionILS).toBeCloseTo(32000 * 0.06, 2); // ₪1,920
   });
 });
 
@@ -267,6 +298,51 @@ describe('runEngine — end-to-end', () => {
     expect(off.targetSavingsUSD).toBeLessThan(on.targetSavingsUSD);
     // With less mandatory savings, lifestyle improves
     expect(off.liquidCashFlow).toBeGreaterThan(on.liquidCashFlow);
+  });
+});
+
+// Real payslip regression: Nick Holden, April 2026, gross ₪32,000
+// All deduction figures from the slip itself.
+describe('Real payslip — April 2026', () => {
+  const slip = calcIL({
+    gross: 32000,
+    eePensionPct: 6, eeKerenPct: 2.5,
+    erPensionPct: 6.5, erSeverancePct: 8.33, erKerenPct: 7.5,
+    rent: 0, burn: 0,
+  });
+
+  it('EE pension matches slip (₪1,920)', () => {
+    expect(slip.eePensionILS).toBeCloseTo(1920, 0);
+  });
+
+  it('EE keren matches slip (₪392.80)', () => {
+    expect(slip.eeKerenILS).toBeCloseTo(392.80, 1);
+  });
+
+  it('BTL+Health gap vs slip equals (imputed benefits × 12.17%) — within ₪10 of ₪279', () => {
+    // Slip's taxable was 34,296 (incl. ₪2,296 of imputed benefits not in our model).
+    // Gap should equal 2,296 × 12.17% ≈ ₪279.42.
+    const slipTotal = 1941.65 + 1623.69; // 3565.34
+    expect(slipTotal - slip.btl).toBeCloseTo(2296 * 0.1217, -1); // within ~₪10
+  });
+
+  it('feeding ACTUAL taxable (₪34,296) into calcBTL matches slip exactly', () => {
+    // Direct: shows the engine itself is correct; the gap above is only because
+    // the model doesn't auto-add imputed benefits to gross.
+    const directBTL = calcIL({
+      gross: 34296,
+      eePensionPct: 6, eeKerenPct: 2.5,
+      erPensionPct: 6.5, erSeverancePct: 8.33, erKerenPct: 7.5,
+      rent: 0, burn: 0,
+    }).btl;
+    expect(directBTL).toBeCloseTo(3565.34, 0);
+  });
+
+  it('income tax — within ₪500 of the ₪5,983.61 on slip (residual gap = section 47 deduction nuance)', () => {
+    // Slip shows ₪5,983.61. Our model is slightly higher because Section 47
+    // pension deduction interplay is not fully modeled. Documented in LOGIC.md §5.1.
+    expect(slip.masHachnasa).toBeGreaterThan(5500);
+    expect(slip.masHachnasa).toBeLessThan(6500);
   });
 });
 

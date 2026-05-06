@@ -2,7 +2,7 @@
 
 **Source of truth for all calculations.** If the code disagrees with this document, one of them is wrong — file an issue.
 
-Last reviewed: 2026-05-06 · Tax year basis: **2024** (US) / **2024** (Israel)
+Last reviewed: 2026-05-06 · Tax year basis: **2024** (US) / **2026** (Israel)
 
 ---
 
@@ -33,14 +33,17 @@ All values live in `src/calc.js → CONSTANTS`.
 | Additional Medicare rate | 0.9% | IRS |
 | NY state std deduction (single) | $8,000 | NY DTF 2024 |
 | NJ personal exemption | $1,000 | NJ Treasury 2024 |
-| BTL low-rate threshold | ₪7,703/mo | MOF 2024 |
-| BTL high-rate cap | ₪49,030/mo | MOF 2024 |
-| BTL low rate | 3.5% | combined social + health |
-| BTL high rate | 12.0% | combined social + health |
-| Israeli credit point value | ₪242/mo | MOF 2024 |
+| BTL low/high threshold | ₪7,703/mo | btl.gov.il (2026) |
+| BTL ceiling (no contribs above) | ₪51,910/mo | btl.gov.il (2026) |
+| BTL employee rate (low) | 1.04% | btl.gov.il (2026) |
+| BTL employee rate (high) | 7.0% | btl.gov.il (2026) |
+| Health employee rate (low) | 3.23% | btl.gov.il (2026) |
+| Health employee rate (high) | 5.17% | btl.gov.il (2026) |
+| Israeli credit point value | ₪242/mo | MOF 2026 |
 | Pension tax credit rate | 35% | Israeli tax law |
-| Pension credit insured-salary cap | ₪9,684/mo | MOF 2024 |
+| Pension credit insured-salary cap | ₪9,684/mo | MOF 2026 |
 | Pension credit % cap | 7% of insured salary | — |
+| Keren Hishtalmut salary cap | ₪15,712/mo | MOF 2026 (Harel) |
 
 Update these together when refreshing for a new tax year.
 
@@ -48,15 +51,19 @@ Update these together when refreshing for a new tax year.
 
 ## 2. Israel Engine (`calcIL`)
 
-### 2.1 Bituach Leumi (Social Security + Health) — `calcBTL`
+### 2.1 Bituach Leumi (BTL) + Health Tax (Mas Briut) — `calcBTL`
 
-Two-tier on monthly gross:
+Two-tier on monthly gross. **Combined** = BTL + Mas Briut (the slip shows them on separate lines but they share the same threshold/ceiling and the model returns the sum).
+
 ```
-BTL_low  = min(gross, 7,703) × 3.5%
-BTL_high = max(0, min(gross, 49,030) − 7,703) × 12%
-BTL      = BTL_low + BTL_high
+low_base  = min(gross, 7,703)
+high_base = max(0, min(gross, 51,910) − 7,703)
+
+BTL    = low_base × 1.04% + high_base × 7.00%
+Health = low_base × 3.23% + high_base × 5.17%
+total  = BTL + Health
 ```
-Caps at gross of ₪49,030/mo. Above the cap → flat amount.
+No contributions above ₪51,910/mo. Verified against a real 4/2026 payslip (taxable ₪34,296 → ₪3,565.34, exact match).
 
 ### 2.2 Mas Hachnasa (Income Tax)
 
@@ -93,18 +100,24 @@ Non-refundable — capped at the income tax owed.
 ### 2.3 Net Take-Home
 
 ```
-EE_pension_ILS = gross × EE_pension_pct%
-EE_keren_ILS   = gross × EE_keren_pct%
+EE_pension_ILS = gross × EE_pension_pct%                          # uncapped — applies to full gross
+keren_base     = min(gross, 15,712)                               # ← statutory keren salary cap
+EE_keren_ILS   = keren_base × EE_keren_pct%
 net_IL = gross − BTL − mas_hachnasa − EE_pension_ILS − EE_keren_ILS
 ```
+
+**Keren Hishtalmut cap (₪15,712/mo, 2026):** Above this insured-salary base, contributions either stop entirely or become taxable. Most employers stop at the cap. Pension contributions are NOT capped this way — only keren is.
 
 ### 2.4 Wealth Accumulation
 
 Total monthly money flowing into long-term vehicles:
 
 ```
-EE_savings   = EE_pension_ILS + EE_keren_ILS
-ER_savings   = gross × (ER_pension_pct + ER_keren_pct + [ER_severance_pct])
+EE_savings   = EE_pension_ILS + EE_keren_ILS                              # keren capped at ₪15,712
+ER_pension   = gross × ER_pension_pct%                                    # uncapped
+ER_keren     = min(gross, 15,712) × ER_keren_pct%                         # capped
+ER_severance = gross × ER_severance_pct% (only if severance toggle ON)    # uncapped
+ER_savings   = ER_pension + ER_keren + ER_severance
 total_IL_savings = EE_savings + ER_savings
 ```
 
@@ -230,6 +243,8 @@ The model is **directional**, not a tax filing. These are the explicit gaps:
 - **Filing status:** single only. No couples / dependents.
 - **Olim chadashim 10-year tax break:** not modeled. If you qualify, IL tax is dramatically lower.
 - **Section 102 RSU treatment:** not modeled.
+- **Imputed benefits (שווי):** Meals, sport, holiday gifts, gross-ups (גילום) etc. shown on Israeli payslips inflate the taxable base above what the user enters as "gross". Real-world, this can add ₪1,500–₪2,500/mo to taxable. Not modeled — `gross` is the only input. To get an accurate tax/BTL number, enter your slip's `חייב מ.ה.` figure as gross.
+- **Section 47 deduction interplay:** Israeli payslips often show a Section 47 deduction reducing taxable income beyond the standard pension credit. Magnitude is typically ₪1,000–₪1,500/mo. Not modeled — the engine returns income tax slightly higher than reality (~₪450/mo at ₪32k gross).
 - **Pitzuim withdrawal tax:** assumes severance is rolled over (when toggle is on). Cash withdrawal would be partially taxed.
 - **Keren Hishtalmut withdrawal tax:** assumes 6-year hold; no tax on withdrawal.
 
@@ -283,6 +298,8 @@ When you change a top-level input, follow the arrows to predict downstream effec
 | 2026-05-06 | Israeli pension tax credit (35% × min(EE, 7%)) was missing — overstated IL tax | Added `calcPensionCredit` |
 | 2026-05-06 | Severance pitzuim (8.33%) always counted as savings, inflating US 401k target | Added `includeSeveranceInSavings` toggle |
 | 2026-05-06 | No IRS $23,500 cap on personal 401k contribution | Cap enforced; surplus surfaces as `wealthGap` with UI warning |
+| 2026-05-06 | BTL+Health used 3.5%/12.0% combined rates (off-by-0.27%); ceiling was ₪49,030 (2024 figure) | Split into BTL (1.04%/7.0%) and Health (3.23%/5.17%) per btl.gov.il; ceiling raised to ₪51,910. Verified against real 4/2026 payslip. |
+| 2026-05-06 | Keren Hishtalmut applied to full gross — overstated EE keren by 2-3× at high incomes | Keren base now capped at ₪15,712/mo for both EE and ER per Israeli tax law. Matches real payslip exactly. |
 
 ---
 
