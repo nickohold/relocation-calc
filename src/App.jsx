@@ -73,9 +73,9 @@ const App = () => {
   };
 
   return (
-    <div className={`min-h-screen p-4 md:p-8 transition-colors duration-300 ${activeLayout === 'sunrise' ? 'bg-slate-100' : 'bg-[#0B0F19]'}`}>
+    <div className={`min-h-screen p-3 sm:p-4 md:p-8 transition-colors duration-300 ${activeLayout === 'sunrise' ? 'bg-slate-100' : 'bg-[#0B0F19]'}`}>
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex justify-center mb-8">
+        <div className="flex justify-center mb-6 sm:mb-8">
           <div className={`flex p-1 rounded-lg border ${activeLayout === 'sunrise' ? 'bg-slate-200/50 border-slate-300/50' : 'bg-white/5 border-white/10'}`}>
             <LayoutButton icon={<Sun size={16}/>} label="Sunrise" id="sunrise" active={activeLayout} set={setActiveLayout} />
             <LayoutButton icon={<LayoutGrid size={16}/>} label="Bento Grid" id="bento" active={activeLayout} set={setActiveLayout} />
@@ -137,10 +137,10 @@ const BentoRow = ({ label, il, us }) => {
   const isPositive = delta > 0;
   return (
     <tr className="hover:bg-white/5 transition-colors">
-      <td className="p-4 pl-6 text-slate-300 font-medium">{label}</td>
-      <td className="p-4 text-slate-500">{formatValue(il)}</td>
-      <td className="p-4 text-slate-200 font-bold">{formatValue(us)}</td>
-      <td className={`p-4 pr-6 text-right font-bold ${isPositive ? 'text-emerald-400' : 'text-slate-500'}`}>{isPositive ? '+' : ''}{formatValue(delta)}</td>
+      <td className="p-3 pl-4 sm:p-4 sm:pl-6 text-slate-300 font-medium">{label}</td>
+      <td className="p-3 sm:p-4 text-slate-500">{formatValue(il)}</td>
+      <td className="p-3 sm:p-4 text-slate-200 font-bold">{formatValue(us)}</td>
+      <td className={`p-3 pr-4 sm:p-4 sm:pr-6 text-right font-bold ${isPositive ? 'text-emerald-400' : 'text-slate-500'}`}>{isPositive ? '+' : ''}{formatValue(delta)}</td>
     </tr>
   );
 };
@@ -148,20 +148,20 @@ const BentoRow = ({ label, il, us }) => {
 const LayoutBento = ({ calc, ...s }) => {
   return (
     <div className="space-y-6 animate-in fade-in duration-500 font-sans tracking-tight">
-      <header className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400 tracking-tighter">Relocation Architect</h1>
-          <p className="text-slate-400 text-sm font-medium">Savings-Matched Calculator</p>
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 sm:mb-8">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400 tracking-tighter">Relocation Architect</h1>
+          <p className="text-slate-400 text-xs sm:text-sm font-medium">Savings-Matched Calculator</p>
         </div>
-        <div className="bg-white/5 border border-white/10 px-6 py-3 rounded-full backdrop-blur-xl shadow-xl flex items-center gap-3">
-          <Lock size={16} className="text-indigo-400" />
-          <span className="text-xs text-slate-400 font-medium uppercase tracking-widest">Total IL Savings Rate ({calc.totalILSPct.toFixed(1)}%)</span>
-          <span className="text-xl font-black text-white">${Math.round(calc.targetSavingsUSD).toLocaleString()}</span>
+        <div className="bg-white/5 border border-white/10 px-4 sm:px-6 py-3 rounded-2xl md:rounded-full backdrop-blur-xl shadow-xl flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto">
+          <Lock size={16} className="text-indigo-400 flex-shrink-0" />
+          <span className="text-[10px] sm:text-xs text-slate-400 font-medium uppercase tracking-widest">Total IL Savings Rate ({calc.totalILSPct.toFixed(1)}%)</span>
+          <span className="text-lg sm:text-xl font-black text-white ml-auto md:ml-0">${Math.round(calc.targetSavingsUSD).toLocaleString()}</span>
         </div>
       </header>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-4 space-y-6">
-          <div className="bg-gradient-to-br from-[#1A1F2E] to-[#0F131D] border border-white/5 rounded-[2rem] p-8 shadow-2xl">
+          <div className="bg-gradient-to-br from-[#1A1F2E] to-[#0F131D] border border-white/5 rounded-[2rem] p-5 sm:p-8 shadow-2xl">
             <div className="w-10 h-10 bg-indigo-500/20 rounded-2xl flex items-center justify-center mb-6 border border-indigo-500/30"><ShieldCheck className="text-indigo-400" size={20} /></div>
             <h3 className="text-lg font-black text-white mb-6">Israel (Current Setup)</h3>
             <div className="space-y-4">
@@ -180,7 +180,7 @@ const LayoutBento = ({ calc, ...s }) => {
               <BentoInput label="Imputed Benefits (ILS)" value={s.ilImputed} onChange={s.setIlImputed} />
             </div>
           </div>
-          <div className="bg-gradient-to-br from-[#1A1F2E] to-[#0F131D] border border-white/5 rounded-[2rem] p-8 shadow-2xl">
+          <div className="bg-gradient-to-br from-[#1A1F2E] to-[#0F131D] border border-white/5 rounded-[2rem] p-5 sm:p-8 shadow-2xl">
             <div className="w-10 h-10 bg-cyan-500/20 rounded-2xl flex items-center justify-center mb-6 border border-cyan-500/30"><Target className="text-cyan-400" size={20} /></div>
             <h3 className="text-lg font-black text-white mb-6">US Offer & Costs</h3>
             <div className="space-y-4">
@@ -200,22 +200,22 @@ const LayoutBento = ({ calc, ...s }) => {
         </div>
         <div className="lg:col-span-8 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-gradient-to-br from-[#1A1F2E] to-[#0F131D] border border-white/5 rounded-[2rem] p-8 shadow-2xl relative overflow-hidden group">
+            <div className="bg-gradient-to-br from-[#1A1F2E] to-[#0F131D] border border-white/5 rounded-[2rem] p-5 sm:p-8 shadow-2xl relative overflow-hidden group">
               <div className={`absolute top-0 right-0 w-32 h-32 blur-3xl opacity-20 group-hover:opacity-40 transition-opacity ${calc.liquidCashFlow >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
               <span className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 block">Cash Leftover</span>
-              <div className={`text-5xl font-black tracking-tighter ${calc.liquidCashFlow >= 0 ? 'text-white' : 'text-rose-400'}`}>{formatValue(calc.liquidCashFlow)}</div>
+              <div className={`text-3xl sm:text-5xl font-black tracking-tighter ${calc.liquidCashFlow >= 0 ? 'text-white' : 'text-rose-400'}`}>{formatValue(calc.liquidCashFlow)}</div>
             </div>
-            <div className="bg-gradient-to-br from-indigo-900/40 to-[#0F131D] border border-indigo-500/20 rounded-[2rem] p-8 shadow-2xl relative overflow-hidden group">
+            <div className="bg-gradient-to-br from-indigo-900/40 to-[#0F131D] border border-indigo-500/20 rounded-[2rem] p-5 sm:p-8 shadow-2xl relative overflow-hidden group">
               <div className={`absolute top-0 right-0 w-32 h-32 blur-3xl opacity-20 group-hover:opacity-40 transition-opacity ${calc.liquidDelta >= 0 ? 'bg-indigo-500' : 'bg-rose-500'}`}></div>
               <span className="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-2 block">True Lifestyle Change</span>
-              <div className="text-5xl font-black text-white tracking-tighter">{calc.liquidDelta > 0 ? '+' : ''}{formatValue(calc.liquidDelta)}</div>
+              <div className="text-3xl sm:text-5xl font-black text-white tracking-tighter">{calc.liquidDelta > 0 ? '+' : ''}{formatValue(calc.liquidDelta)}</div>
             </div>
           </div>
-          <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-8 shadow-2xl">
-            <div className="flex items-center gap-4 mb-8">
-              <Zap className="text-yellow-400" size={24} />
-              <h3 className="text-lg font-black text-white">Matching Your Israeli Savings</h3>
-              <div className="ml-auto px-4 py-1.5 bg-yellow-400/10 text-yellow-400 text-xs font-bold rounded-full border border-yellow-400/20">{calc.optimalPct.toFixed(2)}% Required</div>
+          <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-5 sm:p-8 shadow-2xl">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
+              <Zap className="text-yellow-400 flex-shrink-0" size={24} />
+              <h3 className="text-base sm:text-lg font-black text-white">Matching Your Israeli Savings</h3>
+              <div className="ml-auto px-3 sm:px-4 py-1.5 bg-yellow-400/10 text-yellow-400 text-[10px] sm:text-xs font-bold rounded-full border border-yellow-400/20 whitespace-nowrap">{calc.optimalPct.toFixed(2)}% Required</div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <BentoStat label="Net Take-Home" val={calc.netTakeHome} />
@@ -237,10 +237,10 @@ const LayoutBento = ({ calc, ...s }) => {
               </div>
             </div>
           )}
-          <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] overflow-hidden shadow-2xl p-2">
-            <table className="w-full text-left text-sm">
-              <thead className="text-xs text-slate-500 uppercase tracking-widest font-bold">
-                <tr><th className="p-4 pl-6">Monthly Breakdown</th><th className="p-4">Israel</th><th className="p-4">US</th><th className="p-4 pr-6 text-right">Difference</th></tr>
+          <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] overflow-x-auto shadow-2xl p-2">
+            <table className="w-full text-left text-xs sm:text-sm min-w-[520px]">
+              <thead className="text-[10px] sm:text-xs text-slate-500 uppercase tracking-widest font-bold">
+                <tr><th className="p-3 pl-4 sm:p-4 sm:pl-6">Monthly Breakdown</th><th className="p-3 sm:p-4">Israel</th><th className="p-3 sm:p-4">US</th><th className="p-3 pr-4 sm:p-4 sm:pr-6 text-right">Difference</th></tr>
               </thead>
               <tbody className="divide-y divide-white/5">
                 <BentoRow label="Gross Pay" il={calc.ilGrossUSD} us={calc.usGrossMonthly} />
@@ -248,10 +248,10 @@ const LayoutBento = ({ calc, ...s }) => {
                 <BentoRow label="Total Expenses" il={-calc.ilTotalOutUSD} us={-calc.usTotalOutUSD} />
                 <BentoRow label="Retirement Savings" il={calc.targetSavingsUSD} us={calc.totalInvested} />
                 <tr className="bg-indigo-500/10">
-                  <td className="p-4 pl-6 font-bold text-indigo-300">Leftover Cash</td>
-                  <td className="p-4 text-slate-400 font-medium">{formatValue(calc.ilLiquidFlowUSD)}</td>
-                  <td className="p-4 text-white font-black">{formatValue(calc.liquidCashFlow)}</td>
-                  <td className={`p-4 pr-6 text-right font-black ${calc.liquidDelta >= 0 ? 'text-indigo-400' : 'text-rose-500'}`}>{calc.liquidDelta > 0 ? '+' : ''}{formatValue(calc.liquidDelta)}</td>
+                  <td className="p-3 pl-4 sm:p-4 sm:pl-6 font-bold text-indigo-300">Leftover Cash</td>
+                  <td className="p-3 sm:p-4 text-slate-400 font-medium">{formatValue(calc.ilLiquidFlowUSD)}</td>
+                  <td className="p-3 sm:p-4 text-white font-black">{formatValue(calc.liquidCashFlow)}</td>
+                  <td className={`p-3 pr-4 sm:p-4 sm:pr-6 text-right font-black ${calc.liquidDelta >= 0 ? 'text-indigo-400' : 'text-rose-500'}`}>{calc.liquidDelta > 0 ? '+' : ''}{formatValue(calc.liquidDelta)}</td>
                 </tr>
               </tbody>
             </table>
@@ -326,9 +326,9 @@ const SunriseRow = ({ label, il, us, isExpense, variant = 'leaf', bg, expandable
     deltaClass = `text-sm font-black ${deltaColor}`;
   }
 
-  // Indent: sub rows get a deep indent. Section/leaf rows share a fixed chevron slot
-  // so labels align horizontally whether the row is expandable or not.
-  const labelCellPadding = isSub ? 'p-3 pl-14' : 'p-4 pl-6';
+  const labelCellPadding = isSub ? 'p-2 pl-10 sm:p-3 sm:pl-14' : 'p-3 pl-4 sm:p-4 sm:pl-6';
+  const valCellPadding = isSub ? 'p-2 sm:p-3' : 'p-3 sm:p-4';
+  const lastCellPadding = isSub ? 'p-2 pr-4 sm:p-3 sm:pr-6' : 'p-3 pr-4 sm:p-4 sm:pr-6';
 
   return (
     <tr className={baseClass} onClick={expandable ? onToggle : undefined}>
@@ -340,9 +340,9 @@ const SunriseRow = ({ label, il, us, isExpense, variant = 'leaf', bg, expandable
         )}
         {label}
       </td>
-      <td className={`${isSub ? 'p-3' : 'p-4'} ${valClassIL}`}>{formatValue(il)}</td>
-      <td className={`${isSub ? 'p-3' : 'p-4'} ${valClassUS}`}>{formatValue(us)}</td>
-      <td className={`${isSub ? 'p-3 pr-6' : 'p-4 pr-6'} text-right ${deltaClass}`}>{delta > 0 ? '+' : ''}{formatValue(delta)}</td>
+      <td className={`${valCellPadding} ${valClassIL}`}>{formatValue(il)}</td>
+      <td className={`${valCellPadding} ${valClassUS}`}>{formatValue(us)}</td>
+      <td className={`${lastCellPadding} text-right ${deltaClass}`}>{delta > 0 ? '+' : ''}{formatValue(delta)}</td>
     </tr>
   );
 };
@@ -354,18 +354,18 @@ const LayoutSunrise = ({ calc, ...s }) => {
   return (
     <div className="space-y-6 animate-in fade-in duration-500 text-slate-800">
       <header className="border-b border-orange-200/50 pb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-black flex items-center gap-2 text-slate-900"><Sun className="text-orange-500" strokeWidth={3} /> RELOCATION ARCHITECT <span className="text-xs bg-orange-100/80 text-orange-600 px-2 py-1 rounded-full border border-orange-200/50">Sunrise</span></h1>
-          <p className="text-slate-500 text-sm mt-1 uppercase tracking-widest font-bold">Savings-Matched Calculator</p>
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-black flex flex-wrap items-center gap-2 text-slate-900"><Sun className="text-orange-500 flex-shrink-0" strokeWidth={3} /> <span>RELOCATION ARCHITECT</span> <span className="text-xs bg-orange-100/80 text-orange-600 px-2 py-1 rounded-full border border-orange-200/50">Sunrise</span></h1>
+          <p className="text-slate-500 text-xs sm:text-sm mt-1 uppercase tracking-widest font-bold">Savings-Matched Calculator</p>
         </div>
-        <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-2xl text-right shadow-sm">
+        <div className="bg-slate-50 border border-slate-200/80 p-3 sm:p-4 rounded-2xl text-left md:text-right shadow-sm w-full md:w-auto">
           <span className="text-[10px] text-slate-400 uppercase font-black block mb-1">Total IL Savings Rate ({calc.totalILSPct.toFixed(1)}%)</span>
-          <div className="text-2xl font-black text-orange-500 flex items-center justify-end gap-2"><Lock size={18} /> ${Math.round(calc.targetSavingsUSD).toLocaleString()} <span className="text-xs font-bold text-slate-400">/mo</span></div>
+          <div className="text-xl sm:text-2xl font-black text-orange-500 flex items-center md:justify-end gap-2"><Lock size={18} /> ${Math.round(calc.targetSavingsUSD).toLocaleString()} <span className="text-xs font-bold text-slate-400">/mo</span></div>
         </div>
       </header>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-4 space-y-6">
-          <section className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 shadow-sm">
+          <section className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 sm:p-6 shadow-sm">
             <h3 className="text-orange-600 text-xs font-black uppercase flex items-center gap-2 mb-4"><ShieldCheck size={16} /> Israel (Current Setup)</h3>
             <div className="space-y-4">
               <SunriseInput label="Gross Pay (ILS)" value={s.ilGross} onChange={s.setIlGross} tooltip="Total monthly salary before taxes." />
@@ -396,7 +396,7 @@ const LayoutSunrise = ({ calc, ...s }) => {
               </label>
             </div>
           </section>
-          <section className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 shadow-sm">
+          <section className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 sm:p-6 shadow-sm">
             <h3 className="text-blue-600 text-xs font-black uppercase flex items-center gap-2 mb-4"><Target size={16} /> US Offer & Costs</h3>
             <div className="space-y-4">
               <div className="flex gap-2 p-1 bg-slate-200/50 rounded-xl overflow-x-auto no-scrollbar">
@@ -413,24 +413,24 @@ const LayoutSunrise = ({ calc, ...s }) => {
         </div>
         <div className="lg:col-span-8 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className={`p-6 rounded-3xl border ${calc.liquidCashFlow >= 0 ? 'bg-emerald-50/50 border-emerald-200/80' : 'bg-rose-50/50 border-rose-200/80'} shadow-sm`}>
+            <div className={`p-4 sm:p-6 rounded-3xl border ${calc.liquidCashFlow >= 0 ? 'bg-emerald-50/50 border-emerald-200/80' : 'bg-rose-50/50 border-rose-200/80'} shadow-sm`}>
               <div className="flex justify-between items-center mb-2 text-[10px] uppercase font-black text-slate-500"><span className="flex items-center gap-1"><Wallet size={14} /> Cash Leftover</span></div>
-              <div className={`text-5xl font-black tracking-tighter ${calc.liquidCashFlow >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatValue(calc.liquidCashFlow)}</div>
+              <div className={`text-3xl sm:text-5xl font-black tracking-tighter ${calc.liquidCashFlow >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatValue(calc.liquidCashFlow)}</div>
             </div>
-            <div className="p-6 rounded-3xl border bg-orange-50/50 border-orange-200/80 shadow-sm">
+            <div className="p-4 sm:p-6 rounded-3xl border bg-orange-50/50 border-orange-200/80 shadow-sm">
               <div className="flex justify-between items-center mb-2 text-[10px] uppercase font-black text-slate-500"><span className="flex items-center gap-1"><TrendingUp size={14} className="text-orange-500" /> True Lifestyle Change</span></div>
-              <div className="text-5xl font-black text-orange-600 tracking-tighter">{calc.liquidDelta > 0 ? '+' : ''}{formatValue(calc.liquidDelta)}</div>
+              <div className="text-3xl sm:text-5xl font-black text-orange-600 tracking-tighter">{calc.liquidDelta > 0 ? '+' : ''}{formatValue(calc.liquidDelta)}</div>
             </div>
           </div>
-          <div className="bg-slate-50 border border-slate-200/80 rounded-3xl p-6 relative shadow-sm">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="bg-orange-100/80 p-3 rounded-2xl text-orange-600"><Lock size={24} /></div>
-              <div>
+          <div className="bg-slate-50 border border-slate-200/80 rounded-3xl p-4 sm:p-6 relative shadow-sm">
+            <div className="flex items-center gap-3 sm:gap-4 mb-6">
+              <div className="bg-orange-100/80 p-2.5 sm:p-3 rounded-2xl text-orange-600 flex-shrink-0"><Lock size={20} /></div>
+              <div className="min-w-0">
                 <h4 className="text-sm font-black uppercase text-slate-900">Matching Your Israeli Savings</h4>
                 <p className="text-xs text-slate-500 mt-1 font-medium">We locked your US savings to match your total Israeli savings rate. You need to contribute <span className="text-orange-600 font-bold">{calc.optimalPct.toFixed(2)}%</span> to break even on wealth building.</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 border-t border-slate-200/60 pt-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 border-t border-slate-200/60 pt-6">
               <SunriseStat label="Net Take-Home" val={calc.netTakeHome} />
               <SunriseStat label="Total Expenses" val={calc.usTotalOutUSD} color="text-rose-500" />
               <SunriseStat label="You Pay (401k)" val={calc.personalUSD} color="text-blue-600" />
@@ -438,12 +438,12 @@ const LayoutSunrise = ({ calc, ...s }) => {
             </div>
           </div>
           {calc.wealthGapUSD > 0 && (
-            <div className="bg-rose-50 border-2 border-rose-300 rounded-3xl p-6 shadow-sm">
-              <div className="flex items-start gap-4">
-                <div className="bg-rose-200 p-3 rounded-2xl text-rose-700 flex-shrink-0">
-                  <Lock size={24} />
+            <div className="bg-rose-50 border-2 border-rose-300 rounded-3xl p-4 sm:p-6 shadow-sm">
+              <div className="flex items-start gap-3 sm:gap-4">
+                <div className="bg-rose-200 p-2.5 sm:p-3 rounded-2xl text-rose-700 flex-shrink-0">
+                  <Lock size={20} />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <h4 className="text-sm font-black uppercase text-rose-800 mb-1">⚠ Wealth Gap: ${Math.round(calc.wealthGapUSD).toLocaleString()}/mo</h4>
                   <p className="text-xs text-rose-700 font-medium leading-relaxed">
                     Hitting your Israeli savings target requires <span className="font-bold">${Math.round(calc.wealthGapUSD).toLocaleString()}/mo more</span> than the IRS 401(k) limit allows ($23,500/yr). Even with positive lifestyle delta, this move is a <span className="font-bold">net-worth loss</span> versus staying — unless offset by RSUs, taxable brokerage, or other vehicles not modeled here.
@@ -452,10 +452,10 @@ const LayoutSunrise = ({ calc, ...s }) => {
               </div>
             </div>
           )}
-          <div className="bg-slate-50 border border-slate-200/80 rounded-3xl overflow-hidden shadow-sm">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-100/60 text-slate-500 uppercase font-black text-xs border-b border-slate-200/80">
-                <tr><th className="p-4 pl-6">Monthly Breakdown (USD)</th><th className="p-4">Israel (Current)</th><th className="p-4">US (Offer)</th><th className="p-4 pr-6 text-right">Difference</th></tr>
+          <div className="bg-slate-50 border border-slate-200/80 rounded-3xl overflow-x-auto shadow-sm">
+            <table className="w-full text-left text-xs sm:text-sm min-w-[560px]">
+              <thead className="bg-slate-100/60 text-slate-500 uppercase font-black text-[10px] sm:text-xs border-b border-slate-200/80">
+                <tr><th className="p-3 pl-4 sm:p-4 sm:pl-6">Monthly Breakdown (USD)</th><th className="p-3 sm:p-4">Israel (Current)</th><th className="p-3 sm:p-4">US (Offer)</th><th className="p-3 pr-4 sm:p-4 sm:pr-6 text-right">Difference</th></tr>
               </thead>
               <tbody className="divide-y divide-slate-200/40">
                 <SunriseRow label="Gross Pay" il={calc.ilGrossUSD} us={calc.usGrossMonthly} variant="section" />
@@ -486,10 +486,10 @@ const LayoutSunrise = ({ calc, ...s }) => {
                   </>
                 )}
                 <tr className="bg-orange-50/50 border-t-2 border-orange-200/80">
-                  <td className="p-5 pl-6 font-black text-orange-800 uppercase text-xs tracking-widest">True Lifestyle Change</td>
-                  <td className="p-5 text-slate-500 font-bold">{formatValue(calc.ilLiquidFlowUSD)}</td>
-                  <td className="p-5 text-orange-600 font-black">{formatValue(calc.liquidCashFlow)}</td>
-                  <td className={`p-5 pr-6 text-right font-black ${calc.liquidDelta >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{calc.liquidDelta > 0 ? '+' : ''}{formatValue(calc.liquidDelta)}</td>
+                  <td className="p-3 pl-4 sm:p-5 sm:pl-6 font-black text-orange-800 uppercase text-[10px] sm:text-xs tracking-widest">True Lifestyle Change</td>
+                  <td className="p-3 sm:p-5 text-slate-500 font-bold">{formatValue(calc.ilLiquidFlowUSD)}</td>
+                  <td className="p-3 sm:p-5 text-orange-600 font-black">{formatValue(calc.liquidCashFlow)}</td>
+                  <td className={`p-3 pr-4 sm:p-5 sm:pr-6 text-right font-black ${calc.liquidDelta >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{calc.liquidDelta > 0 ? '+' : ''}{formatValue(calc.liquidDelta)}</td>
                 </tr>
               </tbody>
             </table>
