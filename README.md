@@ -2,7 +2,7 @@
 
 Compares the financial reality of staying in Israel versus moving to a US metro (NYC, NJ, Austin, Houston). Tracks both **liquid cash flow** and **wealth accumulation** so a "more pocket money" answer doesn't mask a net-worth loss.
 
-Live: https://relocation-calc.vercel.app/
+Live: https://relocation-savings-calculator.vercel.app/
 
 ## What it does
 
