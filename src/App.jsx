@@ -185,8 +185,8 @@ const LayoutBento = ({ calc, ...s }) => {
             <h3 className="text-lg font-black text-white mb-6">US Offer & Costs</h3>
             <div className="space-y-4">
               <div className="flex gap-2 p-1 bg-black/20 rounded-xl overflow-x-auto no-scrollbar">
-                {Object.keys(LOCATIONS).map((key) => (
-                  <button key={key} onClick={() => s.setSelectedLoc(key)} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${s.selectedLoc === key ? 'bg-white/10 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}>{key}</button>
+                {Object.entries(LOCATIONS).map(([key, loc]) => (
+                  <button key={key} onClick={() => s.setSelectedLoc(key)} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${s.selectedLoc === key ? 'bg-white/10 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}>{loc.name}</button>
                 ))}
               </div>
               <BentoInput label="Annual Salary ($)" value={s.usGrossAnnual} onChange={s.setUsGrossAnnual} step={5000} />
@@ -400,8 +400,8 @@ const LayoutSunrise = ({ calc, ...s }) => {
             <h3 className="text-blue-600 text-xs font-black uppercase flex items-center gap-2 mb-4"><Target size={16} /> US Offer & Costs</h3>
             <div className="space-y-4">
               <div className="flex gap-2 p-1 bg-slate-200/50 rounded-xl overflow-x-auto no-scrollbar">
-                {Object.keys(LOCATIONS).map((key) => (
-                  <button key={key} onClick={() => s.setSelectedLoc(key)} className={`flex-1 px-2 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${s.selectedLoc === key ? 'bg-white text-blue-600 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700'}`}>{key}</button>
+                {Object.entries(LOCATIONS).map(([key, loc]) => (
+                  <button key={key} onClick={() => s.setSelectedLoc(key)} className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${s.selectedLoc === key ? 'bg-white text-blue-600 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700'}`}>{loc.name}</button>
                 ))}
               </div>
               <SunriseInput label="Annual Salary ($)" value={s.usGrossAnnual} onChange={s.setUsGrossAnnual} step={5000} tooltip="Your target yearly US offer." />
