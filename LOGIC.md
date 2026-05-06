@@ -97,7 +97,22 @@ credit            = eligible_contrib × 35%
 ```
 Non-refundable — capped at the income tax owed.
 
-### 2.3 Net Take-Home
+### 2.3 Imputed Benefits (שווי / non-cash perks)
+
+Israeli payslips show `שווי` lines for non-cash taxable benefits — meal vouchers, holiday gifts, sport benefit, gross-ups (גילום) — which inflate the income-tax and BTL base without adding cash to the employee's pocket.
+
+Optional `imputedBenefits` input (default 0). When set:
+- Adds to BTL base AND to income-tax base
+- Does NOT add to net (no cash crosses hands)
+- Does NOT change pension or keren contributions (perks aren't pensionable)
+
+```
+taxable_base = gross + imputed_benefits
+BTL          = calcBTL(taxable_base)
+mas_hachnasa = brackets(taxable_base) − credit_points − pension_credit
+```
+
+### 2.4 Net Take-Home
 
 ```
 EE_pension_ILS = gross × EE_pension_pct%                          # uncapped — applies to full gross
@@ -243,10 +258,10 @@ The model is **directional**, not a tax filing. These are the explicit gaps:
 - **Filing status:** single only. No couples / dependents.
 - **Olim chadashim 10-year tax break:** not modeled. If you qualify, IL tax is dramatically lower.
 - **Section 102 RSU treatment:** not modeled.
-- **Imputed benefits (שווי):** Meals, sport, holiday gifts, gross-ups (גילום) etc. shown on Israeli payslips inflate the taxable base above what the user enters as "gross". Real-world, this can add ₪1,500–₪2,500/mo to taxable. Not modeled — `gross` is the only input. To get an accurate tax/BTL number, enter your slip's `חייב מ.ה.` figure as gross.
-- **Section 47 deduction interplay:** Israeli payslips often show a Section 47 deduction reducing taxable income beyond the standard pension credit. Magnitude is typically ₪1,000–₪1,500/mo. Not modeled — the engine returns income tax slightly higher than reality (~₪450/mo at ₪32k gross).
+- **Section 47 ניכוי (deduction):** Researched 2026-05. **Does not apply to typical salaried employees** with employer pension contributions — only to self-employed and "uninsured salary" earners (e.g. side gigs without pension coverage), and even then only when insured salary is below ₪24,250/mo. Salaried employees only get the Section 45A 35% credit, which the engine already implements. The "פטור ס' 47" line on payslips refers to the employer-side exemption (employer pension contributions are exempt from being imputed as taxable income to the employee), which the engine already handles by default since it doesn't add employer contributions to taxable income.
 - **Pitzuim withdrawal tax:** assumes severance is rolled over (when toggle is on). Cash withdrawal would be partially taxed.
 - **Keren Hishtalmut withdrawal tax:** assumes 6-year hold; no tax on withdrawal.
+- **PAYE smoothing:** Israeli employer withholding uses YTD averaging across the calendar year. The engine computes monthly steady-state, so a single month's payslip can diverge by several hundred shekels from the engine's output (in either direction). The annual total reconciles.
 
 ### 5.2 US side
 - **Filing status:** single only. Standard deduction is single-filer 2024.
@@ -300,6 +315,7 @@ When you change a top-level input, follow the arrows to predict downstream effec
 | 2026-05-06 | No IRS $23,500 cap on personal 401k contribution | Cap enforced; surplus surfaces as `wealthGap` with UI warning |
 | 2026-05-06 | BTL+Health used 3.5%/12.0% combined rates (off-by-0.27%); ceiling was ₪49,030 (2024 figure) | Split into BTL (1.04%/7.0%) and Health (3.23%/5.17%) per btl.gov.il; ceiling raised to ₪51,910. Verified against real 4/2026 payslip. |
 | 2026-05-06 | Keren Hishtalmut applied to full gross — overstated EE keren by 2-3× at high incomes | Keren base now capped at ₪15,712/mo for both EE and ER per Israeli tax law. Matches real payslip exactly. |
+| 2026-05-06 | Single `gross` input couldn't represent payslips with non-cash שווי (meal/gift/sport/gross-up) lines, causing BTL/tax to under-shoot for users with imputed perks | Added optional `imputedBenefits` input (default 0). Inflates BTL+tax base without affecting net cash, pension, or keren. |
 
 ---
 

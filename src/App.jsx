@@ -31,6 +31,7 @@ const App = () => {
   const [us401kMatchLimit, setUs401kMatchLimit] = useState("6");
   const [usMiscBurn, setUsMiscBurn] = useState("900");
   const [includeSeverance, setIncludeSeverance] = useState(true);
+  const [ilImputed, setIlImputed] = useState("0");
 
   const calc = useMemo(() => runEngine({
     ilGross: Number(ilGross) || 0,
@@ -48,9 +49,10 @@ const App = () => {
     us401kMatchLimit: Number(us401kMatchLimit) || 0,
     usMiscBurn: Number(usMiscBurn) || 0,
     includeSeveranceInSavings: includeSeverance,
+    ilImputedBenefits: Number(ilImputed) || 0,
   }), [ilGross, ilEEPension, ilEEKeren, ilERPension, ilERSeverance, ilERKeren,
        ilRent, ilBurn, fxRate, selectedLoc, usGrossAnnual, usRent,
-       us401kMatchLimit, usMiscBurn, includeSeverance]);
+       us401kMatchLimit, usMiscBurn, includeSeverance, ilImputed]);
 
   useEffect(() => {
     setUsRent(LOCATIONS[selectedLoc]?.defaultRent?.toString() || "4500");
@@ -64,6 +66,7 @@ const App = () => {
     usGrossAnnual, setUsGrossAnnual, usRent, setUsRent,
     us401kMatchLimit, setUs401kMatchLimit, usMiscBurn, setUsMiscBurn,
     includeSeverance, setIncludeSeverance,
+    ilImputed, setIlImputed,
     calc,
   };
 
@@ -165,6 +168,7 @@ const LayoutBento = ({ calc, ...s }) => {
               </div>
               <BentoInput label="Rent + Bills (ILS)" value={s.ilRent} onChange={s.setIlRent} />
               <BentoInput label="Food, Fun & Living (ILS)" value={s.ilBurn} onChange={s.setIlBurn} />
+              <BentoInput label="Imputed Benefits (ILS)" value={s.ilImputed} onChange={s.setIlImputed} />
             </div>
           </div>
           <div className="bg-gradient-to-br from-[#1A1F2E] to-[#0F131D] border border-white/5 rounded-[2rem] p-8 shadow-2xl">
@@ -327,6 +331,7 @@ const LayoutSunrise = ({ calc, ...s }) => {
               </div>
               <SunriseInput label="Rent + Bills (ILS)" value={s.ilRent} onChange={s.setIlRent} tooltip="Monthly housing and utilities." />
               <SunriseInput label="Food, Fun & Living (ILS)" value={s.ilBurn} onChange={s.setIlBurn} tooltip="Remaining monthly spending. We convert this to USD to ensure your lifestyle doesn't drop." />
+              <SunriseInput label="Imputed Benefits (ILS)" value={s.ilImputed} onChange={s.setIlImputed} tooltip="Non-cash perks taxed as income (שווי): meal vouchers, holiday gifts, sport benefit, gross-ups (גילום). Inflates BTL+tax base; does NOT add to your cash net. Default 0. Find on payslip as 'שווי' lines." />
               <label className="flex items-start gap-2 text-[11px] text-slate-600 font-medium leading-snug cursor-pointer mt-2 p-2 bg-white/40 border border-slate-200/60 rounded-lg hover:bg-white/70 transition-colors">
                 <input
                   type="checkbox"

@@ -146,19 +146,25 @@ export const calcIL = ({
   rent, burn,
   creditPoints = 2.25,
   includeSeveranceInSavings = true,
+  // Non-cash taxable perks (meals, gifts, sport, gross-ups). Inflate BTL+tax base only;
+  // do not appear in cash net and are not pension/keren-eligible. Default 0.
+  imputedBenefits = 0,
 }) => {
-  const btl = calcBTL(gross);
+  // Tax/BTL base = cash gross + non-cash taxable perks (matches "חייב מ.ה." on payslips).
+  const taxableBase = gross + imputedBenefits;
+  const btl = calcBTL(taxableBase);
 
-  const grossTax = calcILGrossTax(gross);
+  const grossTax = calcILGrossTax(taxableBase);
   const creditPointsValue = creditPoints * CONSTANTS.CREDIT_POINT_VALUE_ILS;
   const pensionCredit = calcPensionCredit(gross, eePensionPct);
   const masHachnasa = Math.max(0, grossTax - creditPointsValue - pensionCredit);
 
+  // Pension and keren are calculated on cash gross only — perks aren't pensionable.
   const eePensionILS = gross * (eePensionPct / 100);
-  // Keren Hishtalmut contributions are tax-favorable only on insured salary
-  // up to the statutory cap. Above the cap, employers typically stop the deduction.
+  // Keren Hishtalmut: tax-favorable only on insured salary up to ₪15,712/mo (2026 cap).
   const kerenBase = Math.min(gross, CONSTANTS.KEREN_HISHTALMUT_SALARY_CAP);
   const eeKerenILS = kerenBase * (eeKerenPct / 100);
+  // Net = cash gross − cash deductions. Imputed perks never enter cash flow.
   const net = gross - btl - masHachnasa - eePensionILS - eeKerenILS;
 
   // ER pension is on full gross; ER keren is capped at the keren salary cap.
@@ -259,6 +265,7 @@ export const runEngine = (inputs) => {
     usGrossAnnual, usRent, us401kMatchLimit, usMiscBurn,
     includeSeveranceInSavings = true,
     creditPoints = 2.25,
+    ilImputedBenefits = 0,
   } = inputs;
 
   const il = calcIL({
@@ -268,6 +275,7 @@ export const runEngine = (inputs) => {
     rent: ilRent, burn: ilBurn,
     creditPoints,
     includeSeveranceInSavings,
+    imputedBenefits: ilImputedBenefits,
   });
 
   const targetSavingsUSD = il.totalSavingsILS * fxRate;
