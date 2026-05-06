@@ -9,6 +9,8 @@ import {
   HelpCircle,
   LayoutGrid,
   Sun,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { runEngine, LOCATIONS } from './calc';
 
@@ -278,21 +280,28 @@ const SunriseStat = ({ label, val, color }) => (
   </div>
 );
 
-const SunriseRow = ({ label, il, us, isExpense, sub, bg, bold }) => {
+const SunriseRow = ({ label, il, us, isExpense, sub, bg, bold, expandable, expanded, onToggle }) => {
   const delta = us - il;
   let deltaColor = 'text-slate-400';
   if (delta > 0) deltaColor = 'text-emerald-600';
   if (delta < 0) deltaColor = 'text-rose-500';
 
-  let baseClass = `hover:bg-slate-100/40 transition-colors ${bg || ''}`;
+  let baseClass = `hover:bg-slate-100/40 transition-colors ${bg || ''} ${expandable ? 'cursor-pointer' : ''}`;
   let labelClass = `text-slate-600 ${sub ? 'pl-10 text-xs' : 'font-bold'} ${bold ? 'uppercase tracking-widest text-[10px]' : ''}`;
   let valClassIL = `${isExpense ? 'text-slate-400' : 'text-slate-500'} ${bold ? 'font-bold text-slate-600' : 'font-medium'}`;
   let valClassUS = `${isExpense ? 'text-slate-600' : 'text-slate-800'} ${bold ? 'font-black' : 'font-bold'}`;
   let deltaClass = `font-black ${deltaColor} ${bold ? 'text-sm' : ''}`;
 
   return (
-    <tr className={baseClass}>
-      <td className={`p-4 pl-6 ${labelClass}`}>{label}</td>
+    <tr className={baseClass} onClick={expandable ? onToggle : undefined}>
+      <td className={`p-4 pl-6 ${labelClass}`}>
+        {expandable && (
+          <span className="inline-flex items-center justify-center w-4 h-4 mr-2 align-middle text-slate-400">
+            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </span>
+        )}
+        {label}
+      </td>
       <td className={`p-4 ${valClassIL}`}>{formatValue(il)}</td>
       <td className={`p-4 ${valClassUS}`}>{formatValue(us)}</td>
       <td className={`p-4 pr-6 text-right ${deltaClass}`}>{delta > 0 ? '+' : ''}{formatValue(delta)}</td>
@@ -301,6 +310,9 @@ const SunriseRow = ({ label, il, us, isExpense, sub, bg, bold }) => {
 };
 
 const LayoutSunrise = ({ calc, ...s }) => {
+  const [taxesOpen, setTaxesOpen] = useState(false);
+  const [expensesOpen, setExpensesOpen] = useState(false);
+  const [savingsOpen, setSavingsOpen] = useState(false);
   return (
     <div className="space-y-6 animate-in fade-in duration-500 text-slate-800">
       <header className="border-b border-orange-200/50 pb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -409,19 +421,32 @@ const LayoutSunrise = ({ calc, ...s }) => {
               </thead>
               <tbody className="divide-y divide-slate-200/40">
                 <SunriseRow label="Gross Pay" il={calc.ilGrossUSD} us={calc.usGrossMonthly} bold />
-                <SunriseRow label="Retirement Savings" il={-calc.ilEEMatchUSD} us={-calc.personalUSD} isExpense />
-                <SunriseRow label="Income Tax" il={-calc.ilMasHachnasaUSD} us={-calc.usFedMonthly} isExpense sub />
-                <SunriseRow label="Social Sec. & Health" il={-calc.ilBTLUSD} us={-calc.usFICAMonthly} isExpense sub />
-                <SunriseRow label="State Tax" il={0} us={-calc.usStateMonthly} isExpense sub />
-                <SunriseRow label="City Tax" il={0} us={-calc.usCityMonthly} isExpense sub />
+                <SunriseRow label="Taxes" il={-(calc.ilMasHachnasaUSD + calc.ilBTLUSD)} us={-(calc.usFedMonthly + calc.usFICAMonthly + calc.usStateMonthly + calc.usCityMonthly)} isExpense expandable expanded={taxesOpen} onToggle={() => setTaxesOpen(!taxesOpen)} />
+                {taxesOpen && (
+                  <>
+                    <SunriseRow label="Income Tax" il={-calc.ilMasHachnasaUSD} us={-calc.usFedMonthly} isExpense sub />
+                    <SunriseRow label="Social Sec. & Health" il={-calc.ilBTLUSD} us={-calc.usFICAMonthly} isExpense sub />
+                    <SunriseRow label="State Tax" il={0} us={-calc.usStateMonthly} isExpense sub />
+                    <SunriseRow label="City Tax" il={0} us={-calc.usCityMonthly} isExpense sub />
+                  </>
+                )}
+                <SunriseRow label="Retirement Contribution" il={-calc.ilEEMatchUSD} us={-calc.personalUSD} isExpense />
                 <SunriseRow label="Net Take-Home Pay" il={calc.ilNetUSD} us={calc.netTakeHome} bg="bg-slate-100/60" bold />
-                <SunriseRow label="Rent & Utilities" il={-calc.ilHousingUSD} us={-calc.usRentUSD} isExpense />
-                <SunriseRow label="US Transit & Extras" il={0} us={-calc.usMiscBurnUSD} isExpense />
-                <SunriseRow label="Food, Fun & Living" il={-calc.ilLifestyleUSD} us={-calc.usLifestyleUSD} isExpense />
-                <SunriseRow label="Total Expenses" il={-calc.ilTotalOutUSD} us={-calc.usTotalOutUSD} isExpense bg="bg-slate-100/60" bold />
-                <SunriseRow label="Employer Match" il={calc.ilERMatchUSD} us={calc.employerUSD} />
-                <SunriseRow label="Your Contribution" il={calc.ilEEMatchUSD} us={calc.personalUSD} />
-                <SunriseRow label="Total Monthly Savings" il={calc.targetSavingsUSD} us={calc.totalInvested} bg="bg-slate-100/60" bold />
+                <SunriseRow label="Total Expenses" il={-calc.ilTotalOutUSD} us={-calc.usTotalOutUSD} isExpense expandable expanded={expensesOpen} onToggle={() => setExpensesOpen(!expensesOpen)} />
+                {expensesOpen && (
+                  <>
+                    <SunriseRow label="Rent & Utilities" il={-calc.ilHousingUSD} us={-calc.usRentUSD} isExpense sub />
+                    <SunriseRow label="US Transit & Extras" il={0} us={-calc.usMiscBurnUSD} isExpense sub />
+                    <SunriseRow label="Food, Fun & Living" il={-calc.ilLifestyleUSD} us={-calc.usLifestyleUSD} isExpense sub />
+                  </>
+                )}
+                <SunriseRow label="Total Monthly Savings" il={calc.targetSavingsUSD} us={calc.totalInvested} bg="bg-slate-100/60" bold expandable expanded={savingsOpen} onToggle={() => setSavingsOpen(!savingsOpen)} />
+                {savingsOpen && (
+                  <>
+                    <SunriseRow label="Your Contribution" il={calc.ilEEMatchUSD} us={calc.personalUSD} sub />
+                    <SunriseRow label="Employer Match" il={calc.ilERMatchUSD} us={calc.employerUSD} sub />
+                  </>
+                )}
                 <tr className="bg-orange-50/50 border-t-2 border-orange-200/80">
                   <td className="p-5 pl-6 font-black text-orange-800 uppercase text-xs tracking-widest">True Lifestyle Change</td>
                   <td className="p-5 text-slate-500 font-bold">{formatValue(calc.ilLiquidFlowUSD)}</td>
