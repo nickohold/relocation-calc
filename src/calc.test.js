@@ -163,6 +163,35 @@ describe('calcIL — Israel engine', () => {
     const r = calcIL({ ...baseIL, gross: 32000 });
     expect(r.eePensionILS).toBeCloseTo(32000 * 0.06, 2); // ₪1,920
   });
+
+  it('imputed benefits default to 0 — current callers see no behavior change', () => {
+    const noImputed = calcIL(baseIL);
+    const explicitZero = calcIL({ ...baseIL, imputedBenefits: 0 });
+    expect(noImputed.net).toBe(explicitZero.net);
+    expect(noImputed.btl).toBe(explicitZero.btl);
+    expect(noImputed.masHachnasa).toBe(explicitZero.masHachnasa);
+  });
+
+  it('imputed benefits inflate BTL and income tax base', () => {
+    const without = calcIL(baseIL);
+    const withPerks = calcIL({ ...baseIL, imputedBenefits: 1000 });
+    expect(withPerks.btl).toBeGreaterThan(without.btl);
+    expect(withPerks.masHachnasa).toBeGreaterThan(without.masHachnasa);
+  });
+
+  it('imputed benefits do NOT enter cash net (no cash crosses hands)', () => {
+    const without = calcIL(baseIL);
+    const withPerks = calcIL({ ...baseIL, imputedBenefits: 1000 });
+    // Net is LOWER because tax/BTL paid on extra base, but no extra cash inflow.
+    expect(withPerks.net).toBeLessThan(without.net);
+  });
+
+  it('imputed benefits do NOT change pension or keren contributions', () => {
+    const without = calcIL(baseIL);
+    const withPerks = calcIL({ ...baseIL, imputedBenefits: 5000 });
+    expect(withPerks.eePensionILS).toBe(without.eePensionILS);
+    expect(withPerks.eeKerenILS).toBe(without.eeKerenILS);
+  });
 });
 
 describe('calcUS — US engine', () => {
