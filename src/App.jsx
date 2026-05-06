@@ -9,6 +9,8 @@ import {
   HelpCircle,
   LayoutGrid,
   Sun,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { runEngine, LOCATIONS } from './calc';
 
@@ -278,29 +280,70 @@ const SunriseStat = ({ label, val, color }) => (
   </div>
 );
 
-const SunriseRow = ({ label, il, us, isExpense, sub, bg, bold }) => {
+const SunriseRow = ({ label, il, us, isExpense, variant = 'leaf', bg, expandable, expanded, onToggle }) => {
   const delta = us - il;
   let deltaColor = 'text-slate-400';
   if (delta > 0) deltaColor = 'text-emerald-600';
   if (delta < 0) deltaColor = 'text-rose-500';
 
-  let baseClass = `hover:bg-slate-100/40 transition-colors ${bg || ''}`;
-  let labelClass = `text-slate-600 ${sub ? 'pl-10 text-xs' : 'font-bold'} ${bold ? 'uppercase tracking-widest text-[10px]' : ''}`;
-  let valClassIL = `${isExpense ? 'text-slate-400' : 'text-slate-500'} ${bold ? 'font-bold text-slate-600' : 'font-medium'}`;
-  let valClassUS = `${isExpense ? 'text-slate-600' : 'text-slate-800'} ${bold ? 'font-black' : 'font-bold'}`;
-  let deltaClass = `font-black ${deltaColor} ${bold ? 'text-sm' : ''}`;
+  const isSection = variant === 'section';
+  const isSub = variant === 'sub';
+
+  const rowBg = bg || (isSection ? 'bg-slate-100/50' : '');
+  const hoverBg = expandable ? 'hover:bg-slate-200/50' : 'hover:bg-slate-100/40';
+  const baseClass = `${rowBg} ${hoverBg} transition-colors ${expandable ? 'cursor-pointer' : ''}`;
+
+  let labelClass;
+  if (isSection) {
+    labelClass = 'uppercase tracking-widest text-[10px] font-black text-slate-700';
+  } else if (isSub) {
+    labelClass = 'text-xs text-slate-500 font-medium';
+  } else {
+    labelClass = 'text-sm text-slate-700 font-bold';
+  }
+
+  let valClassIL;
+  let valClassUS;
+  let deltaClass;
+  if (isSection) {
+    valClassIL = 'text-sm font-bold text-slate-600';
+    valClassUS = 'text-sm font-black text-slate-900';
+    deltaClass = `text-sm font-black ${deltaColor}`;
+  } else if (isSub) {
+    valClassIL = 'text-xs font-medium text-slate-400';
+    valClassUS = 'text-xs font-semibold text-slate-600';
+    deltaClass = `text-xs font-bold ${deltaColor}`;
+  } else {
+    valClassIL = `text-sm font-medium ${isExpense ? 'text-slate-400' : 'text-slate-500'}`;
+    valClassUS = `text-sm font-bold ${isExpense ? 'text-slate-600' : 'text-slate-800'}`;
+    deltaClass = `text-sm font-black ${deltaColor}`;
+  }
+
+  // Indent: sub rows get a deep indent. Section/leaf rows share a fixed chevron slot
+  // so labels align horizontally whether the row is expandable or not.
+  const labelCellPadding = isSub ? 'p-3 pl-14' : 'p-4 pl-6';
 
   return (
-    <tr className={baseClass}>
-      <td className={`p-4 pl-6 ${labelClass}`}>{label}</td>
-      <td className={`p-4 ${valClassIL}`}>{formatValue(il)}</td>
-      <td className={`p-4 ${valClassUS}`}>{formatValue(us)}</td>
-      <td className={`p-4 pr-6 text-right ${deltaClass}`}>{delta > 0 ? '+' : ''}{formatValue(delta)}</td>
+    <tr className={baseClass} onClick={expandable ? onToggle : undefined}>
+      <td className={`${labelCellPadding} ${labelClass}`}>
+        {!isSub && (
+          <span className="inline-flex items-center justify-center w-4 h-4 mr-2 align-middle text-slate-400">
+            {expandable ? (expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />) : null}
+          </span>
+        )}
+        {label}
+      </td>
+      <td className={`${isSub ? 'p-3' : 'p-4'} ${valClassIL}`}>{formatValue(il)}</td>
+      <td className={`${isSub ? 'p-3' : 'p-4'} ${valClassUS}`}>{formatValue(us)}</td>
+      <td className={`${isSub ? 'p-3 pr-6' : 'p-4 pr-6'} text-right ${deltaClass}`}>{delta > 0 ? '+' : ''}{formatValue(delta)}</td>
     </tr>
   );
 };
 
 const LayoutSunrise = ({ calc, ...s }) => {
+  const [taxesOpen, setTaxesOpen] = useState(false);
+  const [expensesOpen, setExpensesOpen] = useState(false);
+  const [savingsOpen, setSavingsOpen] = useState(false);
   return (
     <div className="space-y-6 animate-in fade-in duration-500 text-slate-800">
       <header className="border-b border-orange-200/50 pb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -408,20 +451,33 @@ const LayoutSunrise = ({ calc, ...s }) => {
                 <tr><th className="p-4 pl-6">Monthly Breakdown (USD)</th><th className="p-4">Israel (Current)</th><th className="p-4">US (Offer)</th><th className="p-4 pr-6 text-right">Difference</th></tr>
               </thead>
               <tbody className="divide-y divide-slate-200/40">
-                <SunriseRow label="Gross Pay" il={calc.ilGrossUSD} us={calc.usGrossMonthly} bold />
-                <SunriseRow label="Retirement Savings" il={-calc.ilEEMatchUSD} us={-calc.personalUSD} isExpense />
-                <SunriseRow label="Income Tax" il={-calc.ilMasHachnasaUSD} us={-calc.usFedMonthly} isExpense sub />
-                <SunriseRow label="Social Sec. & Health" il={-calc.ilBTLUSD} us={-calc.usFICAMonthly} isExpense sub />
-                <SunriseRow label="State Tax" il={0} us={-calc.usStateMonthly} isExpense sub />
-                <SunriseRow label="City Tax" il={0} us={-calc.usCityMonthly} isExpense sub />
-                <SunriseRow label="Net Take-Home Pay" il={calc.ilNetUSD} us={calc.netTakeHome} bg="bg-slate-100/60" bold />
-                <SunriseRow label="Rent & Utilities" il={-calc.ilHousingUSD} us={-calc.usRentUSD} isExpense />
-                <SunriseRow label="US Transit & Extras" il={0} us={-calc.usMiscBurnUSD} isExpense />
-                <SunriseRow label="Food, Fun & Living" il={-calc.ilLifestyleUSD} us={-calc.usLifestyleUSD} isExpense />
-                <SunriseRow label="Total Expenses" il={-calc.ilTotalOutUSD} us={-calc.usTotalOutUSD} isExpense bg="bg-slate-100/60" bold />
-                <SunriseRow label="Employer Match" il={calc.ilERMatchUSD} us={calc.employerUSD} />
-                <SunriseRow label="Your Contribution" il={calc.ilEEMatchUSD} us={calc.personalUSD} />
-                <SunriseRow label="Total Monthly Savings" il={calc.targetSavingsUSD} us={calc.totalInvested} bg="bg-slate-100/60" bold />
+                <SunriseRow label="Gross Pay" il={calc.ilGrossUSD} us={calc.usGrossMonthly} variant="section" />
+                <SunriseRow label="Taxes" il={-(calc.ilMasHachnasaUSD + calc.ilBTLUSD)} us={-(calc.usFedMonthly + calc.usFICAMonthly + calc.usStateMonthly + calc.usCityMonthly)} isExpense variant="section" expandable expanded={taxesOpen} onToggle={() => setTaxesOpen(!taxesOpen)} />
+                {taxesOpen && (
+                  <>
+                    <SunriseRow label="Income Tax" il={-calc.ilMasHachnasaUSD} us={-calc.usFedMonthly} isExpense variant="sub" />
+                    <SunriseRow label="Social Sec. & Health" il={-calc.ilBTLUSD} us={-calc.usFICAMonthly} isExpense variant="sub" />
+                    <SunriseRow label="State Tax" il={0} us={-calc.usStateMonthly} isExpense variant="sub" />
+                    <SunriseRow label="City Tax" il={0} us={-calc.usCityMonthly} isExpense variant="sub" />
+                  </>
+                )}
+                <SunriseRow label="Retirement Contribution" il={-calc.ilEEMatchUSD} us={-calc.personalUSD} isExpense />
+                <SunriseRow label="Net Take-Home Pay" il={calc.ilNetUSD} us={calc.netTakeHome} variant="section" />
+                <SunriseRow label="Total Expenses" il={-calc.ilTotalOutUSD} us={-calc.usTotalOutUSD} isExpense variant="section" expandable expanded={expensesOpen} onToggle={() => setExpensesOpen(!expensesOpen)} />
+                {expensesOpen && (
+                  <>
+                    <SunriseRow label="Rent & Utilities" il={-calc.ilHousingUSD} us={-calc.usRentUSD} isExpense variant="sub" />
+                    <SunriseRow label="US Transit & Extras" il={0} us={-calc.usMiscBurnUSD} isExpense variant="sub" />
+                    <SunriseRow label="Food, Fun & Living" il={-calc.ilLifestyleUSD} us={-calc.usLifestyleUSD} isExpense variant="sub" />
+                  </>
+                )}
+                <SunriseRow label="Total Monthly Savings" il={calc.targetSavingsUSD} us={calc.totalInvested} variant="section" expandable expanded={savingsOpen} onToggle={() => setSavingsOpen(!savingsOpen)} />
+                {savingsOpen && (
+                  <>
+                    <SunriseRow label="Your Contribution" il={calc.ilEEMatchUSD} us={calc.personalUSD} variant="sub" />
+                    <SunriseRow label="Employer Match" il={calc.ilERMatchUSD} us={calc.employerUSD} variant="sub" />
+                  </>
+                )}
                 <tr className="bg-orange-50/50 border-t-2 border-orange-200/80">
                   <td className="p-5 pl-6 font-black text-orange-800 uppercase text-xs tracking-widest">True Lifestyle Change</td>
                   <td className="p-5 text-slate-500 font-bold">{formatValue(calc.ilLiquidFlowUSD)}</td>
