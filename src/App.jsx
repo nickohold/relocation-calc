@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   TrendingUp,
   ShieldCheck,
@@ -15,6 +15,8 @@ import {
 import { runEngine, LOCATIONS } from './calc';
 
 const formatValue = (val) => val === 0 ? '--' : `${val < 0 ? '-' : ''}$${Math.abs(Math.round(val)).toLocaleString()}`;
+
+const LOCATION_ENTRIES = Object.entries(LOCATIONS);
 
 const App = () => {
   const [activeLayout, setActiveLayout] = useState('sunrise');
@@ -56,15 +58,16 @@ const App = () => {
        ilRent, ilBurn, fxRate, selectedLoc, usGrossAnnual, usRent,
        us401kMatchLimit, usMiscBurn, includeSeverance, ilImputed]);
 
-  useEffect(() => {
-    setUsRent(LOCATIONS[selectedLoc]?.defaultRent?.toString() || "4500");
-  }, [selectedLoc]);
+  const selectLocation = useCallback((key) => {
+    setSelectedLoc(key);
+    setUsRent(LOCATIONS[key]?.defaultRent?.toString() || "4500");
+  }, []);
 
   const coreState = {
     ...calc,
     ilGross, setIlGross, ilERPension, setIlERPension, ilERSeverance, setIlERSeverance,
     ilERKeren, setIlERKeren, ilEEPension, setIlEEPension, ilEEKeren, setIlEEKeren,
-    ilRent, setIlRent, ilBurn, setIlBurn, selectedLoc, setSelectedLoc,
+    ilRent, setIlRent, ilBurn, setIlBurn, selectedLoc, selectLocation,
     usGrossAnnual, setUsGrossAnnual, usRent, setUsRent,
     us401kMatchLimit, setUs401kMatchLimit, usMiscBurn, setUsMiscBurn,
     includeSeverance, setIncludeSeverance,
@@ -185,8 +188,8 @@ const LayoutBento = ({ calc, ...s }) => {
             <h3 className="text-lg font-black text-white mb-6">US Offer & Costs</h3>
             <div className="space-y-4">
               <div className="flex gap-2 p-1 bg-black/20 rounded-xl overflow-x-auto no-scrollbar">
-                {Object.entries(LOCATIONS).map(([key, loc]) => (
-                  <button key={key} onClick={() => s.setSelectedLoc(key)} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${s.selectedLoc === key ? 'bg-white/10 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}>{loc.name}</button>
+                {LOCATION_ENTRIES.map(([key, loc]) => (
+                  <button key={key} onClick={() => s.selectLocation(key)} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${s.selectedLoc === key ? 'bg-white/10 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}>{loc.name}</button>
                 ))}
               </div>
               <BentoInput label="Annual Salary ($)" value={s.usGrossAnnual} onChange={s.setUsGrossAnnual} step={5000} />
@@ -400,8 +403,8 @@ const LayoutSunrise = ({ calc, ...s }) => {
             <h3 className="text-blue-600 text-xs font-black uppercase flex items-center gap-2 mb-4"><Target size={16} /> US Offer & Costs</h3>
             <div className="space-y-4">
               <div className="flex gap-2 p-1 bg-slate-200/50 rounded-xl overflow-x-auto no-scrollbar">
-                {Object.entries(LOCATIONS).map(([key, loc]) => (
-                  <button key={key} onClick={() => s.setSelectedLoc(key)} className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${s.selectedLoc === key ? 'bg-white text-blue-600 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700'}`}>{loc.name}</button>
+                {LOCATION_ENTRIES.map(([key, loc]) => (
+                  <button key={key} onClick={() => s.selectLocation(key)} className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${s.selectedLoc === key ? 'bg-white text-blue-600 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700'}`}>{loc.name}</button>
                 ))}
               </div>
               <SunriseInput label="Annual Salary ($)" value={s.usGrossAnnual} onChange={s.setUsGrossAnnual} step={5000} tooltip="Your target yearly US offer." />
