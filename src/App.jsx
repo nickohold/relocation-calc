@@ -11,6 +11,7 @@ import {
   Sun,
   ChevronDown,
   ChevronRight,
+  Coffee,
 } from 'lucide-react';
 import { runEngine, LOCATIONS } from './calc';
 
@@ -85,7 +86,20 @@ const App = () => {
           </div>
         </div>
         {activeLayout === 'sunrise' ? <LayoutSunrise {...coreState} /> : <LayoutBento {...coreState} />}
-        <footer className={`pt-8 pb-4 text-center space-y-2 ${activeLayout === 'sunrise' ? 'text-slate-400' : 'text-slate-600'}`}>
+        <footer className={`pt-8 pb-4 text-center space-y-3 ${activeLayout === 'sunrise' ? 'text-slate-400' : 'text-slate-600'}`}>
+          <a
+            href="https://ko-fi.com/nickholden"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Support on Ko-fi"
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-colors ${
+              activeLayout === 'sunrise'
+                ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-sm shadow-orange-500/20'
+                : 'bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10'
+            }`}
+          >
+            <Coffee size={14} /> Buy me a coffee
+          </a>
           <div className="text-[11px] max-w-2xl mx-auto leading-relaxed">
             Estimates only. Not tax, legal, or financial advice. See{' '}
             <a href="/disclaimer.html" className="underline hover:text-orange-500">disclaimer</a>
