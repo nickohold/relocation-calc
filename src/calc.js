@@ -31,6 +31,20 @@ export const NYC_LOCAL_BRACKETS = [
   { max: Infinity, rate: 0.03876 },
 ];
 
+// ── 2024 CA State brackets (single filer, FTB) ──
+// Excludes the 1% Mental Health Services tax on income over $1M.
+export const CA_STATE_BRACKETS = [
+  { max: 10756, rate: 0.01 },
+  { max: 25499, rate: 0.02 },
+  { max: 40245, rate: 0.04 },
+  { max: 55866, rate: 0.06 },
+  { max: 70606, rate: 0.08 },
+  { max: 360659, rate: 0.093 },
+  { max: 432787, rate: 0.103 },
+  { max: 721314, rate: 0.113 },
+  { max: Infinity, rate: 0.123 },
+];
+
 // ── 2024 NJ State brackets (single filer) ──
 export const NJ_STATE_BRACKETS = [
   { max: 20000, rate: 0.014 },
@@ -48,6 +62,8 @@ export const LOCATIONS = {
   WNY: { name: 'West NY/Guttenberg', state: 'NJ', city: null, defaultRent: 2900 },
   ATX: { name: 'Austin, TX',      state: 'TX', city: null,  defaultRent: 2600 },
   HOU: { name: 'Houston, TX',     state: 'TX', city: null,  defaultRent: 2200 },
+  SF:  { name: 'San Francisco',   state: 'CA', city: null,  defaultRent: 3500 },
+  MIA: { name: 'Miami, FL',       state: 'FL', city: null,  defaultRent: 2800 },
 };
 
 export const CONSTANTS = {
@@ -61,6 +77,7 @@ export const CONSTANTS = {
   ADDITIONAL_MEDICARE_RATE: 0.009,
   NY_STD_DEDUCTION_SINGLE: 8000,
   NJ_PERSONAL_EXEMPTION: 1000,
+  CA_STD_DEDUCTION_SINGLE: 5540,
 
   // Israel — 2026 figures from btl.gov.il
   BTL_THRESHOLD: 7703,        // 60% of average wage; switch from reduced to regular rate
@@ -196,7 +213,8 @@ export const calcUS = ({
   const { IRS_401K_LIMIT_ANNUAL, FED_STANDARD_DEDUCTION_SINGLE_2024,
           SS_WAGE_BASE_2024, SS_RATE, MEDICARE_RATE,
           ADDITIONAL_MEDICARE_THRESHOLD_SINGLE, ADDITIONAL_MEDICARE_RATE,
-          NY_STD_DEDUCTION_SINGLE, NJ_PERSONAL_EXEMPTION } = CONSTANTS;
+          NY_STD_DEDUCTION_SINGLE, NJ_PERSONAL_EXEMPTION,
+          CA_STD_DEDUCTION_SINGLE } = CONSTANTS;
 
   const grossMonthly = grossAnnual / 12;
   const totalOut = rent + miscBurn + ilBurnUSD;
@@ -232,8 +250,12 @@ export const calcUS = ({
     // NJ does NOT allow pre-tax 401k. State-tax the full gross.
     const njTaxable = Math.max(0, grossAnnual - NJ_PERSONAL_EXEMPTION);
     stateAnnual = calcBrackets(njTaxable, NJ_STATE_BRACKETS);
+  } else if (location.state === 'CA') {
+    // CA conforms to federal: 401k is pre-tax. No SF city income tax for individuals.
+    const caTaxable = Math.max(0, grossAnnual - personalAnnual - CA_STD_DEDUCTION_SINGLE);
+    stateAnnual = calcBrackets(caTaxable, CA_STATE_BRACKETS);
   }
-  // TX / other no-income-tax states: stateAnnual stays 0.
+  // TX / FL / other no-income-tax states: stateAnnual stays 0.
 
   const taxesAnnual = ficaAnnual + fedAnnual + stateAnnual + cityAnnual;
   const taxesMonthly = taxesAnnual / 12;
