@@ -82,12 +82,19 @@ const App = () => {
           </div>
         </div>
         {activeLayout === 'sunrise' ? <LayoutSunrise {...coreState} /> : <LayoutBento {...coreState} />}
-        <footer className={`pt-8 pb-4 text-center text-[10px] font-mono tracking-widest uppercase ${activeLayout === 'sunrise' ? 'text-slate-400' : 'text-slate-600'}`}>
+        <footer className={`pt-8 pb-4 text-center space-y-2 ${activeLayout === 'sunrise' ? 'text-slate-400' : 'text-slate-600'}`}>
+          <div className="text-[11px] max-w-2xl mx-auto leading-relaxed">
+            Estimates only. Not tax, legal, or financial advice. See{' '}
+            <a href="/disclaimer.html" className="underline hover:text-orange-500">disclaimer</a>
+            {' · '}
+            <a href="/privacy.html" className="underline hover:text-orange-500">privacy</a>
+            .
+          </div>
           <a
             href={`https://github.com/nickohold/relocation-calc/commit/${__APP_SHA__}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="hover:underline"
+            className="text-[10px] font-mono tracking-widest uppercase hover:underline"
           >
             {__APP_VERSION__} · {__APP_SHA__} · {__APP_BUILD_DATE__}
           </a>
