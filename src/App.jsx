@@ -17,6 +17,7 @@ import { runEngine, LOCATIONS, CONSTANTS } from './calc';
 import { formatMoney } from './formatMoney';
 
 const CURRENCY_STORAGE_KEY = 'relocation-calc:displayCurrency';
+const SALARY_MODE_STORAGE_KEY = 'relocation-calc:usSalaryMode';
 
 const LOCATION_ENTRIES = Object.entries(LOCATIONS);
 
@@ -250,12 +251,23 @@ const App = () => {
     const stored = window.localStorage.getItem(CURRENCY_STORAGE_KEY);
     return stored === 'ILS' ? 'ILS' : 'USD';
   });
+  const [usSalaryMode, setUsSalaryMode] = useState(() => {
+    if (typeof window === 'undefined') return 'annual';
+    const stored = window.localStorage.getItem(SALARY_MODE_STORAGE_KEY);
+    return stored === 'monthly' ? 'monthly' : 'annual';
+  });
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(CURRENCY_STORAGE_KEY, displayCurrency);
     }
   }, [displayCurrency]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(SALARY_MODE_STORAGE_KEY, usSalaryMode);
+    }
+  }, [usSalaryMode]);
 
   const calc = useMemo(() => runEngine({
     ilGross: Number(ilGross) || 0,
@@ -325,6 +337,7 @@ const App = () => {
     includeSeverance, setIncludeSeverance,
     ilImputed, setIlImputed,
     displayCurrency, setDisplayCurrency,
+    usSalaryMode, setUsSalaryMode,
     fmt,
     calc,
   };
@@ -425,6 +438,67 @@ const CurrencyToggle = ({ theme, displayCurrency, setDisplayCurrency }) => {
         </div>
       </div>
       <span className={`text-[10px] uppercase tracking-widest font-bold ${captionCls}`}>Exchange rate only</span>
+    </div>
+  );
+};
+
+const SalaryInput = ({ theme, annualValue, onAnnualChange, mode, setMode }) => {
+  const annualNum = Number(annualValue) || 0;
+  const isMonthly = mode === 'monthly';
+  const displayed = isMonthly ? Math.round(annualNum / 12).toString() : annualValue;
+  const step = isMonthly ? 500 : 5000;
+
+  const isLight = theme.name === 'Sunrise';
+  const activeCls = isLight
+    ? 'bg-orange-500 text-white'
+    : 'bg-indigo-500 text-white';
+  const inactiveCls = isLight
+    ? 'text-slate-500 hover:text-slate-800'
+    : 'text-slate-500 hover:text-slate-300';
+  const shellCls = isLight
+    ? 'bg-slate-200/50 border border-slate-300/50'
+    : 'bg-white/5 border border-white/10';
+
+  const handleChange = (raw) => {
+    if (isMonthly) {
+      const m = Number(raw) || 0;
+      onAnnualChange(String(Math.round(m * 12)));
+    } else {
+      onAnnualChange(raw);
+    }
+  };
+
+  const modeBtn = (id, label) => (
+    <button
+      type="button"
+      onClick={() => setMode(id)}
+      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all ${
+        mode === id ? activeCls : inactiveCls
+      }`}
+      aria-pressed={mode === id}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5 gap-2">
+        <label className={theme.inputLabel}>
+          {isMonthly ? 'Monthly Salary ($)' : 'Annual Salary ($)'}
+        </label>
+        <div className={`flex p-0.5 rounded-md ${shellCls}`}>
+          {modeBtn('annual', 'Yr')}
+          {modeBtn('monthly', 'Mo')}
+        </div>
+      </div>
+      <input
+        type="number"
+        value={displayed}
+        step={step}
+        onChange={(e) => handleChange(e.target.value)}
+        className={theme.inputBox}
+      />
     </div>
   );
 };
@@ -609,7 +683,13 @@ const Layout = ({ theme, calc, fmt, displayCurrency, setDisplayCurrency, ...s })
                   </button>
                 ))}
               </div>
-              <Input theme={theme} label="Annual Salary ($)" value={s.usGrossAnnual} onChange={s.setUsGrossAnnual} step={5000} tooltip="Your target yearly US offer." />
+              <SalaryInput
+                theme={theme}
+                annualValue={s.usGrossAnnual}
+                onAnnualChange={s.setUsGrossAnnual}
+                mode={s.usSalaryMode}
+                setMode={s.setUsSalaryMode}
+              />
               <Input theme={theme} label="Monthly Rent ($)" value={s.usRent} onChange={s.setUsRent} step={100} tooltip="Estimated base rent for the US." />
               <Input theme={theme} label="401k Match Limit %" value={s.us401kMatchLimit} onChange={s.setUs401kMatchLimit} step={0.5} tooltip="The maximum percentage the US employer will match in your 401k." />
               <Input theme={theme} label="Other Expenses ($)" value={s.usMiscBurn} onChange={s.setUsMiscBurn} tooltip="Extra US costs like transit, health premiums, and utilities." />
