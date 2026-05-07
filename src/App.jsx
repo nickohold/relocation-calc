@@ -13,9 +13,10 @@ import {
   ChevronRight,
   Coffee,
 } from 'lucide-react';
-import { runEngine, LOCATIONS } from './calc';
+import { runEngine, LOCATIONS, CONSTANTS } from './calc';
+import { formatMoney } from './formatMoney';
 
-const formatValue = (val) => val === 0 ? '--' : `${val < 0 ? '-' : ''}$${Math.abs(Math.round(val)).toLocaleString()}`;
+const CURRENCY_STORAGE_KEY = 'relocation-calc:displayCurrency';
 
 const LOCATION_ENTRIES = Object.entries(LOCATIONS);
 
@@ -244,6 +245,17 @@ const App = () => {
   const [usMiscBurn, setUsMiscBurn] = useState("900");
   const [includeSeverance, setIncludeSeverance] = useState(true);
   const [ilImputed, setIlImputed] = useState("0");
+  const [displayCurrency, setDisplayCurrency] = useState(() => {
+    if (typeof window === 'undefined') return 'USD';
+    const stored = window.localStorage.getItem(CURRENCY_STORAGE_KEY);
+    return stored === 'ILS' ? 'ILS' : 'USD';
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(CURRENCY_STORAGE_KEY, displayCurrency);
+    }
+  }, [displayCurrency]);
 
   const calc = useMemo(() => runEngine({
     ilGross: Number(ilGross) || 0,
@@ -297,6 +309,12 @@ const App = () => {
 
   const theme = THEMES[activeLayout];
 
+  const fxRateNum = Number(fxRate) || 0.27;
+  const fmt = useCallback(
+    (usdAmount) => formatMoney(usdAmount, displayCurrency, fxRateNum),
+    [displayCurrency, fxRateNum],
+  );
+
   const coreState = {
     ...calc,
     ilGross, setIlGross, ilERPension, setIlERPension, ilERSeverance, setIlERSeverance,
@@ -306,6 +324,8 @@ const App = () => {
     us401kMatchLimit, setUs401kMatchLimit, usMiscBurn, setUsMiscBurn,
     includeSeverance, setIncludeSeverance,
     ilImputed, setIlImputed,
+    displayCurrency, setDisplayCurrency,
+    fmt,
     calc,
   };
 
@@ -364,6 +384,51 @@ const LayoutButton = ({ icon, label, id, active, set }) => {
   return <button onClick={() => set(id)} className={baseClass}>{icon} {label}</button>;
 };
 
+const CurrencyToggle = ({ theme, displayCurrency, setDisplayCurrency }) => {
+  const isLight = theme.name === 'Sunrise';
+  const activeCls = isLight
+    ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+    : 'bg-indigo-500 text-white shadow';
+  const inactiveCls = isLight
+    ? 'text-slate-500 hover:text-slate-800'
+    : 'text-slate-500 hover:text-slate-300';
+  const shellCls = isLight
+    ? 'bg-slate-200/50 border border-slate-300/50'
+    : 'bg-white/5 border border-white/10';
+  const captionCls = isLight ? 'text-slate-400' : 'text-slate-500';
+
+  const btn = (id, label) => (
+    <button
+      onClick={() => setDisplayCurrency(id)}
+      className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+        displayCurrency === id ? activeCls : inactiveCls
+      }`}
+      aria-pressed={displayCurrency === id}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div className="flex flex-col items-start md:items-end gap-1">
+      <div className="flex items-center gap-1.5">
+        <div className={`flex p-1 rounded-lg ${shellCls}`}>
+          {btn('USD', '$ USD')}
+          {btn('ILS', '₪ ILS')}
+        </div>
+        <div className="relative group inline-block">
+          <HelpCircle size={12} className={theme.tooltipIcon} />
+          <div className={theme.tooltipBox}>
+            Conversions are static FX-only. ₪9,000/mo Tel Aviv lifestyle does not equal $2,430/mo NYC lifestyle even though FX says so.
+            <div className={theme.tooltipArrow}></div>
+          </div>
+        </div>
+      </div>
+      <span className={`text-[10px] uppercase tracking-widest font-bold ${captionCls}`}>FX-only · not PPP</span>
+    </div>
+  );
+};
+
 const Input = ({ theme, label, value, onChange, step = 1, disabled = false, tooltip = null }) => (
   <div>
     <div className="flex items-center mb-1.5 gap-1">
@@ -389,7 +454,7 @@ const Input = ({ theme, label, value, onChange, step = 1, disabled = false, tool
   </div>
 );
 
-const Row = ({ theme, label, il, us, isExpense, variant = 'leaf', bg, expandable, expanded, onToggle }) => {
+const Row = ({ theme, fmt, label, il, us, isExpense, variant = 'leaf', bg, expandable, expanded, onToggle }) => {
   const delta = us - il;
   let deltaColor = theme.deltaNeutral;
   if (delta > 0) deltaColor = theme.deltaPos;
@@ -438,14 +503,14 @@ const Row = ({ theme, label, il, us, isExpense, variant = 'leaf', bg, expandable
         )}
         {label}
       </td>
-      <td className={`${valCellPadding} ${valClassIL}`}>{formatValue(il)}</td>
-      <td className={`${valCellPadding} ${valClassUS}`}>{formatValue(us)}</td>
-      <td className={`${lastCellPadding} text-right ${deltaClass}`}>{delta > 0 ? '+' : ''}{formatValue(delta)}</td>
+      <td className={`${valCellPadding} ${valClassIL}`}>{fmt(il)}</td>
+      <td className={`${valCellPadding} ${valClassUS}`}>{fmt(us)}</td>
+      <td className={`${lastCellPadding} text-right ${deltaClass}`}>{delta > 0 ? '+' : ''}{fmt(delta)}</td>
     </tr>
   );
 };
 
-const Layout = ({ theme, calc, ...s }) => {
+const Layout = ({ theme, calc, fmt, displayCurrency, setDisplayCurrency, ...s }) => {
   const [taxesOpen, setTaxesOpen] = useState(false);
   const [expensesOpen, setExpensesOpen] = useState(false);
   const [savingsOpen, setSavingsOpen] = useState(false);
@@ -466,11 +531,14 @@ const Layout = ({ theme, calc, ...s }) => {
           </h1>
           <p className={theme.subTitle}>Savings-Matched Calculator</p>
         </div>
-        <div className={theme.totalPillCard}>
-          <span className={theme.totalPillLabel}>Total IL Savings Rate ({calc.totalILSPct.toFixed(1)}%)</span>
-          <div className={theme.totalPillValue}>
-            <Lock size={18} /> ${Math.round(calc.targetSavingsUSD).toLocaleString()}{' '}
-            <span className={theme.totalPillSuffix}>/mo</span>
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full md:w-auto">
+          <CurrencyToggle theme={theme} displayCurrency={displayCurrency} setDisplayCurrency={setDisplayCurrency} />
+          <div className={theme.totalPillCard}>
+            <span className={theme.totalPillLabel}>Total IL Savings Rate ({calc.totalILSPct.toFixed(1)}%)</span>
+            <div className={theme.totalPillValue}>
+              <Lock size={18} /> {fmt(calc.targetSavingsUSD)}{' '}
+              <span className={theme.totalPillSuffix}>/mo</span>
+            </div>
           </div>
         </div>
       </header>
@@ -482,7 +550,7 @@ const Layout = ({ theme, calc, ...s }) => {
               <span className="flex items-center gap-1"><Wallet size={14} /> Cash Leftover</span>
             </div>
             <div className={`text-3xl sm:text-5xl font-black tracking-tighter ${cashLeftoverValueClass}`}>
-              {formatValue(calc.liquidCashFlow)}
+              {fmt(calc.liquidCashFlow)}
             </div>
           </div>
           <div className={`${theme.kpiCardBase} ${theme.kpiAccent}`}>
@@ -490,7 +558,7 @@ const Layout = ({ theme, calc, ...s }) => {
               <span className="flex items-center gap-1"><TrendingUp size={14} className={theme.kpiTrendIcon} /> True Lifestyle Change</span>
             </div>
             <div className={`text-3xl sm:text-5xl font-black tracking-tighter ${theme.kpiValueAccent}`}>
-              {calc.liquidDelta > 0 ? '+' : ''}{formatValue(calc.liquidDelta)}
+              {calc.liquidDelta > 0 ? '+' : ''}{fmt(calc.liquidDelta)}
             </div>
           </div>
         </div>
@@ -553,7 +621,7 @@ const Layout = ({ theme, calc, ...s }) => {
           <table className="w-full text-left text-xs sm:text-sm min-w-[560px]">
             <thead className={theme.tableHead}>
               <tr>
-                <th className="p-3 pl-4 sm:p-4 sm:pl-6">Monthly Breakdown (USD)</th>
+                <th className="p-3 pl-4 sm:p-4 sm:pl-6">Monthly Breakdown ({displayCurrency})</th>
                 <th className="p-3 sm:p-4">Israel (Current)</th>
                 <th className="p-3 sm:p-4">US (Offer)</th>
                 <th className="p-3 pr-4 sm:p-4 sm:pr-6 text-right">Difference</th>
@@ -567,22 +635,22 @@ const Layout = ({ theme, calc, ...s }) => {
                   </span>
                   Monthly Bank Balance
                 </td>
-                <td className={theme.bankRowIL}>{formatValue(calc.ilLiquidFlowUSD)}</td>
-                <td className={theme.bankRowUS}>{formatValue(calc.liquidCashFlow)}</td>
+                <td className={theme.bankRowIL}>{fmt(calc.ilLiquidFlowUSD)}</td>
+                <td className={theme.bankRowUS}>{fmt(calc.liquidCashFlow)}</td>
                 <td className={`p-3 pr-4 sm:p-5 sm:pr-6 text-right font-black ${calc.liquidDelta >= 0 ? theme.bankDeltaPos : theme.bankDeltaNeg}`}>
-                  {calc.liquidDelta > 0 ? '+' : ''}{formatValue(calc.liquidDelta)}
+                  {calc.liquidDelta > 0 ? '+' : ''}{fmt(calc.liquidDelta)}
                 </td>
               </tr>
               {bankOpen && (
                 <>
-                  <Row theme={theme} label="Gross Pay" il={calc.ilGrossUSD} us={calc.usGrossMonthly} />
-                  <Row theme={theme} label="Taxes" il={-(calc.ilMasHachnasaUSD + calc.ilBTLUSD)} us={-(calc.usFedMonthly + calc.usFICAMonthly + calc.usStateMonthly + calc.usCityMonthly)} isExpense expandable expanded={taxesOpen} onToggle={() => setTaxesOpen(!taxesOpen)} />
+                  <Row theme={theme} fmt={fmt} label="Gross Pay" il={calc.ilGrossUSD} us={calc.usGrossMonthly} />
+                  <Row theme={theme} fmt={fmt} label="Taxes" il={-(calc.ilMasHachnasaUSD + calc.ilBTLUSD)} us={-(calc.usFedMonthly + calc.usFICAMonthly + calc.usStateMonthly + calc.usCityMonthly)} isExpense expandable expanded={taxesOpen} onToggle={() => setTaxesOpen(!taxesOpen)} />
                   {taxesOpen && (
                     <>
-                      <Row theme={theme} label="Income Tax" il={-calc.ilMasHachnasaUSD} us={-calc.usFedMonthly} isExpense variant="sub" />
-                      <Row theme={theme} label="Social Sec. & Health" il={-calc.ilBTLUSD} us={-calc.usFICAMonthly} isExpense variant="sub" />
-                      <Row theme={theme} label="State Tax" il={0} us={-calc.usStateMonthly} isExpense variant="sub" />
-                      <Row theme={theme} label="City Tax" il={0} us={-calc.usCityMonthly} isExpense variant="sub" />
+                      <Row theme={theme} fmt={fmt} label="Income Tax" il={-calc.ilMasHachnasaUSD} us={-calc.usFedMonthly} isExpense variant="sub" />
+                      <Row theme={theme} fmt={fmt} label="Social Sec. & Health" il={-calc.ilBTLUSD} us={-calc.usFICAMonthly} isExpense variant="sub" />
+                      <Row theme={theme} fmt={fmt} label="State Tax" il={0} us={-calc.usStateMonthly} isExpense variant="sub" />
+                      <Row theme={theme} fmt={fmt} label="City Tax" il={0} us={-calc.usCityMonthly} isExpense variant="sub" />
                     </>
                   )}
                   <tr className={theme.netRow}>
@@ -590,18 +658,18 @@ const Layout = ({ theme, calc, ...s }) => {
                       <span className="inline-flex items-center justify-center w-4 h-4 mr-2 align-middle" />
                       Net Take-Home Pay
                     </td>
-                    <td className={theme.netRowIL}>{formatValue(calc.ilNetUSD)}</td>
-                    <td className={theme.netRowUS}>{formatValue(calc.netTakeHome)}</td>
+                    <td className={theme.netRowIL}>{fmt(calc.ilNetUSD)}</td>
+                    <td className={theme.netRowUS}>{fmt(calc.netTakeHome)}</td>
                     <td className={`p-3 pr-4 sm:p-4 sm:pr-6 text-right text-sm font-semibold ${(calc.netTakeHome - calc.ilNetUSD) >= 0 ? theme.deltaPos : theme.deltaNeg}`}>
-                      {(calc.netTakeHome - calc.ilNetUSD) > 0 ? '+' : ''}{formatValue(calc.netTakeHome - calc.ilNetUSD)}
+                      {(calc.netTakeHome - calc.ilNetUSD) > 0 ? '+' : ''}{fmt(calc.netTakeHome - calc.ilNetUSD)}
                     </td>
                   </tr>
-                  <Row theme={theme} label="Living Expenses" il={-calc.ilTotalOutUSD} us={-calc.usTotalOutUSD} isExpense expandable expanded={expensesOpen} onToggle={() => setExpensesOpen(!expensesOpen)} />
+                  <Row theme={theme} fmt={fmt} label="Living Expenses" il={-calc.ilTotalOutUSD} us={-calc.usTotalOutUSD} isExpense expandable expanded={expensesOpen} onToggle={() => setExpensesOpen(!expensesOpen)} />
                   {expensesOpen && (
                     <>
-                      <Row theme={theme} label="Rent & Utilities" il={-calc.ilHousingUSD} us={-calc.usRentUSD} isExpense variant="sub" />
-                      <Row theme={theme} label="US Transit & Extras" il={0} us={-calc.usMiscBurnUSD} isExpense variant="sub" />
-                      <Row theme={theme} label="Food, Fun & Living" il={-calc.ilLifestyleUSD} us={-calc.usLifestyleUSD} isExpense variant="sub" />
+                      <Row theme={theme} fmt={fmt} label="Rent & Utilities" il={-calc.ilHousingUSD} us={-calc.usRentUSD} isExpense variant="sub" />
+                      <Row theme={theme} fmt={fmt} label="US Transit & Extras" il={0} us={-calc.usMiscBurnUSD} isExpense variant="sub" />
+                      <Row theme={theme} fmt={fmt} label="Food, Fun & Living" il={-calc.ilLifestyleUSD} us={-calc.usLifestyleUSD} isExpense variant="sub" />
                     </>
                   )}
                 </>
@@ -613,16 +681,16 @@ const Layout = ({ theme, calc, ...s }) => {
                   </span>
                   Monthly Savings
                 </td>
-                <td className={theme.savingsRowIL}>{formatValue(calc.targetSavingsUSD)}</td>
-                <td className={theme.savingsRowUS}>{formatValue(calc.totalInvested)}</td>
+                <td className={theme.savingsRowIL}>{fmt(calc.targetSavingsUSD)}</td>
+                <td className={theme.savingsRowUS}>{fmt(calc.totalInvested)}</td>
                 <td className={`p-3 pr-4 sm:p-5 sm:pr-6 text-right font-black ${(calc.totalInvested - calc.targetSavingsUSD) >= 0 ? theme.savingsDeltaPos : theme.savingsDeltaNeg}`}>
-                  {(calc.totalInvested - calc.targetSavingsUSD) > 0 ? '+' : ''}{formatValue(calc.totalInvested - calc.targetSavingsUSD)}
+                  {(calc.totalInvested - calc.targetSavingsUSD) > 0 ? '+' : ''}{fmt(calc.totalInvested - calc.targetSavingsUSD)}
                 </td>
               </tr>
               {savingsOpen && (
                 <>
-                  <Row theme={theme} label="Your Contribution" il={calc.ilEEMatchUSD} us={calc.personalUSD} />
-                  <Row theme={theme} label="Employer Match" il={calc.ilERMatchUSD} us={calc.employerUSD} />
+                  <Row theme={theme} fmt={fmt} label="Your Contribution" il={calc.ilEEMatchUSD} us={calc.personalUSD} />
+                  <Row theme={theme} fmt={fmt} label="Employer Match" il={calc.ilERMatchUSD} us={calc.employerUSD} />
                 </>
               )}
             </tbody>
@@ -645,9 +713,9 @@ const Layout = ({ theme, calc, ...s }) => {
                 <Lock size={20} />
               </div>
               <div className="min-w-0">
-                <h4 className={theme.wealthGapTitle}>{theme.wealthGapPrefix}Wealth Gap: ${Math.round(calc.wealthGapUSD).toLocaleString()}/mo</h4>
+                <h4 className={theme.wealthGapTitle}>{theme.wealthGapPrefix}Wealth Gap: {fmt(calc.wealthGapUSD)}/mo</h4>
                 <p className={theme.wealthGapText}>
-                  Hitting your Israeli savings target requires <span className="font-bold">${Math.round(calc.wealthGapUSD).toLocaleString()}/mo more</span> than the IRS 401(k) limit allows ($23,500/yr). Even with positive lifestyle delta, this move is a <span className="font-bold">net-worth loss</span> versus staying — unless offset by RSUs, taxable brokerage, or other vehicles not modeled here.
+                  Hitting your Israeli savings target requires <span className="font-bold">{fmt(calc.wealthGapUSD)}/mo more</span> than the IRS 401(k) limit allows (${CONSTANTS.IRS_401K_LIMIT_ANNUAL.toLocaleString()}/yr). Even with positive lifestyle delta, this move is a <span className="font-bold">net-worth loss</span> versus staying — unless offset by RSUs, taxable brokerage, or other vehicles not modeled here.
                 </p>
               </div>
             </div>
