@@ -386,7 +386,6 @@ const SunriseRow = ({ label, il, us, isExpense, variant = 'leaf', bg, expandable
 const LayoutSunrise = ({ calc, ...s }) => {
   const [taxesOpen, setTaxesOpen] = useState(false);
   const [expensesOpen, setExpensesOpen] = useState(false);
-  const [savingsOpen, setSavingsOpen] = useState(false);
   return (
     <div className="space-y-6 animate-in fade-in duration-500 text-slate-800">
       <header className="border-b border-orange-200/50 pb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -488,47 +487,88 @@ const LayoutSunrise = ({ calc, ...s }) => {
               </div>
             </div>
           )}
-          <div className="bg-slate-50 border border-slate-200/80 rounded-3xl overflow-x-auto shadow-sm">
-            <table className="w-full text-left text-xs sm:text-sm min-w-[560px]">
-              <thead className="bg-slate-100/60 text-slate-500 uppercase font-black text-[10px] sm:text-xs border-b border-slate-200/80">
-                <tr><th className="p-3 pl-4 sm:p-4 sm:pl-6">Monthly Breakdown (USD)</th><th className="p-3 sm:p-4">Israel (Current)</th><th className="p-3 sm:p-4">US (Offer)</th><th className="p-3 pr-4 sm:p-4 sm:pr-6 text-right">Difference</th></tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200/40">
-                <SunriseRow label="Gross Pay" il={calc.ilGrossUSD} us={calc.usGrossMonthly} variant="section" />
-                <SunriseRow label="Taxes" il={-(calc.ilMasHachnasaUSD + calc.ilBTLUSD)} us={-(calc.usFedMonthly + calc.usFICAMonthly + calc.usStateMonthly + calc.usCityMonthly)} isExpense variant="section" expandable expanded={taxesOpen} onToggle={() => setTaxesOpen(!taxesOpen)} />
-                {taxesOpen && (
-                  <>
-                    <SunriseRow label="Income Tax" il={-calc.ilMasHachnasaUSD} us={-calc.usFedMonthly} isExpense variant="sub" />
-                    <SunriseRow label="Social Sec. & Health" il={-calc.ilBTLUSD} us={-calc.usFICAMonthly} isExpense variant="sub" />
-                    <SunriseRow label="State Tax" il={0} us={-calc.usStateMonthly} isExpense variant="sub" />
-                    <SunriseRow label="City Tax" il={0} us={-calc.usCityMonthly} isExpense variant="sub" />
-                  </>
-                )}
-                <SunriseRow label="Retirement Contribution" il={-calc.ilEEMatchUSD} us={-calc.personalUSD} isExpense />
-                <SunriseRow label="Net Take-Home Pay" il={calc.ilNetUSD} us={calc.netTakeHome} variant="section" />
-                <SunriseRow label="Total Expenses" il={-calc.ilTotalOutUSD} us={-calc.usTotalOutUSD} isExpense variant="section" expandable expanded={expensesOpen} onToggle={() => setExpensesOpen(!expensesOpen)} />
-                {expensesOpen && (
-                  <>
-                    <SunriseRow label="Rent & Utilities" il={-calc.ilHousingUSD} us={-calc.usRentUSD} isExpense variant="sub" />
-                    <SunriseRow label="US Transit & Extras" il={0} us={-calc.usMiscBurnUSD} isExpense variant="sub" />
-                    <SunriseRow label="Food, Fun & Living" il={-calc.ilLifestyleUSD} us={-calc.usLifestyleUSD} isExpense variant="sub" />
-                  </>
-                )}
-                <SunriseRow label="Total Monthly Savings" il={calc.targetSavingsUSD} us={calc.totalInvested} variant="section" expandable expanded={savingsOpen} onToggle={() => setSavingsOpen(!savingsOpen)} />
-                {savingsOpen && (
-                  <>
-                    <SunriseRow label="Your Contribution" il={calc.ilEEMatchUSD} us={calc.personalUSD} variant="sub" />
-                    <SunriseRow label="Employer Match" il={calc.ilERMatchUSD} us={calc.employerUSD} variant="sub" />
-                  </>
-                )}
-                <tr className="bg-orange-50/50 border-t-2 border-orange-200/80">
-                  <td className="p-3 pl-4 sm:p-5 sm:pl-6 font-black text-orange-800 uppercase text-[10px] sm:text-xs tracking-widest">True Lifestyle Change</td>
-                  <td className="p-3 sm:p-5 text-slate-500 font-bold">{formatValue(calc.ilLiquidFlowUSD)}</td>
-                  <td className="p-3 sm:p-5 text-orange-600 font-black">{formatValue(calc.liquidCashFlow)}</td>
-                  <td className={`p-3 pr-4 sm:p-5 sm:pr-6 text-right font-black ${calc.liquidDelta >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{calc.liquidDelta > 0 ? '+' : ''}{formatValue(calc.liquidDelta)}</td>
-                </tr>
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
+            <div className="lg:col-span-3 bg-slate-50 border border-slate-200/80 rounded-3xl overflow-x-auto shadow-sm">
+              <div className="p-4 sm:p-5 border-b border-slate-200/60 flex items-center gap-2">
+                <Wallet size={16} />
+                <div className="min-w-0">
+                  <h4 className="text-sm font-black uppercase text-slate-900">Cash Flow</h4>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">From paycheck to pocket</p>
+                </div>
+              </div>
+              <table className="w-full text-left text-xs sm:text-sm min-w-[480px]">
+                <thead className="bg-slate-100/60 text-slate-500 uppercase font-black text-[10px] sm:text-xs border-b border-slate-200/80">
+                  <tr><th className="p-3 pl-4 sm:p-4 sm:pl-6">Line Item</th><th className="p-3 sm:p-4">Israel (Current)</th><th className="p-3 sm:p-4">US (Offer)</th><th className="p-3 pr-4 sm:p-4 sm:pr-6 text-right">Difference</th></tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200/40">
+                  <SunriseRow label="Gross Pay" il={calc.ilGrossUSD} us={calc.usGrossMonthly} variant="section" />
+                  <SunriseRow label="Taxes" il={-(calc.ilMasHachnasaUSD + calc.ilBTLUSD)} us={-(calc.usFedMonthly + calc.usFICAMonthly + calc.usStateMonthly + calc.usCityMonthly)} isExpense variant="section" expandable expanded={taxesOpen} onToggle={() => setTaxesOpen(!taxesOpen)} />
+                  {taxesOpen && (
+                    <>
+                      <SunriseRow label="Income Tax" il={-calc.ilMasHachnasaUSD} us={-calc.usFedMonthly} isExpense variant="sub" />
+                      <SunriseRow label="Social Sec. & Health" il={-calc.ilBTLUSD} us={-calc.usFICAMonthly} isExpense variant="sub" />
+                      <SunriseRow label="State Tax" il={0} us={-calc.usStateMonthly} isExpense variant="sub" />
+                      <SunriseRow label="City Tax" il={0} us={-calc.usCityMonthly} isExpense variant="sub" />
+                    </>
+                  )}
+                  <SunriseRow label="Your Retirement" il={-calc.ilEEMatchUSD} us={-calc.personalUSD} isExpense variant="section" />
+                  <tr className="bg-emerald-50/60 border-y-2 border-emerald-200/60">
+                    <td className="p-3 pl-4 sm:p-4 sm:pl-6 uppercase tracking-widest text-[10px] font-black text-emerald-800">Net Take-Home Pay</td>
+                    <td className="p-3 sm:p-4 text-sm font-bold text-slate-600">{formatValue(calc.ilNetUSD)}</td>
+                    <td className="p-3 sm:p-4 text-sm font-black text-emerald-700">{formatValue(calc.netTakeHome)}</td>
+                    {(() => {
+                      const d = calc.netTakeHome - calc.ilNetUSD;
+                      const c = d > 0 ? 'text-emerald-600' : d < 0 ? 'text-rose-500' : 'text-slate-400';
+                      return <td className={`p-3 pr-4 sm:p-4 sm:pr-6 text-right text-sm font-black ${c}`}>{d > 0 ? '+' : ''}{formatValue(d)}</td>;
+                    })()}
+                  </tr>
+                  <SunriseRow label="Living Expenses" il={-calc.ilTotalOutUSD} us={-calc.usTotalOutUSD} isExpense variant="section" expandable expanded={expensesOpen} onToggle={() => setExpensesOpen(!expensesOpen)} />
+                  {expensesOpen && (
+                    <>
+                      <SunriseRow label="Rent & Utilities" il={-calc.ilHousingUSD} us={-calc.usRentUSD} isExpense variant="sub" />
+                      <SunriseRow label="US Transit & Extras" il={0} us={-calc.usMiscBurnUSD} isExpense variant="sub" />
+                      <SunriseRow label="Food, Fun & Living" il={-calc.ilLifestyleUSD} us={-calc.usLifestyleUSD} isExpense variant="sub" />
+                    </>
+                  )}
+                  <tr className="bg-orange-50/50 border-t-2 border-orange-200/80">
+                    <td className="p-3 pl-4 sm:p-5 sm:pl-6 font-black text-orange-800 uppercase text-[10px] sm:text-xs tracking-widest">Cash Leftover</td>
+                    <td className="p-3 sm:p-5 text-slate-500 font-bold">{formatValue(calc.ilLiquidFlowUSD)}</td>
+                    <td className="p-3 sm:p-5 text-orange-600 font-black">{formatValue(calc.liquidCashFlow)}</td>
+                    <td className={`p-3 pr-4 sm:p-5 sm:pr-6 text-right font-black ${calc.liquidDelta >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{calc.liquidDelta > 0 ? '+' : ''}{formatValue(calc.liquidDelta)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="lg:col-span-2 bg-indigo-50/40 border border-indigo-200/60 rounded-3xl overflow-hidden shadow-sm">
+              <div className="p-4 sm:p-5 border-b border-indigo-200/60 flex items-center gap-2">
+                <TrendingUp size={16} className="text-indigo-600" />
+                <div className="min-w-0">
+                  <h4 className="text-sm font-black uppercase text-slate-900">Wealth Being Built</h4>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">Retirement + match per month</p>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs sm:text-sm min-w-[480px]">
+                  <thead className="bg-indigo-100/40 text-slate-500 uppercase font-black text-[10px] sm:text-xs border-b border-indigo-200/60">
+                    <tr><th className="p-3 pl-4 sm:p-4 sm:pl-6">Line Item</th><th className="p-3 sm:p-4">Israel</th><th className="p-3 sm:p-4">US</th><th className="p-3 pr-4 sm:p-4 sm:pr-6 text-right">Difference</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-indigo-200/40">
+                    <SunriseRow label="Your Contribution" il={calc.ilEEMatchUSD} us={calc.personalUSD} />
+                    <SunriseRow label="Employer Match" il={calc.ilERMatchUSD} us={calc.employerUSD} />
+                    <tr className="bg-indigo-100/70 border-t-2 border-indigo-300/70">
+                      <td className="p-3 pl-4 sm:p-5 sm:pl-6 font-black text-indigo-700 uppercase text-[10px] sm:text-xs tracking-widest">Total Invested</td>
+                      <td className="p-3 sm:p-5 text-indigo-700/70 font-bold">{formatValue(calc.targetSavingsUSD)}</td>
+                      <td className="p-3 sm:p-5 text-indigo-700 font-black">{formatValue(calc.totalInvested)}</td>
+                      {(() => {
+                        const d = calc.totalInvested - calc.targetSavingsUSD;
+                        const c = d > 0 ? 'text-indigo-600' : d < 0 ? 'text-rose-600' : 'text-slate-400';
+                        return <td className={`p-3 pr-4 sm:p-5 sm:pr-6 text-right font-black ${c}`}>{d > 0 ? '+' : ''}{formatValue(d)}</td>;
+                      })()}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       </div>
