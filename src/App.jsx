@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   TrendingUp,
   ShieldCheck,
@@ -59,6 +59,25 @@ const App = () => {
        ilRent, ilBurn, fxRate, selectedLoc, usGrossAnnual, usRent,
        us401kMatchLimit, usMiscBurn, includeSeverance, ilImputed]);
 
+  const [giggling, setGiggling] = useState(false);
+  const giggledRef = useRef(false);
+
+  useEffect(() => {
+    const onScroll = () => {
+      if (giggledRef.current) return;
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      if (max <= 0) return;
+      if (window.scrollY / max >= 0.75) {
+        giggledRef.current = true;
+        setGiggling(true);
+        window.removeEventListener('scroll', onScroll);
+        setTimeout(() => setGiggling(false), 900);
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   const selectLocation = useCallback((key) => {
     setSelectedLoc(key);
     setUsRent(LOCATIONS[key]?.defaultRent?.toString() || "4500");
@@ -86,20 +105,7 @@ const App = () => {
           </div>
         </div>
         {activeLayout === 'sunrise' ? <LayoutSunrise {...coreState} /> : <LayoutBento {...coreState} />}
-        <footer className={`pt-8 pb-4 text-center space-y-3 ${activeLayout === 'sunrise' ? 'text-slate-400' : 'text-slate-600'}`}>
-          <a
-            href="https://ko-fi.com/nickholden"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Support on Ko-fi"
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-colors ${
-              activeLayout === 'sunrise'
-                ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-sm shadow-orange-500/20'
-                : 'bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10'
-            }`}
-          >
-            <Coffee size={14} /> Buy me a coffee
-          </a>
+        <footer className={`pt-8 pb-4 text-center space-y-2 ${activeLayout === 'sunrise' ? 'text-slate-400' : 'text-slate-600'}`}>
           <div className="text-[11px] max-w-2xl mx-auto leading-relaxed">
             Estimates only. Not tax, legal, or financial advice. See{' '}
             <a href="/disclaimer.html" className="underline hover:text-orange-500">disclaimer</a>
@@ -117,6 +123,19 @@ const App = () => {
           </a>
         </footer>
       </div>
+      <a
+        href="https://ko-fi.com/nickholden"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Buy me a coffee on Ko-fi"
+        className={`fixed bottom-4 right-4 z-50 inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-bold shadow-lg transition-transform hover:scale-110 ${giggling ? 'animate-giggle' : ''} ${
+          activeLayout === 'sunrise'
+            ? 'bg-orange-500 text-white shadow-orange-500/30 hover:bg-orange-600'
+            : 'bg-indigo-500 text-white shadow-indigo-500/30 hover:bg-indigo-600'
+        }`}
+      >
+        <Coffee size={14} /> <span className="hidden sm:inline">Buy me a coffee</span>
+      </a>
     </div>
   );
 };
