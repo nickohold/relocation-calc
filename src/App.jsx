@@ -400,6 +400,16 @@ const LayoutSunrise = ({ calc, ...s }) => {
         </div>
       </header>
       <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className={`p-4 sm:p-6 rounded-3xl border ${calc.liquidCashFlow >= 0 ? 'bg-emerald-50/50 border-emerald-200/80' : 'bg-rose-50/50 border-rose-200/80'} shadow-sm`}>
+            <div className="flex justify-between items-center mb-2 text-[10px] uppercase font-black text-slate-500"><span className="flex items-center gap-1"><Wallet size={14} /> Cash Leftover</span></div>
+            <div className={`text-3xl sm:text-5xl font-black tracking-tighter ${calc.liquidCashFlow >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatValue(calc.liquidCashFlow)}</div>
+          </div>
+          <div className="p-4 sm:p-6 rounded-3xl border bg-orange-50/50 border-orange-200/80 shadow-sm">
+            <div className="flex justify-between items-center mb-2 text-[10px] uppercase font-black text-slate-500"><span className="flex items-center gap-1"><TrendingUp size={14} className="text-orange-500" /> True Lifestyle Change</span></div>
+            <div className="text-3xl sm:text-5xl font-black text-orange-600 tracking-tighter">{calc.liquidDelta > 0 ? '+' : ''}{formatValue(calc.liquidDelta)}</div>
+          </div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <section className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 sm:p-6 shadow-sm">
             <h3 className="text-orange-600 text-xs font-black uppercase flex items-center gap-2 mb-4"><ShieldCheck size={16} /> Israel (Current Setup)</h3>
@@ -448,29 +458,13 @@ const LayoutSunrise = ({ calc, ...s }) => {
           </section>
         </div>
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className={`p-4 sm:p-6 rounded-3xl border ${calc.liquidCashFlow >= 0 ? 'bg-emerald-50/50 border-emerald-200/80' : 'bg-rose-50/50 border-rose-200/80'} shadow-sm`}>
-              <div className="flex justify-between items-center mb-2 text-[10px] uppercase font-black text-slate-500"><span className="flex items-center gap-1"><Wallet size={14} /> Cash Leftover</span></div>
-              <div className={`text-3xl sm:text-5xl font-black tracking-tighter ${calc.liquidCashFlow >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatValue(calc.liquidCashFlow)}</div>
-            </div>
-            <div className="p-4 sm:p-6 rounded-3xl border bg-orange-50/50 border-orange-200/80 shadow-sm">
-              <div className="flex justify-between items-center mb-2 text-[10px] uppercase font-black text-slate-500"><span className="flex items-center gap-1"><TrendingUp size={14} className="text-orange-500" /> True Lifestyle Change</span></div>
-              <div className="text-3xl sm:text-5xl font-black text-orange-600 tracking-tighter">{calc.liquidDelta > 0 ? '+' : ''}{formatValue(calc.liquidDelta)}</div>
-            </div>
-          </div>
           <div className="bg-slate-50 border border-slate-200/80 rounded-3xl p-4 sm:p-6 relative shadow-sm">
-            <div className="flex items-center gap-3 sm:gap-4 mb-6">
+            <div className="flex items-center gap-3 sm:gap-4">
               <div className="bg-orange-100/80 p-2.5 sm:p-3 rounded-2xl text-orange-600 flex-shrink-0"><Lock size={20} /></div>
               <div className="min-w-0">
                 <h4 className="text-sm font-black uppercase text-slate-900">Matching Your Israeli Savings</h4>
                 <p className="text-xs text-slate-500 mt-1 font-medium">We locked your US savings to match your total Israeli savings rate. You need to contribute <span className="text-orange-600 font-bold">{calc.optimalPct.toFixed(2)}%</span> to break even on wealth building.</p>
               </div>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 border-t border-slate-200/60 pt-6">
-              <SunriseStat label="Net Take-Home" val={calc.netTakeHome} />
-              <SunriseStat label="Total Expenses" val={calc.usTotalOutUSD} color="text-rose-500" />
-              <SunriseStat label="You Pay (401k)" val={calc.personalUSD} color="text-blue-600" />
-              <SunriseStat label="Employer Pays" val={calc.employerUSD} color="text-emerald-600" />
             </div>
           </div>
           {calc.wealthGapUSD > 0 && (
