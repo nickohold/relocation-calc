@@ -314,13 +314,6 @@ const SunriseInput = ({ label, value, onChange, step = 1, disabled = false, tool
   </div>
 );
 
-const SunriseStat = ({ label, val, color }) => (
-  <div>
-    <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest block mb-1">{label}</span>
-    <span className={`text-xl font-black ${color || 'text-slate-900'}`}>${Math.round(val || 0).toLocaleString()}</span>
-  </div>
-);
-
 const SunriseRow = ({ label, il, us, isExpense, variant = 'leaf', bg, expandable, expanded, onToggle }) => {
   const delta = us - il;
   let deltaColor = 'text-slate-400';
@@ -447,36 +440,6 @@ const LayoutSunrise = ({ calc, ...s }) => {
           </section>
         </div>
         <div className="lg:col-span-8 space-y-6">
-          <div className="bg-slate-50 border border-slate-200/80 rounded-3xl p-4 sm:p-6 relative shadow-sm">
-            <div className="flex items-center gap-3 sm:gap-4 mb-6">
-              <div className="bg-orange-100/80 p-2.5 sm:p-3 rounded-2xl text-orange-600 flex-shrink-0"><Lock size={20} /></div>
-              <div className="min-w-0">
-                <h4 className="text-sm font-black uppercase text-slate-900">Matching Your Israeli Savings</h4>
-                <p className="text-xs text-slate-500 mt-1 font-medium">We locked your US savings to match your total Israeli savings rate. You need to contribute <span className="text-orange-600 font-bold">{calc.optimalPct.toFixed(2)}%</span> to break even on wealth building.</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 border-t border-slate-200/60 pt-6">
-              <SunriseStat label="Net Take-Home" val={calc.netTakeHome} />
-              <SunriseStat label="Total Expenses" val={calc.usTotalOutUSD} color="text-rose-500" />
-              <SunriseStat label="You Pay (401k)" val={calc.personalUSD} color="text-blue-600" />
-              <SunriseStat label="Employer Pays" val={calc.employerUSD} color="text-emerald-600" />
-            </div>
-          </div>
-          {calc.wealthGapUSD > 0 && (
-            <div className="bg-rose-50 border-2 border-rose-300 rounded-3xl p-4 sm:p-6 shadow-sm">
-              <div className="flex items-start gap-3 sm:gap-4">
-                <div className="bg-rose-200 p-2.5 sm:p-3 rounded-2xl text-rose-700 flex-shrink-0">
-                  <Lock size={20} />
-                </div>
-                <div className="min-w-0">
-                  <h4 className="text-sm font-black uppercase text-rose-800 mb-1">⚠ Wealth Gap: ${Math.round(calc.wealthGapUSD).toLocaleString()}/mo</h4>
-                  <p className="text-xs text-rose-700 font-medium leading-relaxed">
-                    Hitting your Israeli savings target requires <span className="font-bold">${Math.round(calc.wealthGapUSD).toLocaleString()}/mo more</span> than the IRS 401(k) limit allows ($23,500/yr). Even with positive lifestyle delta, this move is a <span className="font-bold">net-worth loss</span> versus staying — unless offset by RSUs, taxable brokerage, or other vehicles not modeled here.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
           <div className="bg-slate-50 border border-slate-200/80 rounded-3xl overflow-x-auto shadow-sm">
             <table className="w-full text-left text-xs sm:text-sm min-w-[560px]">
               <thead className="bg-slate-100/60 text-slate-500 uppercase font-black text-[10px] sm:text-xs border-b border-slate-200/80">
@@ -545,6 +508,29 @@ const LayoutSunrise = ({ calc, ...s }) => {
               </tbody>
             </table>
           </div>
+          <div className="flex items-start gap-3 bg-slate-50/80 border border-slate-200/60 rounded-2xl px-4 py-3 shadow-sm">
+            <Lock size={14} className="text-orange-500 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-slate-600 font-medium leading-relaxed">
+              Savings rate locked. Your US contribution is set to{' '}
+              <span className="text-orange-600 font-bold">{calc.optimalPct.toFixed(2)}%</span>{' '}
+              of gross to match your Israeli savings rate.
+            </p>
+          </div>
+          {calc.wealthGapUSD > 0 && (
+            <div className="bg-rose-50 border-2 border-rose-300 rounded-3xl p-4 sm:p-6 shadow-sm">
+              <div className="flex items-start gap-3 sm:gap-4">
+                <div className="bg-rose-200 p-2.5 sm:p-3 rounded-2xl text-rose-700 flex-shrink-0">
+                  <Lock size={20} />
+                </div>
+                <div className="min-w-0">
+                  <h4 className="text-sm font-black uppercase text-rose-800 mb-1">⚠ Wealth Gap: ${Math.round(calc.wealthGapUSD).toLocaleString()}/mo</h4>
+                  <p className="text-xs text-rose-700 font-medium leading-relaxed">
+                    Hitting your Israeli savings target requires <span className="font-bold">${Math.round(calc.wealthGapUSD).toLocaleString()}/mo more</span> than the IRS 401(k) limit allows ($23,500/yr). Even with positive lifestyle delta, this move is a <span className="font-bold">net-worth loss</span> versus staying — unless offset by RSUs, taxable brokerage, or other vehicles not modeled here.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
