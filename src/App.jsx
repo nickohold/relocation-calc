@@ -1,8 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
-  TrendingUp,
   ShieldCheck,
-  Wallet,
   Zap,
   Target,
   Lock,
@@ -316,13 +314,6 @@ const SunriseInput = ({ label, value, onChange, step = 1, disabled = false, tool
   </div>
 );
 
-const SunriseStat = ({ label, val, color }) => (
-  <div>
-    <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest block mb-1">{label}</span>
-    <span className={`text-xl font-black ${color || 'text-slate-900'}`}>${Math.round(val || 0).toLocaleString()}</span>
-  </div>
-);
-
 const SunriseRow = ({ label, il, us, isExpense, variant = 'leaf', bg, expandable, expanded, onToggle }) => {
   const delta = us - il;
   let deltaColor = 'text-slate-400';
@@ -387,6 +378,7 @@ const LayoutSunrise = ({ calc, ...s }) => {
   const [taxesOpen, setTaxesOpen] = useState(false);
   const [expensesOpen, setExpensesOpen] = useState(false);
   const [savingsOpen, setSavingsOpen] = useState(false);
+  const [bankOpen, setBankOpen] = useState(false);
   return (
     <div className="space-y-6 animate-in fade-in duration-500 text-slate-800">
       <header className="border-b border-orange-200/50 pb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -448,30 +440,81 @@ const LayoutSunrise = ({ calc, ...s }) => {
           </section>
         </div>
         <div className="lg:col-span-8 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className={`p-4 sm:p-6 rounded-3xl border ${calc.liquidCashFlow >= 0 ? 'bg-emerald-50/50 border-emerald-200/80' : 'bg-rose-50/50 border-rose-200/80'} shadow-sm`}>
-              <div className="flex justify-between items-center mb-2 text-[10px] uppercase font-black text-slate-500"><span className="flex items-center gap-1"><Wallet size={14} /> Cash Leftover</span></div>
-              <div className={`text-3xl sm:text-5xl font-black tracking-tighter ${calc.liquidCashFlow >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatValue(calc.liquidCashFlow)}</div>
-            </div>
-            <div className="p-4 sm:p-6 rounded-3xl border bg-orange-50/50 border-orange-200/80 shadow-sm">
-              <div className="flex justify-between items-center mb-2 text-[10px] uppercase font-black text-slate-500"><span className="flex items-center gap-1"><TrendingUp size={14} className="text-orange-500" /> True Lifestyle Change</span></div>
-              <div className="text-3xl sm:text-5xl font-black text-orange-600 tracking-tighter">{calc.liquidDelta > 0 ? '+' : ''}{formatValue(calc.liquidDelta)}</div>
-            </div>
+          <div className="bg-slate-50 border border-slate-200/80 rounded-3xl overflow-x-auto shadow-sm">
+            <table className="w-full text-left text-xs sm:text-sm min-w-[560px]">
+              <thead className="bg-slate-100/60 text-slate-500 uppercase font-black text-[10px] sm:text-xs border-b border-slate-200/80">
+                <tr><th className="p-3 pl-4 sm:p-4 sm:pl-6">Monthly Breakdown (USD)</th><th className="p-3 sm:p-4">Israel (Current)</th><th className="p-3 sm:p-4">US (Offer)</th><th className="p-3 pr-4 sm:p-4 sm:pr-6 text-right">Difference</th></tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200/40">
+                <tr className="bg-orange-50/50 border-t-2 border-orange-200/80 cursor-pointer hover:bg-orange-100/50 transition-colors" onClick={() => setBankOpen(!bankOpen)}>
+                  <td className="p-3 pl-4 sm:p-5 sm:pl-6 font-black text-orange-800 uppercase text-[10px] sm:text-xs tracking-widest">
+                    <span className="inline-flex items-center justify-center w-4 h-4 mr-2 align-middle text-orange-700">
+                      {bankOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </span>
+                    Monthly Bank Balance
+                  </td>
+                  <td className="p-3 sm:p-5 text-slate-500 font-bold">{formatValue(calc.ilLiquidFlowUSD)}</td>
+                  <td className="p-3 sm:p-5 text-orange-600 font-black">{formatValue(calc.liquidCashFlow)}</td>
+                  <td className={`p-3 pr-4 sm:p-5 sm:pr-6 text-right font-black ${calc.liquidDelta >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{calc.liquidDelta > 0 ? '+' : ''}{formatValue(calc.liquidDelta)}</td>
+                </tr>
+                {bankOpen && (
+                  <>
+                    <SunriseRow label="Gross Pay" il={calc.ilGrossUSD} us={calc.usGrossMonthly} />
+                    <SunriseRow label="Taxes" il={-(calc.ilMasHachnasaUSD + calc.ilBTLUSD)} us={-(calc.usFedMonthly + calc.usFICAMonthly + calc.usStateMonthly + calc.usCityMonthly)} isExpense expandable expanded={taxesOpen} onToggle={() => setTaxesOpen(!taxesOpen)} />
+                    {taxesOpen && (
+                      <>
+                        <SunriseRow label="Income Tax" il={-calc.ilMasHachnasaUSD} us={-calc.usFedMonthly} isExpense variant="sub" />
+                        <SunriseRow label="Social Sec. & Health" il={-calc.ilBTLUSD} us={-calc.usFICAMonthly} isExpense variant="sub" />
+                        <SunriseRow label="State Tax" il={0} us={-calc.usStateMonthly} isExpense variant="sub" />
+                        <SunriseRow label="City Tax" il={0} us={-calc.usCityMonthly} isExpense variant="sub" />
+                      </>
+                    )}
+                    <tr className="bg-slate-100/70">
+                      <td className="p-3 pl-4 sm:p-4 sm:pl-6 text-sm font-semibold text-slate-700">
+                        <span className="inline-flex items-center justify-center w-4 h-4 mr-2 align-middle" />
+                        Net Take-Home Pay
+                      </td>
+                      <td className="p-3 sm:p-4 text-sm font-semibold text-slate-600">{formatValue(calc.ilNetUSD)}</td>
+                      <td className="p-3 sm:p-4 text-sm font-semibold text-slate-800">{formatValue(calc.netTakeHome)}</td>
+                      <td className={`p-3 pr-4 sm:p-4 sm:pr-6 text-right text-sm font-semibold ${(calc.netTakeHome - calc.ilNetUSD) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{(calc.netTakeHome - calc.ilNetUSD) > 0 ? '+' : ''}{formatValue(calc.netTakeHome - calc.ilNetUSD)}</td>
+                    </tr>
+                    <SunriseRow label="Living Expenses" il={-calc.ilTotalOutUSD} us={-calc.usTotalOutUSD} isExpense expandable expanded={expensesOpen} onToggle={() => setExpensesOpen(!expensesOpen)} />
+                    {expensesOpen && (
+                      <>
+                        <SunriseRow label="Rent & Utilities" il={-calc.ilHousingUSD} us={-calc.usRentUSD} isExpense variant="sub" />
+                        <SunriseRow label="US Transit & Extras" il={0} us={-calc.usMiscBurnUSD} isExpense variant="sub" />
+                        <SunriseRow label="Food, Fun & Living" il={-calc.ilLifestyleUSD} us={-calc.usLifestyleUSD} isExpense variant="sub" />
+                      </>
+                    )}
+                  </>
+                )}
+                <tr className="bg-indigo-50/60 border-t-2 border-indigo-200/80 cursor-pointer hover:bg-indigo-100/50 transition-colors" onClick={() => setSavingsOpen(!savingsOpen)}>
+                  <td className="p-3 pl-4 sm:p-5 sm:pl-6 font-black text-indigo-800 uppercase text-[10px] sm:text-xs tracking-widest">
+                    <span className="inline-flex items-center justify-center w-4 h-4 mr-2 align-middle text-indigo-700">
+                      {savingsOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </span>
+                    Monthly Savings
+                  </td>
+                  <td className="p-3 sm:p-5 text-slate-500 font-bold">{formatValue(calc.targetSavingsUSD)}</td>
+                  <td className="p-3 sm:p-5 text-indigo-700 font-black">{formatValue(calc.totalInvested)}</td>
+                  <td className={`p-3 pr-4 sm:p-5 sm:pr-6 text-right font-black ${(calc.totalInvested - calc.targetSavingsUSD) >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>{(calc.totalInvested - calc.targetSavingsUSD) > 0 ? '+' : ''}{formatValue(calc.totalInvested - calc.targetSavingsUSD)}</td>
+                </tr>
+                {savingsOpen && (
+                  <>
+                    <SunriseRow label="Your Contribution" il={calc.ilEEMatchUSD} us={calc.personalUSD} />
+                    <SunriseRow label="Employer Match" il={calc.ilERMatchUSD} us={calc.employerUSD} />
+                  </>
+                )}
+              </tbody>
+            </table>
           </div>
-          <div className="bg-slate-50 border border-slate-200/80 rounded-3xl p-4 sm:p-6 relative shadow-sm">
-            <div className="flex items-center gap-3 sm:gap-4 mb-6">
-              <div className="bg-orange-100/80 p-2.5 sm:p-3 rounded-2xl text-orange-600 flex-shrink-0"><Lock size={20} /></div>
-              <div className="min-w-0">
-                <h4 className="text-sm font-black uppercase text-slate-900">Matching Your Israeli Savings</h4>
-                <p className="text-xs text-slate-500 mt-1 font-medium">We locked your US savings to match your total Israeli savings rate. You need to contribute <span className="text-orange-600 font-bold">{calc.optimalPct.toFixed(2)}%</span> to break even on wealth building.</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 border-t border-slate-200/60 pt-6">
-              <SunriseStat label="Net Take-Home" val={calc.netTakeHome} />
-              <SunriseStat label="Total Expenses" val={calc.usTotalOutUSD} color="text-rose-500" />
-              <SunriseStat label="You Pay (401k)" val={calc.personalUSD} color="text-blue-600" />
-              <SunriseStat label="Employer Pays" val={calc.employerUSD} color="text-emerald-600" />
-            </div>
+          <div className="flex items-start gap-3 bg-slate-50/80 border border-slate-200/60 rounded-2xl px-4 py-3 shadow-sm">
+            <Lock size={14} className="text-orange-500 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-slate-600 font-medium leading-relaxed">
+              Savings rate locked. Your US contribution is set to{' '}
+              <span className="text-orange-600 font-bold">{calc.optimalPct.toFixed(2)}%</span>{' '}
+              of gross to match your Israeli savings rate.
+            </p>
           </div>
           {calc.wealthGapUSD > 0 && (
             <div className="bg-rose-50 border-2 border-rose-300 rounded-3xl p-4 sm:p-6 shadow-sm">
@@ -488,48 +531,6 @@ const LayoutSunrise = ({ calc, ...s }) => {
               </div>
             </div>
           )}
-          <div className="bg-slate-50 border border-slate-200/80 rounded-3xl overflow-x-auto shadow-sm">
-            <table className="w-full text-left text-xs sm:text-sm min-w-[560px]">
-              <thead className="bg-slate-100/60 text-slate-500 uppercase font-black text-[10px] sm:text-xs border-b border-slate-200/80">
-                <tr><th className="p-3 pl-4 sm:p-4 sm:pl-6">Monthly Breakdown (USD)</th><th className="p-3 sm:p-4">Israel (Current)</th><th className="p-3 sm:p-4">US (Offer)</th><th className="p-3 pr-4 sm:p-4 sm:pr-6 text-right">Difference</th></tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200/40">
-                <SunriseRow label="Gross Pay" il={calc.ilGrossUSD} us={calc.usGrossMonthly} variant="section" />
-                <SunriseRow label="Taxes" il={-(calc.ilMasHachnasaUSD + calc.ilBTLUSD)} us={-(calc.usFedMonthly + calc.usFICAMonthly + calc.usStateMonthly + calc.usCityMonthly)} isExpense variant="section" expandable expanded={taxesOpen} onToggle={() => setTaxesOpen(!taxesOpen)} />
-                {taxesOpen && (
-                  <>
-                    <SunriseRow label="Income Tax" il={-calc.ilMasHachnasaUSD} us={-calc.usFedMonthly} isExpense variant="sub" />
-                    <SunriseRow label="Social Sec. & Health" il={-calc.ilBTLUSD} us={-calc.usFICAMonthly} isExpense variant="sub" />
-                    <SunriseRow label="State Tax" il={0} us={-calc.usStateMonthly} isExpense variant="sub" />
-                    <SunriseRow label="City Tax" il={0} us={-calc.usCityMonthly} isExpense variant="sub" />
-                  </>
-                )}
-                <SunriseRow label="Retirement Contribution" il={-calc.ilEEMatchUSD} us={-calc.personalUSD} isExpense />
-                <SunriseRow label="Net Take-Home Pay" il={calc.ilNetUSD} us={calc.netTakeHome} variant="section" />
-                <SunriseRow label="Total Expenses" il={-calc.ilTotalOutUSD} us={-calc.usTotalOutUSD} isExpense variant="section" expandable expanded={expensesOpen} onToggle={() => setExpensesOpen(!expensesOpen)} />
-                {expensesOpen && (
-                  <>
-                    <SunriseRow label="Rent & Utilities" il={-calc.ilHousingUSD} us={-calc.usRentUSD} isExpense variant="sub" />
-                    <SunriseRow label="US Transit & Extras" il={0} us={-calc.usMiscBurnUSD} isExpense variant="sub" />
-                    <SunriseRow label="Food, Fun & Living" il={-calc.ilLifestyleUSD} us={-calc.usLifestyleUSD} isExpense variant="sub" />
-                  </>
-                )}
-                <SunriseRow label="Total Monthly Savings" il={calc.targetSavingsUSD} us={calc.totalInvested} variant="section" expandable expanded={savingsOpen} onToggle={() => setSavingsOpen(!savingsOpen)} />
-                {savingsOpen && (
-                  <>
-                    <SunriseRow label="Your Contribution" il={calc.ilEEMatchUSD} us={calc.personalUSD} variant="sub" />
-                    <SunriseRow label="Employer Match" il={calc.ilERMatchUSD} us={calc.employerUSD} variant="sub" />
-                  </>
-                )}
-                <tr className="bg-orange-50/50 border-t-2 border-orange-200/80">
-                  <td className="p-3 pl-4 sm:p-5 sm:pl-6 font-black text-orange-800 uppercase text-[10px] sm:text-xs tracking-widest">True Lifestyle Change</td>
-                  <td className="p-3 sm:p-5 text-slate-500 font-bold">{formatValue(calc.ilLiquidFlowUSD)}</td>
-                  <td className="p-3 sm:p-5 text-orange-600 font-black">{formatValue(calc.liquidCashFlow)}</td>
-                  <td className={`p-3 pr-4 sm:p-5 sm:pr-6 text-right font-black ${calc.liquidDelta >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{calc.liquidDelta > 0 ? '+' : ''}{formatValue(calc.liquidDelta)}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
         </div>
       </div>
     </div>
