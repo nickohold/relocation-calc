@@ -1,29 +1,31 @@
 // Tax engine for IL → US relocation calculator.
 // Pure functions, no React. Testable in isolation.
 
-// ── 2024 US Federal income tax brackets (single filer) ──
+// ── 2026 US Federal income tax brackets (single filer, post-OBBBA) ──
 export const FED_BRACKETS = [
-  { max: 11600, rate: 0.10 },
-  { max: 47150, rate: 0.12 },
-  { max: 100525, rate: 0.22 },
-  { max: 191950, rate: 0.24 },
-  { max: 243725, rate: 0.32 },
-  { max: 609350, rate: 0.35 },
+  { max: 12400, rate: 0.10 },
+  { max: 50400, rate: 0.12 },
+  { max: 105700, rate: 0.22 },
+  { max: 201775, rate: 0.24 },
+  { max: 256225, rate: 0.32 },
+  { max: 640600, rate: 0.35 },
   { max: Infinity, rate: 0.37 },
 ];
 
-// ── 2024 NY State brackets (single filer) ──
+// ── 2026 NY State brackets (single filer) — 9-bracket structure post-2025 cuts ──
 export const NY_STATE_BRACKETS = [
-  { max: 8500, rate: 0.04 },
-  { max: 11700, rate: 0.045 },
-  { max: 13900, rate: 0.0525 },
-  { max: 80650, rate: 0.0585 },
-  { max: 215400, rate: 0.0597 },
+  { max: 8500, rate: 0.039 },
+  { max: 11700, rate: 0.044 },
+  { max: 13900, rate: 0.0515 },
+  { max: 80650, rate: 0.054 },
+  { max: 215400, rate: 0.059 },
   { max: 1077550, rate: 0.0685 },
+  { max: 5000000, rate: 0.0965 },
+  { max: 25000000, rate: 0.103 },
   { max: Infinity, rate: 0.109 },
 ];
 
-// ── 2024 NYC local tax brackets (single filer) ──
+// ── 2026 NYC local tax brackets (single filer) — unchanged since 2017 ──
 export const NYC_LOCAL_BRACKETS = [
   { max: 12000, rate: 0.03078 },
   { max: 25000, rate: 0.03762 },
@@ -31,21 +33,21 @@ export const NYC_LOCAL_BRACKETS = [
   { max: Infinity, rate: 0.03876 },
 ];
 
-// ── 2024 CA State brackets (single filer, FTB) ──
+// ── 2026 CA State brackets (single filer, FTB) ──
 // Excludes the 1% Mental Health Services tax on income over $1M.
 export const CA_STATE_BRACKETS = [
-  { max: 10756, rate: 0.01 },
-  { max: 25499, rate: 0.02 },
-  { max: 40245, rate: 0.04 },
-  { max: 55866, rate: 0.06 },
-  { max: 70606, rate: 0.08 },
-  { max: 360659, rate: 0.093 },
-  { max: 432787, rate: 0.103 },
-  { max: 721314, rate: 0.113 },
+  { max: 11079, rate: 0.01 },
+  { max: 26264, rate: 0.02 },
+  { max: 41452, rate: 0.04 },
+  { max: 57542, rate: 0.06 },
+  { max: 72724, rate: 0.08 },
+  { max: 371479, rate: 0.093 },
+  { max: 445771, rate: 0.103 },
+  { max: 742953, rate: 0.113 },
   { max: Infinity, rate: 0.123 },
 ];
 
-// ── 2024 NJ State brackets (single filer) ──
+// ── 2026 NJ State brackets (single filer) — unchanged from prior years ──
 export const NJ_STATE_BRACKETS = [
   { max: 20000, rate: 0.014 },
   { max: 35000, rate: 0.0175 },
@@ -67,17 +69,17 @@ export const LOCATIONS = {
 };
 
 export const CONSTANTS = {
-  // US
-  IRS_401K_LIMIT_ANNUAL: 23500,
-  FED_STANDARD_DEDUCTION_SINGLE_2024: 14600,
-  SS_WAGE_BASE_2024: 168600,
+  // US — 2026 figures
+  IRS_401K_LIMIT_ANNUAL: 24500,
+  FED_STANDARD_DEDUCTION_SINGLE: 16100,
+  SS_WAGE_BASE: 184500,
   SS_RATE: 0.062,
   MEDICARE_RATE: 0.0145,
-  ADDITIONAL_MEDICARE_THRESHOLD_SINGLE: 200000,
+  ADDITIONAL_MEDICARE_THRESHOLD_SINGLE: 200000,  // statutory; not inflation-indexed
   ADDITIONAL_MEDICARE_RATE: 0.009,
   NY_STD_DEDUCTION_SINGLE: 8000,
   NJ_PERSONAL_EXEMPTION: 1000,
-  CA_STD_DEDUCTION_SINGLE: 5540,
+  CA_STD_DEDUCTION_SINGLE: 5706,
 
   // Israel — 2026 figures from btl.gov.il
   BTL_THRESHOLD: 7703,        // 60% of average wage; switch from reduced to regular rate
@@ -210,8 +212,8 @@ export const calcUS = ({
   ilBurnUSD,                // IL lifestyle burn converted to USD (lifestyle-lock assumption)
   location,
 }) => {
-  const { IRS_401K_LIMIT_ANNUAL, FED_STANDARD_DEDUCTION_SINGLE_2024,
-          SS_WAGE_BASE_2024, SS_RATE, MEDICARE_RATE,
+  const { IRS_401K_LIMIT_ANNUAL, FED_STANDARD_DEDUCTION_SINGLE,
+          SS_WAGE_BASE, SS_RATE, MEDICARE_RATE,
           ADDITIONAL_MEDICARE_THRESHOLD_SINGLE, ADDITIONAL_MEDICARE_RATE,
           NY_STD_DEDUCTION_SINGLE, NJ_PERSONAL_EXEMPTION,
           CA_STD_DEDUCTION_SINGLE } = CONSTANTS;
@@ -229,13 +231,13 @@ export const calcUS = ({
   const personalAnnual = personal * 12;
 
   // FICA
-  const ssTax = Math.min(grossAnnual, SS_WAGE_BASE_2024) * SS_RATE;
+  const ssTax = Math.min(grossAnnual, SS_WAGE_BASE) * SS_RATE;
   const medTax = grossAnnual * MEDICARE_RATE
     + Math.max(0, grossAnnual - ADDITIONAL_MEDICARE_THRESHOLD_SINGLE) * ADDITIONAL_MEDICARE_RATE;
   const ficaAnnual = ssTax + medTax;
 
   // Federal: 401k is pre-tax federal
-  const fedTaxable = Math.max(0, grossAnnual - personalAnnual - FED_STANDARD_DEDUCTION_SINGLE_2024);
+  const fedTaxable = Math.max(0, grossAnnual - personalAnnual - FED_STANDARD_DEDUCTION_SINGLE);
   const fedAnnual = calcBrackets(fedTaxable, FED_BRACKETS);
 
   // State + city

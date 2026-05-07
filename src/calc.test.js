@@ -17,14 +17,13 @@ describe('calcBrackets — progressive bracket math', () => {
     expect(calcBrackets(10000, FED_BRACKETS)).toBe(1000); // 10% × 10000
   });
 
-  it('handles income exactly at first bracket boundary', () => {
-    expect(calcBrackets(11600, FED_BRACKETS)).toBe(1160);
+  it('handles income exactly at first bracket boundary (2026: $12,400)', () => {
+    expect(calcBrackets(12400, FED_BRACKETS)).toBe(1240);
   });
 
-  it('charges across multiple brackets (single filer fed at $50k)', () => {
-    // 11,600×0.10 + (47,150−11,600)×0.12 + (50,000−47,150)×0.22
-    // = 1160 + 4266 + 627 = 6053
-    expect(calcBrackets(50000, FED_BRACKETS)).toBeCloseTo(6053, 0);
+  it('charges across multiple brackets (single filer fed at $50k, 2026)', () => {
+    // 12,400×0.10 + (50,000−12,400)×0.12 = 1240 + 4512 = 5752
+    expect(calcBrackets(50000, FED_BRACKETS)).toBeCloseTo(5752, 0);
   });
 
   it('caps at top bracket for very high income', () => {
@@ -204,13 +203,13 @@ describe('calcUS — US engine', () => {
     location: LOCATIONS.NYC,
   };
 
-  it('FICA: Social Security capped at $168,600 wage base', () => {
+  it('FICA: Social Security capped at $184,500 wage base (2026)', () => {
     const high = calcUS({ ...baseUS, grossAnnual: 500000 });
-    // SS portion is capped: 168600 × 0.062 = 10453.20
+    // SS portion is capped: 184500 × 0.062 = 11439.00
     // Plus medicare 1.45% on 500k = 7250
     // Plus additional medicare 0.9% on (500k−200k) = 2700
-    // Total ≈ 20403.20 → /12 = 1700.27
-    expect(high.ficaMonthly).toBeCloseTo(20403.2 / 12, 1);
+    // Total = 21389.00 → /12 = 1782.42
+    expect(high.ficaMonthly).toBeCloseTo(21389 / 12, 1);
   });
 
   it('FICA: Additional Medicare 0.9% kicks in only above $200k', () => {
@@ -254,8 +253,8 @@ describe('calcUS — US engine', () => {
     // Target $50k/mo is impossible to hit even with full employer match + IRS cap
     const r = calcUS({ ...baseUS, targetSavingsUSD: 50000 });
     expect(r.wealthGap).toBeGreaterThan(0);
-    // Personal contribution capped at 23500/12
-    expect(r.personal).toBeCloseTo(23500 / 12, 2);
+    // Personal contribution capped at 24500/12 (2026 IRS limit)
+    expect(r.personal).toBeCloseTo(24500 / 12, 2);
   });
 
   it('personal contribution is monotonic in employer match (no U-curve regression)', () => {
@@ -376,8 +375,8 @@ describe('Real payslip — April 2026', () => {
 });
 
 describe('Constants & metadata', () => {
-  it('IRS 401k limit matches 2024/2025 figure', () => {
-    expect(CONSTANTS.IRS_401K_LIMIT_ANNUAL).toBe(23500);
+  it('IRS 401k limit matches 2026 figure', () => {
+    expect(CONSTANTS.IRS_401K_LIMIT_ANNUAL).toBe(24500);
   });
 
   it('all locations have a defaultRent', () => {
