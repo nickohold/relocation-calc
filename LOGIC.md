@@ -2,7 +2,7 @@
 
 **Source of truth for all calculations.** If the code disagrees with this document, one of them is wrong — file an issue.
 
-Last reviewed: 2026-05-06 · Tax year basis: **2024** (US) / **2026** (Israel)
+Last reviewed: 2026-05-07 · Tax year basis: **2026** (US, post-OBBBA) / **2026** (Israel, post-March-2026 widening)
 
 ---
 
@@ -24,15 +24,16 @@ All values live in `src/calc.js → CONSTANTS`.
 | Constant | Value | Source / Year |
 |---|---|---|
 | FX rate (default) | 1 ILS = 0.27 USD | Editable in UI; static default. **Not live.** |
-| US 401(k) elective deferral limit | $23,500/yr | IRS 2024/2025 (under 50) |
-| Federal standard deduction (single) | $14,600 | IRS 2024 |
-| Social Security wage base | $168,600 | SSA 2024 |
+| US 401(k) elective deferral limit | $24,500/yr | IRS 2026 (under 50) |
+| Federal standard deduction (single) | $16,100 | IRS 2026 (post-OBBBA) |
+| Social Security wage base | $184,500 | SSA 2026 |
 | Social Security rate | 6.2% | FICA |
 | Medicare rate | 1.45% | FICA |
-| Additional Medicare threshold (single) | $200,000 | IRS |
+| Additional Medicare threshold (single) | $200,000 | IRS (statutory; not inflation-indexed) |
 | Additional Medicare rate | 0.9% | IRS |
-| NY state std deduction (single) | $8,000 | NY DTF 2024 |
-| NJ personal exemption | $1,000 | NJ Treasury 2024 |
+| NY state std deduction (single) | $8,000 | NY DTF |
+| NJ personal exemption | $1,000 | NJ Treasury |
+| CA state std deduction (single) | $5,706 | CA FTB 2026 |
 | BTL low/high threshold | ₪7,703/mo | btl.gov.il (2026) |
 | BTL ceiling (no contribs above) | ₪51,910/mo | btl.gov.il (2026) |
 | BTL employee rate (low) | 1.04% | btl.gov.il (2026) |
@@ -67,14 +68,14 @@ No contributions above ₪51,910/mo. Verified against a real 4/2026 payslip (tax
 
 ### 2.2 Mas Hachnasa (Income Tax)
 
-Progressive monthly brackets (2024):
+Progressive monthly brackets (post-March-2026 widening; frozen 2025–2027):
 
 | Width (ILS) | Rate |
 |---|---|
 | First 7,010 | 10% |
 | Next 3,050 | 14% |
-| Next 8,940 | 20% |
-| Next 6,100 | 31% |
+| Next 8,940 | 20% (top of 20% = ₪19,000/mo) |
+| Next 6,100 | 31% (top of 31% = ₪25,100/mo) |
 | Next 21,590 | 35% |
 | Next 13,440 | 47% |
 | Above 60,130 | 50% |
@@ -316,6 +317,7 @@ When you change a top-level input, follow the arrows to predict downstream effec
 | 2026-05-06 | BTL+Health used 3.5%/12.0% combined rates (off-by-0.27%); ceiling was ₪49,030 (2024 figure) | Split into BTL (1.04%/7.0%) and Health (3.23%/5.17%) per btl.gov.il; ceiling raised to ₪51,910. Verified against real 4/2026 payslip. |
 | 2026-05-06 | Keren Hishtalmut applied to full gross — overstated EE keren by 2-3× at high incomes | Keren base now capped at ₪15,712/mo for both EE and ER per Israeli tax law. Matches real payslip exactly. |
 | 2026-05-06 | Single `gross` input couldn't represent payslips with non-cash שווי (meal/gift/sport/gross-up) lines, causing BTL/tax to under-shoot for users with imputed perks | Added optional `imputedBenefits` input (default 0). Inflates BTL+tax base without affecting net cash, pension, or keren. |
+| 2026-05-07 | US constants stale: federal brackets 2024, std deduction $14,600 (2024), 401k limit $23,500 (2025), SS wage base $168,600 (2024), CA brackets/std-ded 2024, NY brackets had wrong rates and missing top-bracket structure ($1.077M / $5M / $25M tiers collapsed into single 10.9% above $1.077M, massively overtaxing high earners under $25M) | Refreshed all US constants to 2026 figures: federal brackets (top at $640,600), std deduction $16,100, 401k $24,500, SS base $184,500, CA brackets (top at $742,953), CA std ded $5,706. Renamed `FED_STANDARD_DEDUCTION_SINGLE_2024` → `FED_STANDARD_DEDUCTION_SINGLE` and `SS_WAGE_BASE_2024` → `SS_WAGE_BASE` (year-stamped names rot). NY brackets restructured to 9-bracket 2026 form (3.9 / 4.4 / 5.15 / 5.4 / 5.9 / 6.85 / 9.65 / 10.3 / 10.9). Sources: irs.gov, ssa.gov, taxfoundation.org. |
 
 ---
 
