@@ -419,12 +419,12 @@ const CurrencyToggle = ({ theme, displayCurrency, setDisplayCurrency }) => {
         <div className="relative group inline-block">
           <HelpCircle size={12} className={theme.tooltipIcon} />
           <div className={theme.tooltipBox}>
-            Conversions are static FX-only. ₪9,000/mo Tel Aviv lifestyle does not equal $2,430/mo NYC lifestyle even though FX says so.
+            Numbers are converted using a flat exchange rate — that&apos;s not what your money actually buys. ₪9,000/mo in Tel Aviv funds a very different lifestyle than $2,430/mo in NYC.
             <div className={theme.tooltipArrow}></div>
           </div>
         </div>
       </div>
-      <span className={`text-[10px] uppercase tracking-widest font-bold ${captionCls}`}>FX-only · not PPP</span>
+      <span className={`text-[10px] uppercase tracking-widest font-bold ${captionCls}`}>Exchange rate only</span>
     </div>
   );
 };
