@@ -386,7 +386,6 @@ const SunriseRow = ({ label, il, us, isExpense, variant = 'leaf', bg, expandable
 const LayoutSunrise = ({ calc, ...s }) => {
   const [taxesOpen, setTaxesOpen] = useState(false);
   const [expensesOpen, setExpensesOpen] = useState(false);
-  const [savingsOpen, setSavingsOpen] = useState(false);
   return (
     <div className="space-y-6 animate-in fade-in duration-500 text-slate-800">
       <header className="border-b border-orange-200/50 pb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -504,9 +503,22 @@ const LayoutSunrise = ({ calc, ...s }) => {
                     <SunriseRow label="City Tax" il={0} us={-calc.usCityMonthly} isExpense variant="sub" />
                   </>
                 )}
-                <SunriseRow label="Retirement Contribution" il={-calc.ilEEMatchUSD} us={-calc.personalUSD} isExpense />
-                <SunriseRow label="Net Take-Home Pay" il={calc.ilNetUSD} us={calc.netTakeHome} variant="section" />
-                <SunriseRow label="Total Expenses" il={-calc.ilTotalOutUSD} us={-calc.usTotalOutUSD} isExpense variant="section" expandable expanded={expensesOpen} onToggle={() => setExpensesOpen(!expensesOpen)} />
+                <SunriseRow label="Your Retirement Contribution" il={-calc.ilEEMatchUSD} us={-calc.personalUSD} isExpense variant="section" />
+                {(() => {
+                  const il = calc.ilNetUSD;
+                  const us = calc.netTakeHome;
+                  const delta = us - il;
+                  const deltaColor = delta > 0 ? 'text-emerald-600' : delta < 0 ? 'text-rose-500' : 'text-slate-400';
+                  return (
+                    <tr className="bg-emerald-50/60 border-y-2 border-emerald-200/60">
+                      <td className="p-3 pl-4 sm:p-5 sm:pl-6 font-black text-emerald-800 uppercase text-[10px] sm:text-xs tracking-widest">Net Take-Home Pay</td>
+                      <td className="p-3 sm:p-5 text-slate-600 font-bold text-sm">{formatValue(il)}</td>
+                      <td className="p-3 sm:p-5 text-emerald-700 font-black text-sm">{formatValue(us)}</td>
+                      <td className={`p-3 pr-4 sm:p-5 sm:pr-6 text-right font-black text-sm ${deltaColor}`}>{delta > 0 ? '+' : ''}{formatValue(delta)}</td>
+                    </tr>
+                  );
+                })()}
+                <SunriseRow label="Living Expenses" il={-calc.ilTotalOutUSD} us={-calc.usTotalOutUSD} isExpense variant="section" expandable expanded={expensesOpen} onToggle={() => setExpensesOpen(!expensesOpen)} />
                 {expensesOpen && (
                   <>
                     <SunriseRow label="Rent & Utilities" il={-calc.ilHousingUSD} us={-calc.usRentUSD} isExpense variant="sub" />
@@ -514,19 +526,36 @@ const LayoutSunrise = ({ calc, ...s }) => {
                     <SunriseRow label="Food, Fun & Living" il={-calc.ilLifestyleUSD} us={-calc.usLifestyleUSD} isExpense variant="sub" />
                   </>
                 )}
-                <SunriseRow label="Total Monthly Savings" il={calc.targetSavingsUSD} us={calc.totalInvested} variant="section" expandable expanded={savingsOpen} onToggle={() => setSavingsOpen(!savingsOpen)} />
-                {savingsOpen && (
-                  <>
-                    <SunriseRow label="Your Contribution" il={calc.ilEEMatchUSD} us={calc.personalUSD} variant="sub" />
-                    <SunriseRow label="Employer Match" il={calc.ilERMatchUSD} us={calc.employerUSD} variant="sub" />
-                  </>
-                )}
-                <tr className="bg-orange-50/50 border-t-2 border-orange-200/80">
-                  <td className="p-3 pl-4 sm:p-5 sm:pl-6 font-black text-orange-800 uppercase text-[10px] sm:text-xs tracking-widest">True Lifestyle Change</td>
-                  <td className="p-3 sm:p-5 text-slate-500 font-bold">{formatValue(calc.ilLiquidFlowUSD)}</td>
-                  <td className="p-3 sm:p-5 text-orange-600 font-black">{formatValue(calc.liquidCashFlow)}</td>
-                  <td className={`p-3 pr-4 sm:p-5 sm:pr-6 text-right font-black ${calc.liquidDelta >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{calc.liquidDelta > 0 ? '+' : ''}{formatValue(calc.liquidDelta)}</td>
+                <tr className="bg-orange-50/60 border-y-2 border-orange-200/60">
+                  <td className="p-3 pl-4 sm:p-5 sm:pl-6 font-black text-orange-800 uppercase text-[10px] sm:text-xs tracking-widest">Cash Leftover</td>
+                  <td className="p-3 sm:p-5 text-slate-600 font-bold text-sm">{formatValue(calc.ilLiquidFlowUSD)}</td>
+                  <td className="p-3 sm:p-5 text-orange-700 font-black text-sm">{formatValue(calc.liquidCashFlow)}</td>
+                  <td className={`p-3 pr-4 sm:p-5 sm:pr-6 text-right font-black text-sm ${calc.liquidDelta > 0 ? 'text-emerald-600' : calc.liquidDelta < 0 ? 'text-rose-500' : 'text-slate-400'}`}>{calc.liquidDelta > 0 ? '+' : ''}{formatValue(calc.liquidDelta)}</td>
                 </tr>
+                <tr>
+                  <td colSpan={4} className="py-3 px-4 sm:px-6">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-px bg-slate-200/80"></div>
+                      <span className="text-[10px] uppercase tracking-widest font-black text-slate-400">Wealth Being Built</span>
+                      <div className="flex-1 h-px bg-slate-200/80"></div>
+                    </div>
+                  </td>
+                </tr>
+                <SunriseRow label={<>Employer Match <span className="text-slate-400 font-medium normal-case tracking-normal">(free)</span></>} il={calc.ilERMatchUSD} us={calc.employerUSD} />
+                {(() => {
+                  const il = calc.targetSavingsUSD;
+                  const us = calc.totalInvested;
+                  const delta = us - il;
+                  const deltaColor = delta > 0 ? 'text-indigo-600' : delta < 0 ? 'text-rose-500' : 'text-slate-400';
+                  return (
+                    <tr className="bg-indigo-50/60 border-y-2 border-indigo-200/60">
+                      <td className="p-3 pl-4 sm:p-5 sm:pl-6 font-black text-indigo-800 uppercase text-[10px] sm:text-xs tracking-widest">Total Wealth Building</td>
+                      <td className="p-3 sm:p-5 text-slate-600 font-bold text-sm">{formatValue(il)}</td>
+                      <td className="p-3 sm:p-5 text-indigo-700 font-black text-sm">{formatValue(us)}</td>
+                      <td className={`p-3 pr-4 sm:p-5 sm:pr-6 text-right font-black text-sm ${deltaColor}`}>{delta > 0 ? '+' : ''}{formatValue(delta)}</td>
+                    </tr>
+                  );
+                })()}
               </tbody>
             </table>
           </div>
