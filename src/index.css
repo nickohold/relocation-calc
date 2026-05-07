@@ -8,4 +8,17 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+  @keyframes giggle {
+    0%, 100% { transform: rotate(0); }
+    15% { transform: rotate(-14deg); }
+    30% { transform: rotate(14deg); }
+    45% { transform: rotate(-10deg); }
+    60% { transform: rotate(8deg); }
+    75% { transform: rotate(-4deg); }
+    90% { transform: rotate(2deg); }
+  }
+  .animate-giggle {
+    animation: giggle 0.9s ease-in-out;
+    transform-origin: center;
+  }
 }
