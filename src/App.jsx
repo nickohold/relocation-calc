@@ -285,6 +285,11 @@ const App = () => {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  useEffect(() => {
+    const link = document.querySelector('link[rel="icon"]');
+    if (link) link.href = activeLayout === 'bento' ? '/favicon-bento.svg' : '/favicon.svg';
+  }, [activeLayout]);
+
   const selectLocation = useCallback((key) => {
     setSelectedLoc(key);
     setUsRent(LOCATIONS[key]?.defaultRent?.toString() || "4500");
