@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
+  TrendingUp,
   ShieldCheck,
+  Wallet,
   Zap,
   Target,
   Lock,
@@ -391,8 +393,18 @@ const LayoutSunrise = ({ calc, ...s }) => {
           <div className="text-xl sm:text-2xl font-black text-orange-500 flex items-center md:justify-end gap-2"><Lock size={18} /> ${Math.round(calc.targetSavingsUSD).toLocaleString()} <span className="text-xs font-bold text-slate-400">/mo</span></div>
         </div>
       </header>
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-4 space-y-6">
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className={`p-4 sm:p-6 rounded-3xl border ${calc.liquidCashFlow >= 0 ? 'bg-emerald-50/50 border-emerald-200/80' : 'bg-rose-50/50 border-rose-200/80'} shadow-sm`}>
+            <div className="flex justify-between items-center mb-2 text-[10px] uppercase font-black text-slate-500"><span className="flex items-center gap-1"><Wallet size={14} /> Cash Leftover</span></div>
+            <div className={`text-3xl sm:text-5xl font-black tracking-tighter ${calc.liquidCashFlow >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatValue(calc.liquidCashFlow)}</div>
+          </div>
+          <div className="p-4 sm:p-6 rounded-3xl border bg-orange-50/50 border-orange-200/80 shadow-sm">
+            <div className="flex justify-between items-center mb-2 text-[10px] uppercase font-black text-slate-500"><span className="flex items-center gap-1"><TrendingUp size={14} className="text-orange-500" /> True Lifestyle Change</span></div>
+            <div className="text-3xl sm:text-5xl font-black text-orange-600 tracking-tighter">{calc.liquidDelta > 0 ? '+' : ''}{formatValue(calc.liquidDelta)}</div>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <section className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 sm:p-6 shadow-sm">
             <h3 className="text-orange-600 text-xs font-black uppercase flex items-center gap-2 mb-4"><ShieldCheck size={16} /> Israel (Current Setup)</h3>
             <div className="space-y-4">
@@ -439,8 +451,7 @@ const LayoutSunrise = ({ calc, ...s }) => {
             </div>
           </section>
         </div>
-        <div className="lg:col-span-8 space-y-6">
-          <div className="bg-slate-50 border border-slate-200/80 rounded-3xl overflow-x-auto shadow-sm">
+        <div className="bg-slate-50 border border-slate-200/80 rounded-3xl overflow-x-auto shadow-sm">
             <table className="w-full text-left text-xs sm:text-sm min-w-[560px]">
               <thead className="bg-slate-100/60 text-slate-500 uppercase font-black text-[10px] sm:text-xs border-b border-slate-200/80">
                 <tr><th className="p-3 pl-4 sm:p-4 sm:pl-6">Monthly Breakdown (USD)</th><th className="p-3 sm:p-4">Israel (Current)</th><th className="p-3 sm:p-4">US (Offer)</th><th className="p-3 pr-4 sm:p-4 sm:pr-6 text-right">Difference</th></tr>
@@ -531,7 +542,6 @@ const LayoutSunrise = ({ calc, ...s }) => {
               </div>
             </div>
           )}
-        </div>
       </div>
     </div>
   );
