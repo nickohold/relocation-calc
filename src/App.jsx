@@ -399,8 +399,8 @@ const LayoutSunrise = ({ calc, ...s }) => {
           <div className="text-xl sm:text-2xl font-black text-orange-500 flex items-center md:justify-end gap-2"><Lock size={18} /> ${Math.round(calc.targetSavingsUSD).toLocaleString()} <span className="text-xs font-bold text-slate-400">/mo</span></div>
         </div>
       </header>
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-4 space-y-6">
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <section className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 sm:p-6 shadow-sm">
             <h3 className="text-orange-600 text-xs font-black uppercase flex items-center gap-2 mb-4"><ShieldCheck size={16} /> Israel (Current Setup)</h3>
             <div className="space-y-4">
@@ -447,7 +447,7 @@ const LayoutSunrise = ({ calc, ...s }) => {
             </div>
           </section>
         </div>
-        <div className="lg:col-span-8 space-y-6">
+        <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className={`p-4 sm:p-6 rounded-3xl border ${calc.liquidCashFlow >= 0 ? 'bg-emerald-50/50 border-emerald-200/80' : 'bg-rose-50/50 border-rose-200/80'} shadow-sm`}>
               <div className="flex justify-between items-center mb-2 text-[10px] uppercase font-black text-slate-500"><span className="flex items-center gap-1"><Wallet size={14} /> Cash Leftover</span></div>
