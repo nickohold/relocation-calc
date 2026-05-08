@@ -505,6 +505,11 @@ const MethodologyDrawer = ({ theme, open, onClose, sourceCode, destCode }) => {
           </button>
         </div>
 
+        {/* Scope disclaimer */}
+        <div className="px-4 py-2.5 text-[11px] leading-snug border-b border-amber-200/60 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 text-amber-900 dark:text-amber-200">
+          <strong className="font-black">Scope:</strong> Estimates for a single filer, salary-only. Excludes RSUs, bonuses, capital gains, AMT, NIIT, dependents, marital status, student-loan repayments, locality surtaxes (e.g. NY MCTMT, ON surtax, BC MSP), and special savings vehicles (HSA/FSA, ISA, etc.). Cost-of-living indices may lag current month. <strong>For directional comparison, not tax planning.</strong>
+        </div>
+
         {/* Tabs */}
         <div className="flex items-center justify-center gap-1 px-4 py-2 border-b border-slate-200/60 dark:border-white/5">
           {cards.map((c, i) => (
