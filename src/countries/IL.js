@@ -40,14 +40,20 @@ export const IL_TAX_BRACKETS = [
 
 const calcILGrossTax = (gross) => calcWidthBrackets(gross, IL_TAX_BRACKETS);
 
-// BTL + Health Tax (Mas Briut) on monthly gross — combined.
+// BTL + Health Tax (Mas Briut) on monthly gross. Returns combined sum (legacy).
+// Use calcBTLSplit() to get them as separate values.
 export const calcBTL = (gross) => {
+  const { btl, health } = calcBTLSplit(gross);
+  return btl + health;
+};
+
+export const calcBTLSplit = (gross) => {
   const C = CONSTANTS;
   const lowBase = Math.min(gross, C.BTL_THRESHOLD);
   const highBase = Math.max(0, Math.min(gross, C.BTL_CAP) - C.BTL_THRESHOLD);
   const btl = lowBase * C.BTL_LOW_RATE + highBase * C.BTL_HIGH_RATE;
   const health = lowBase * C.HEALTH_LOW_RATE + highBase * C.HEALTH_HIGH_RATE;
-  return btl + health;
+  return { btl, health };
 };
 
 // Israeli pension tax credit: 35% × min(EE_pension, 7% × min(gross, 9684)).
@@ -131,6 +137,9 @@ export const compute = ({
 
   const incomeTax = r.masHachnasa * 12;
   const socialSec = r.btl * 12;
+  const { btl: btlOnlyMonthly, health: healthMonthly } = calcBTLSplit(monthlyGross + imputedBenefits);
+  const btlAnnual = btlOnlyMonthly * 12;
+  const healthAnnual = healthMonthly * 12;
   const eePensionLocal = r.eePensionILS * 12;
   const eeOtherDeductions = r.eeKerenILS * 12;
   const netLocal = r.net * 12;
@@ -160,7 +169,8 @@ export const compute = ({
     effectiveTaxRate: grossLocal > 0 ? (incomeTax + socialSec) / grossLocal : 0,
     breakdown: [
       { label: 'Mas Hachnasa', amount: incomeTax, kind: 'tax' },
-      { label: 'BTL + Health', amount: socialSec, kind: 'social' },
+      { label: 'Bituach Leumi (BTL)', amount: btlAnnual, kind: 'social' },
+      { label: 'Mas Briut (Health)', amount: healthAnnual, kind: 'social' },
       { label: 'EE Pension', amount: eePensionLocal, kind: 'pension' },
       { label: 'EE Keren', amount: eeOtherDeductions, kind: 'other' },
       { label: 'ER Savings', amount: erContributions, kind: 'pension' },

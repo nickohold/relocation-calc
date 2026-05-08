@@ -410,7 +410,6 @@ const MethodologyDrawer = ({ theme, open, onClose, sourceCode, destCode }) => {
     if (open && !wasOpenRef.current) {
       wasOpenRef.current = true;
       setActiveCard(0);
-      setDragOffset(0);
       if (cardsRef.current) cardsRef.current.scrollTo({ left: 0, behavior: 'auto' });
     } else if (!open && wasOpenRef.current) {
       wasOpenRef.current = false;
