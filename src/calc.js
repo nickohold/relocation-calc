@@ -1,63 +1,26 @@
-// Tax engine for IL → US relocation calculator.
-// Pure functions, no React. Testable in isolation.
+// Tax engine — multi-country dispatcher + legacy IL→US runEngine.
+// New code should use `runComparison({ source, dest, options })`.
+// Legacy IL→US `runEngine(inputs)` is preserved for the existing UI and tests.
 
-// ── 2026 US Federal income tax brackets (single filer, post-OBBBA) ──
-export const FED_BRACKETS = [
-  { max: 12400, rate: 0.10 },
-  { max: 50400, rate: 0.12 },
-  { max: 105700, rate: 0.22 },
-  { max: 201775, rate: 0.24 },
-  { max: 256225, rate: 0.32 },
-  { max: 640600, rate: 0.35 },
-  { max: Infinity, rate: 0.37 },
-];
+import { CONSTANTS as US_CONSTANTS, calcUS } from './countries/US.js';
+import { CONSTANTS as IL_CONSTANTS, calcIL } from './countries/IL.js';
+import { COUNTRIES, LOCATIONS as MULTI_LOCATIONS } from './countries.js';
+import { FX_USD_PER_UNIT } from './fx.js';
 
-// ── 2026 NY State brackets (single filer) — 9-bracket structure post-2025 cuts ──
-export const NY_STATE_BRACKETS = [
-  { max: 8500, rate: 0.039 },
-  { max: 11700, rate: 0.044 },
-  { max: 13900, rate: 0.0515 },
-  { max: 80650, rate: 0.054 },
-  { max: 215400, rate: 0.059 },
-  { max: 1077550, rate: 0.0685 },
-  { max: 5000000, rate: 0.0965 },
-  { max: 25000000, rate: 0.103 },
-  { max: Infinity, rate: 0.109 },
-];
+// ── Re-exports for backwards compat ──
+export { calcBrackets } from './bracketUtils.js';
+export {
+  FED_BRACKETS, NY_STATE_BRACKETS, NJ_STATE_BRACKETS, NYC_LOCAL_BRACKETS, CA_STATE_BRACKETS,
+  calcUS,
+} from './countries/US.js';
+export { calcBTL, calcPensionCredit, calcIL, IL_TAX_BRACKETS } from './countries/IL.js';
+export { COUNTRIES, LOCATIONS as MULTI_LOCATIONS } from './countries.js';
+export { FX_USD_PER_UNIT } from './fx.js';
 
-// ── 2026 NYC local tax brackets (single filer) — unchanged since 2017 ──
-export const NYC_LOCAL_BRACKETS = [
-  { max: 12000, rate: 0.03078 },
-  { max: 25000, rate: 0.03762 },
-  { max: 50000, rate: 0.03819 },
-  { max: Infinity, rate: 0.03876 },
-];
+// Combined CONSTANTS — preserves legacy keys (US + IL flattened together).
+export const CONSTANTS = { ...US_CONSTANTS, ...IL_CONSTANTS };
 
-// ── 2026 CA State brackets (single filer, FTB) ──
-// Excludes the 1% Mental Health Services tax on income over $1M.
-export const CA_STATE_BRACKETS = [
-  { max: 11079, rate: 0.01 },
-  { max: 26264, rate: 0.02 },
-  { max: 41452, rate: 0.04 },
-  { max: 57542, rate: 0.06 },
-  { max: 72724, rate: 0.08 },
-  { max: 371479, rate: 0.093 },
-  { max: 445771, rate: 0.103 },
-  { max: 742953, rate: 0.113 },
-  { max: Infinity, rate: 0.123 },
-];
-
-// ── 2026 NJ State brackets (single filer) — unchanged from prior years ──
-export const NJ_STATE_BRACKETS = [
-  { max: 20000, rate: 0.014 },
-  { max: 35000, rate: 0.0175 },
-  { max: 40000, rate: 0.035 },
-  { max: 75000, rate: 0.05525 },
-  { max: 500000, rate: 0.0637 },
-  { max: 1000000, rate: 0.0897 },
-  { max: Infinity, rate: 0.1075 },
-];
-
+// ── Legacy LOCATIONS (IL→US) — must keep these short keys so App.jsx & tests pass. ──
 export const LOCATIONS = {
   NYC: { name: 'Manhattan (UWS)', state: 'NY', city: 'NYC', defaultRent: 4500 },
   NJ:  { name: 'Hoboken/JC',      state: 'NJ', city: null,  defaultRent: 3900 },
@@ -68,217 +31,7 @@ export const LOCATIONS = {
   MIA: { name: 'Miami, FL',       state: 'FL', city: null,  defaultRent: 2800 },
 };
 
-export const CONSTANTS = {
-  // US — 2026 figures
-  IRS_401K_LIMIT_ANNUAL: 24500,
-  FED_STANDARD_DEDUCTION_SINGLE: 16100,
-  SS_WAGE_BASE: 184500,
-  SS_RATE: 0.062,
-  MEDICARE_RATE: 0.0145,
-  ADDITIONAL_MEDICARE_THRESHOLD_SINGLE: 200000,  // statutory; not inflation-indexed
-  ADDITIONAL_MEDICARE_RATE: 0.009,
-  NY_STD_DEDUCTION_SINGLE: 8000,
-  NJ_PERSONAL_EXEMPTION: 1000,
-  CA_STD_DEDUCTION_SINGLE: 5706,
-
-  // Israel — 2026 figures from btl.gov.il
-  BTL_THRESHOLD: 7703,        // 60% of average wage; switch from reduced to regular rate
-  BTL_CAP: 51910,             // monthly ceiling for BTL+Health (no contribution above this)
-  BTL_LOW_RATE: 0.0104,       // employee BTL on income ≤ threshold
-  BTL_HIGH_RATE: 0.07,        // employee BTL on income > threshold (≤ cap)
-  HEALTH_LOW_RATE: 0.0323,    // employee Health (Mas Briut) on income ≤ threshold
-  HEALTH_HIGH_RATE: 0.0517,   // employee Health on income > threshold (≤ cap)
-  CREDIT_POINT_VALUE_ILS: 242,
-  PENSION_CREDIT_RATE: 0.35,
-  PENSION_CREDIT_INCOME_CAP: 9684,
-  PENSION_CREDIT_PCT_CAP: 0.07,
-  KEREN_HISHTALMUT_SALARY_CAP: 15712,  // monthly insured-salary cap for tax-favored keren contribs
-};
-
-// Apply progressive tax brackets.
-export const calcBrackets = (income, brackets) => {
-  let tax = 0;
-  let prev = 0;
-  for (const b of brackets) {
-    if (income <= prev) break;
-    tax += (Math.min(income, b.max) - prev) * b.rate;
-    prev = b.max;
-  }
-  return tax;
-};
-
-// Bituach Leumi (BTL) + Health Tax (Mas Briut) on monthly gross — combined.
-// 2026 employee rates: BTL 1.04% + Health 3.23% = 4.27% below threshold;
-// BTL 7.0% + Health 5.17% = 12.17% above threshold (up to ceiling).
-export const calcBTL = (gross) => {
-  const {
-    BTL_THRESHOLD, BTL_CAP,
-    BTL_LOW_RATE, BTL_HIGH_RATE,
-    HEALTH_LOW_RATE, HEALTH_HIGH_RATE,
-  } = CONSTANTS;
-  const lowBase = Math.min(gross, BTL_THRESHOLD);
-  const highBase = Math.max(0, Math.min(gross, BTL_CAP) - BTL_THRESHOLD);
-  const btl = lowBase * BTL_LOW_RATE + highBase * BTL_HIGH_RATE;
-  const health = lowBase * HEALTH_LOW_RATE + highBase * HEALTH_HIGH_RATE;
-  return btl + health;
-};
-
-// 2024 Israeli monthly income tax brackets (Mas Hachnasa).
-const IL_TAX_BRACKETS = [
-  { width: 7010,  rate: 0.10 },
-  { width: 3050,  rate: 0.14 },
-  { width: 8940,  rate: 0.20 },
-  { width: 6100,  rate: 0.31 },
-  { width: 21590, rate: 0.35 },
-  { width: 13440, rate: 0.47 },
-  { width: Infinity, rate: 0.50 },
-];
-
-const calcILGrossTax = (gross) => {
-  let tax = 0;
-  let remaining = gross;
-  for (const b of IL_TAX_BRACKETS) {
-    if (remaining <= 0) break;
-    const slice = Math.min(remaining, b.width);
-    tax += slice * b.rate;
-    remaining -= slice;
-  }
-  return tax;
-};
-
-// Israeli pension tax credit: 35% × min(EE_pension, 7% × min(gross, 9684)).
-// This reduces income tax owed.
-export const calcPensionCredit = (gross, eePensionPct) => {
-  const { PENSION_CREDIT_RATE, PENSION_CREDIT_INCOME_CAP, PENSION_CREDIT_PCT_CAP } = CONSTANTS;
-  const insuredSalary = Math.min(gross, PENSION_CREDIT_INCOME_CAP);
-  const eligibleContrib = Math.min(
-    gross * (eePensionPct / 100),
-    insuredSalary * PENSION_CREDIT_PCT_CAP,
-  );
-  return eligibleContrib * PENSION_CREDIT_RATE;
-};
-
-export const calcIL = ({
-  gross,
-  eePensionPct, eeKerenPct,
-  erPensionPct, erSeverancePct, erKerenPct,
-  rent, burn,
-  creditPoints = 2.25,
-  includeSeveranceInSavings = true,
-  // Non-cash taxable perks (meals, gifts, sport, gross-ups). Inflate BTL+tax base only;
-  // do not appear in cash net and are not pension/keren-eligible. Default 0.
-  imputedBenefits = 0,
-}) => {
-  // Tax/BTL base = cash gross + non-cash taxable perks (matches "חייב מ.ה." on payslips).
-  const taxableBase = gross + imputedBenefits;
-  const btl = calcBTL(taxableBase);
-
-  const grossTax = calcILGrossTax(taxableBase);
-  const creditPointsValue = creditPoints * CONSTANTS.CREDIT_POINT_VALUE_ILS;
-  const pensionCredit = calcPensionCredit(gross, eePensionPct);
-  const masHachnasa = Math.max(0, grossTax - creditPointsValue - pensionCredit);
-
-  // Pension and keren are calculated on cash gross only — perks aren't pensionable.
-  const eePensionILS = gross * (eePensionPct / 100);
-  // Keren Hishtalmut: tax-favorable only on insured salary up to ₪15,712/mo (2026 cap).
-  const kerenBase = Math.min(gross, CONSTANTS.KEREN_HISHTALMUT_SALARY_CAP);
-  const eeKerenILS = kerenBase * (eeKerenPct / 100);
-  // Net = cash gross − cash deductions. Imputed perks never enter cash flow.
-  const net = gross - btl - masHachnasa - eePensionILS - eeKerenILS;
-
-  // ER pension is on full gross; ER keren is capped at the keren salary cap.
-  // ER severance (pitzuim) is only "savings" if rolled over on job exit.
-  const erPensionILS = gross * (erPensionPct / 100);
-  const erKerenILS = kerenBase * (erKerenPct / 100);
-  const erSeveranceILS = includeSeveranceInSavings ? gross * (erSeverancePct / 100) : 0;
-  const erSavingsILS = erPensionILS + erKerenILS + erSeveranceILS;
-  const eeSavingsILS = eePensionILS + eeKerenILS;
-  const totalSavingsILS = erSavingsILS + eeSavingsILS;
-
-  return {
-    btl, masHachnasa, pensionCredit,
-    eePensionILS, eeKerenILS,
-    net,
-    erSavingsILS, eeSavingsILS, totalSavingsILS,
-    liquidILS: net - rent - burn,
-  };
-};
-
-export const calcUS = ({
-  grossAnnual,
-  rent, miscBurn,
-  matchLimitPct,
-  targetSavingsUSD,         // monthly target (typically IL totalSavings × FX)
-  ilBurnUSD,                // IL lifestyle burn converted to USD (lifestyle-lock assumption)
-  location,
-}) => {
-  const { IRS_401K_LIMIT_ANNUAL, FED_STANDARD_DEDUCTION_SINGLE,
-          SS_WAGE_BASE, SS_RATE, MEDICARE_RATE,
-          ADDITIONAL_MEDICARE_THRESHOLD_SINGLE, ADDITIONAL_MEDICARE_RATE,
-          NY_STD_DEDUCTION_SINGLE, NJ_PERSONAL_EXEMPTION,
-          CA_STD_DEDUCTION_SINGLE } = CONSTANTS;
-
-  const grossMonthly = grossAnnual / 12;
-  const totalOut = rent + miscBurn + ilBurnUSD;
-
-  // 401k: take full employer match, top up personal to hit IL target,
-  // capped at IRS limit. Anything beyond is unrecoverable "wealth gap".
-  const employer = grossMonthly * (matchLimitPct / 100);
-  const required = Math.max(0, targetSavingsUSD - employer);
-  const personal = Math.min(required, IRS_401K_LIMIT_ANNUAL / 12);
-  const wealthGap = Math.max(0, required - personal);
-  const totalInvested = employer + personal;
-  const personalAnnual = personal * 12;
-
-  // FICA
-  const ssTax = Math.min(grossAnnual, SS_WAGE_BASE) * SS_RATE;
-  const medTax = grossAnnual * MEDICARE_RATE
-    + Math.max(0, grossAnnual - ADDITIONAL_MEDICARE_THRESHOLD_SINGLE) * ADDITIONAL_MEDICARE_RATE;
-  const ficaAnnual = ssTax + medTax;
-
-  // Federal: 401k is pre-tax federal
-  const fedTaxable = Math.max(0, grossAnnual - personalAnnual - FED_STANDARD_DEDUCTION_SINGLE);
-  const fedAnnual = calcBrackets(fedTaxable, FED_BRACKETS);
-
-  // State + city
-  let stateAnnual = 0;
-  let cityAnnual = 0;
-  if (location.state === 'NY') {
-    // NY conforms to federal: 401k is pre-tax.
-    const nyTaxable = Math.max(0, grossAnnual - personalAnnual - NY_STD_DEDUCTION_SINGLE);
-    stateAnnual = calcBrackets(nyTaxable, NY_STATE_BRACKETS);
-    if (location.city === 'NYC') cityAnnual = calcBrackets(nyTaxable, NYC_LOCAL_BRACKETS);
-  } else if (location.state === 'NJ') {
-    // NJ does NOT allow pre-tax 401k. State-tax the full gross.
-    const njTaxable = Math.max(0, grossAnnual - NJ_PERSONAL_EXEMPTION);
-    stateAnnual = calcBrackets(njTaxable, NJ_STATE_BRACKETS);
-  } else if (location.state === 'CA') {
-    // CA conforms to federal: 401k is pre-tax. No SF city income tax for individuals.
-    const caTaxable = Math.max(0, grossAnnual - personalAnnual - CA_STD_DEDUCTION_SINGLE);
-    stateAnnual = calcBrackets(caTaxable, CA_STATE_BRACKETS);
-  }
-  // TX / FL / other no-income-tax states: stateAnnual stays 0.
-
-  const taxesAnnual = ficaAnnual + fedAnnual + stateAnnual + cityAnnual;
-  const taxesMonthly = taxesAnnual / 12;
-  const netTakeHome = grossMonthly - personal - taxesMonthly;
-  const liquidCashFlow = netTakeHome - totalOut;
-
-  return {
-    grossMonthly,
-    employer, personal, totalInvested, wealthGap,
-    fedMonthly: fedAnnual / 12,
-    ficaMonthly: ficaAnnual / 12,
-    stateMonthly: stateAnnual / 12,
-    cityMonthly: cityAnnual / 12,
-    taxesMonthly,
-    netTakeHome,
-    totalOut,
-    liquidCashFlow,
-  };
-};
-
-// End-to-end engine — what the React component calls.
+// Legacy end-to-end engine: IL source → US dest, monthly basis. Unchanged signature.
 export const runEngine = (inputs) => {
   const {
     ilGross, ilEEPension, ilEEKeren,
@@ -321,7 +74,6 @@ export const runEngine = (inputs) => {
     + (includeSeveranceInSavings ? ilERSeverance : 0) + ilERKeren;
 
   return {
-    // raw IL
     ilNet: il.net,
     ilBTL: il.btl,
     ilMasHachnasa: il.masHachnasa,
@@ -330,7 +82,6 @@ export const runEngine = (inputs) => {
     ilERMatchILS: il.erSavingsILS,
     ilLiquidILS: il.liquidILS,
 
-    // IL in USD
     ilGrossUSD: ilGross * fxRate,
     ilNetUSD: il.net * fxRate,
     ilBTLUSD: il.btl * fxRate,
@@ -342,11 +93,9 @@ export const runEngine = (inputs) => {
     ilTotalOutUSD: (ilRent + ilBurn) * fxRate,
     ilLiquidFlowUSD: ilLiquidUSD,
 
-    // savings target
     targetSavingsUSD,
     totalILSPct,
 
-    // US
     usGrossMonthly: us.grossMonthly,
     personalUSD: us.personal,
     employerUSD: us.employer,
@@ -363,8 +112,193 @@ export const runEngine = (inputs) => {
     usTotalOutUSD: us.totalOut,
     liquidCashFlow: us.liquidCashFlow,
 
-    // verdict
     liquidDelta,
     optimalPct: us.grossMonthly > 0 ? (us.personal / us.grossMonthly) * 100 : 0,
   };
+};
+
+// ── New symmetric engine: any country → any country ──
+//
+// SidePayload = {
+//   countryCode, locationKey,
+//   grossLocal,         // ANNUAL in local currency
+//   eePensionPct, eeOtherPct,
+//   rentLocal,          // monthly
+//   miscBurnLocal,      // monthly
+//   matchLimitPct,      // US-only
+//   // IL extras: erPensionPct, erSeverancePct, erKerenPct, creditPoints,
+//   //            includeSeveranceInSavings, imputedBenefits
+// }
+//
+// Returns { source, dest, liquidDeltaUSD, savingsDeltaUSD, takeHomeDeltaPctOfGross,
+//           liquidDeltaCOLAdjustedUSD, warnings }
+export const runComparison = ({ source, dest, options = {} }) => {
+  const warnings = [];
+  const computeSide = (payload) => {
+    const country = COUNTRIES[payload.countryCode];
+    if (!country) {
+      warnings.push(`Unknown country: ${payload.countryCode}`);
+      return null;
+    }
+    return country.compute({
+      grossLocal: payload.grossLocal,
+      eePensionPct: payload.eePensionPct ?? 0,
+      eeOtherPct: payload.eeOtherPct ?? 0,
+      rentLocal: payload.rentLocal ?? 0,
+      miscBurnLocal: payload.miscBurnLocal ?? 0,
+      locationKey: payload.locationKey,
+      matchLimitPct: payload.matchLimitPct ?? 0,
+      // Age (used by IE/CH/SG/JP/PT)
+      age: payload.age,
+      // IL extras
+      erPensionPct: payload.erPensionPct,
+      erSeverancePct: payload.erSeverancePct,
+      erKerenPct: payload.erKerenPct,
+      creditPoints: payload.creditPoints,
+      includeSeveranceInSavings: payload.includeSeveranceInSavings,
+      imputedBenefits: payload.imputedBenefits,
+      // UK
+      salarySacrifice: payload.salarySacrifice,
+      // DE
+      bavPct: payload.bavPct,
+      erBavPct: payload.erBavPct,
+      riesterFlag: payload.riesterFlag,
+      // FR
+      perPct: payload.perPct,
+      erPerPct: payload.erPerPct,
+      // NL
+      lijfrenteAmt: payload.lijfrenteAmt,
+      // CH
+      eeBvgPct: payload.eeBvgPct,
+      erBvgPct: payload.erBvgPct,
+      pillar3aAmt: payload.pillar3aAmt,
+      buyInsAmt: payload.buyInsAmt,
+      // CA
+      rrspPct: payload.rrspPct,
+      erRrspMatchPct: payload.erRrspMatchPct,
+      tfsaAmt: payload.tfsaAmt,
+      // AU
+      salarySacrificePct: payload.salarySacrificePct,
+      // SG
+      srsAmt: payload.srsAmt,
+      isForeigner: payload.isForeigner,
+      // JP
+      iDecoMonthlyJpy: payload.iDecoMonthlyJpy,
+      dcCorpMonthlyJpy: payload.dcCorpMonthlyJpy,
+      // ES
+      planPensionesAmt: payload.planPensionesAmt,
+      erPlanEmpleoAmt: payload.erPlanEmpleoAmt,
+      // IT
+      fondoPensioneEePct: payload.fondoPensioneEePct,
+      fondoPensioneErPct: payload.fondoPensioneErPct,
+      includeTfrInSavings: payload.includeTfrInSavings,
+      // PT
+      pprAmt: payload.pprAmt,
+      // SE
+      eeSalaryExchangePct: payload.eeSalaryExchangePct,
+      // DK
+      aldersopsparingAmt: payload.aldersopsparingAmt,
+      // NO
+      erOtpPct: payload.erOtpPct,
+      eeOtpPct: payload.eeOtpPct,
+      ipsAmt: payload.ipsAmt,
+      // AE
+      basicPctOfGross: payload.basicPctOfGross,
+      yearsOfService: payload.yearsOfService,
+      includeEosgInSavings: payload.includeEosgInSavings,
+      // PL
+      ppkEePct: payload.ppkEePct,
+      ppkErPct: payload.ppkErPct,
+      ikzeAmt: payload.ikzeAmt,
+    });
+  };
+
+  const srcResult = computeSide(source);
+  let dstResult = computeSide(dest);
+
+  // Optional: rebalance dest's eePensionPct so dest savings (USD) ≥ source savings (USD).
+  // Linear extrapolation from a one-shot baseline; capped at MAX_PENSION_PCT_BY_COUNTRY.
+  // Surface wealthGapUSD when uncoverable.
+  let wealthGapUSD = 0;
+  if (options.matchSourceSavings && srcResult && dstResult) {
+    const targetSavingsUSD = srcResult.totalSavingsUSD;
+    const currentSavingsUSD = dstResult.totalSavingsUSD;
+    const currentPct = Number(dest.eePensionPct ?? 0);
+    if (targetSavingsUSD > currentSavingsUSD && currentPct >= 0) {
+      // Probe a 1pp delta (or use the baseline if pct is 0)
+      const probePct = currentPct === 0 ? 1 : currentPct + 1;
+      const probe = computeSide({ ...dest, eePensionPct: probePct });
+      const savingsPerPctUSD = probe ? (probe.totalSavingsUSD - currentSavingsUSD) / (probePct - currentPct) : 0;
+      let neededPct = currentPct;
+      if (savingsPerPctUSD > 0) {
+        neededPct = currentPct + (targetSavingsUSD - currentSavingsUSD) / savingsPerPctUSD;
+      }
+      const maxPct = MAX_PENSION_PCT_BY_COUNTRY[dest.countryCode] ?? 100;
+      const clampedPct = Math.min(neededPct, maxPct);
+      if (clampedPct > currentPct) {
+        const matched = computeSide({ ...dest, eePensionPct: clampedPct });
+        if (matched) dstResult = matched;
+      }
+      wealthGapUSD = Math.max(0, targetSavingsUSD - dstResult.totalSavingsUSD);
+    }
+  }
+
+  const liquidDeltaUSD = (dstResult?.liquidUSD ?? 0) - (srcResult?.liquidUSD ?? 0);
+  const savingsDeltaUSD = (dstResult?.totalSavingsUSD ?? 0) - (srcResult?.totalSavingsUSD ?? 0);
+
+  const srcGrossUSD = (srcResult?.grossLocal ?? 0) * (FX_USD_PER_UNIT[srcResult?.currency] ?? 0);
+  const dstGrossUSD = (dstResult?.grossLocal ?? 0) * (FX_USD_PER_UNIT[dstResult?.currency] ?? 0);
+  const srcTakePct = srcGrossUSD > 0 ? (srcResult.netUSD / srcGrossUSD) : 0;
+  const dstTakePct = dstGrossUSD > 0 ? (dstResult.netUSD / dstGrossUSD) : 0;
+  const takeHomeDeltaPctOfGross = dstTakePct - srcTakePct;
+
+  // COL adjustment: liquid_USD * (sourceCOL / destCOL)
+  const srcLoc = MULTI_LOCATIONS[source.locationKey];
+  const dstLoc = MULTI_LOCATIONS[dest.locationKey];
+  let liquidDeltaCOLAdjustedUSD = liquidDeltaUSD;
+  if (srcLoc?.colIndex && dstLoc?.colIndex && dstResult && srcResult) {
+    const dstAdjusted = dstResult.liquidUSD * (srcLoc.colIndex / dstLoc.colIndex);
+    liquidDeltaCOLAdjustedUSD = dstAdjusted - srcResult.liquidUSD;
+  }
+
+  if (dest.countryCode === 'CH' && dest.locationKey === 'CH-GVA') {
+    warnings.push('Geneva ICC modeled approximately; verify on ge.ch.');
+  }
+
+  return {
+    source: srcResult,
+    dest: dstResult,
+    liquidDeltaUSD,
+    savingsDeltaUSD,
+    takeHomeDeltaPctOfGross,
+    liquidDeltaCOLAdjustedUSD,
+    wealthGapUSD,
+    warnings,
+    options,
+  };
+};
+
+// Country-specific soft cap on EE pension contribution % (used by matchSourceSavings).
+// Most countries are bounded internally by their compute() (legal caps). These are guard rails.
+const MAX_PENSION_PCT_BY_COUNTRY = {
+  US: 100, // 401(k) capped by IRS dollar limit inside compute
+  IL: 7,   // pension credit caps at 7%
+  UK: 80,  // generous; pension allowance £60k caps it inside compute
+  IE: 40,  // age-based reckonable %, max 40% for 60+
+  DE: 25,
+  FR: 20,
+  NL: 30,
+  CH: 15,  // Säule 3a CHF 7,258 caps inside compute
+  CA: 18,
+  AU: 30,
+  SG: 30,
+  JP: 25,
+  ES: 5,   // €1,500 cap
+  IT: 10,  // €5,300 cap
+  PT: 10,  // PPR €2k cap
+  SE: 7,   // pensionsavgift wash
+  DK: 25,
+  NO: 25,
+  AE: 0,   // no retirement system modeled
+  PL: 5,   // PPK
 };

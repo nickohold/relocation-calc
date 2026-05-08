@@ -1,7 +1,7 @@
 {
   "name": "relocation-calc",
   "private": true,
-  "version": "0.0.13",
+  "version": "0.2.0-compare",
   "type": "module",
   "scripts": {
     "dev": "vite",
