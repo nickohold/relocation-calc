@@ -345,13 +345,6 @@ const App = () => {
   return (
     <div className={`min-h-screen p-3 sm:p-4 md:p-8 transition-colors duration-300 ${theme.pageBg}`}>
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex justify-center mb-6 sm:mb-8">
-          <div className={`flex p-1 rounded-lg border ${theme.switcherShell}`}>
-            <LayoutButton icon={<Sun size={16}/>} label="Sunrise" id="sunrise" active={activeLayout} set={setActiveLayout} />
-            <LayoutButton icon={<LayoutGrid size={16}/>} label="Bento Grid" id="bento" active={activeLayout} set={setActiveLayout} />
-          </div>
-        </div>
-
         <div className={`space-y-6 animate-in fade-in duration-500 ${theme.rootText}`}>
           <header className={`${theme.headerBorder} flex flex-col md:flex-row justify-between items-start md:items-center gap-4`}>
             <div className="min-w-0">
@@ -360,7 +353,10 @@ const App = () => {
                 <span>RELOCATION ARCHITECT</span>
                 <span className={theme.brandPill}>{theme.name}</span>
               </h1>
-              <p className={theme.subTitle}>Compare Two — Multi-Country</p>
+            </div>
+            <div className={`flex p-1 rounded-lg border ${theme.switcherShell} self-start md:self-auto`}>
+              <LayoutButton icon={<Sun size={16}/>} label="Sunrise" id="sunrise" active={activeLayout} set={setActiveLayout} />
+              <LayoutButton icon={<LayoutGrid size={16}/>} label="Bento Grid" id="bento" active={activeLayout} set={setActiveLayout} />
             </div>
           </header>
 
