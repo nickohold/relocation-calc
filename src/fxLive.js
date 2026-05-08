@@ -71,15 +71,19 @@ export const loadLiveFxRates = async () => {
   if (typeof fetch === 'undefined') return fxStatus;
   try {
     const url = `${FRANKFURTER_URL}?from=USD&to=${TARGET_CCYS.join(',')}`;
-    const resp = await fetch(url, { signal: AbortSignal.timeout?.(8000) });
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), 8000) : null;
+    const resp = await fetch(url, ctrl ? { signal: ctrl.signal } : undefined);
+    if (timer) clearTimeout(timer);
     if (!resp.ok) throw new Error(`fx fetch failed: ${resp.status}`);
     const json = await resp.json();
     if (!json?.rates) throw new Error('fx response missing rates');
     applyRates(json.rates, json.date ?? '', 'live');
     writeCache(json.rates, json.date ?? '');
     return fxStatus;
-  } catch {
-    // 3. Silent fallback to the static rates already in FX_USD_PER_UNIT.
+  } catch (err) {
+    // 3. Surface the reason in the console; UI silently falls back to static rates.
+    if (typeof console !== 'undefined') console.warn('[fxLive] live fetch failed, using fallback:', err);
     return fxStatus;
   }
 };
