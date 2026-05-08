@@ -6,15 +6,17 @@
 import { calcBrackets } from '../bracketUtils.js';
 import { FX_USD_PER_UNIT } from '../fx.js';
 
+// IRS 2026 — Orçamento do Estado 2026: thresholds +3.51% inflation;
+// rates on brackets 2-5 cut by 0.3pp.
 export const PT_BRACKETS_2026 = [
-  { max: 8342,  rate: 0.1197 },
-  { max: 12587, rate: 0.1486 },
-  { max: 17838, rate: 0.1755 },
-  { max: 23089, rate: 0.1957 },
-  { max: 29397, rate: 0.2377 },
-  { max: 41952, rate: 0.2611 },
-  { max: 44987, rate: 0.3196 },
-  { max: 81199, rate: 0.3735 },
+  { max: 7703,  rate: 0.1325 },
+  { max: 11623, rate: 0.165 },
+  { max: 16472, rate: 0.22 },
+  { max: 21321, rate: 0.25 },
+  { max: 27146, rate: 0.32 },
+  { max: 39791, rate: 0.355 },
+  { max: 51997, rate: 0.435 },
+  { max: 81199, rate: 0.45 },
   { max: Infinity, rate: 0.48 },
 ];
 

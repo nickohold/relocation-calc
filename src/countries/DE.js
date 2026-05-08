@@ -23,8 +23,8 @@ export const DE_SOC_2026 = {
   unemployment: 0.013,
   health_base: 0.073,
   health_zusatz: 0.0145,
-  ltc: 0.024,
-  ltc_childless_surcharge: 0.006,
+  ltc: 0.017,                   // Pflegeversicherung employee share with children (TK 2026)
+  ltc_childless_surcharge: 0.006, // Childless surcharge age 23+ → 2.3% total childless single
   pension_unemp_cap: 101400,
   health_ltc_cap: 69750,
 };
