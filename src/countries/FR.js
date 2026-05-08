@@ -21,7 +21,7 @@ export const FR_CEHR = [
   { max: Infinity, rate: 0.04 },
 ];
 
-export const FR_ABATTEMENT = { rate: 0.10, min: 504, max: 14426 };
+export const FR_ABATTEMENT = { rate: 0.10, min: 509, max: 14555 };  // 2026 (revenus 2025) per service-public.gouv.fr
 export const FR_FLAT_COTIS = 0.22;
 export const FR_CSG_DEDUCTIBLE = 0.068;
 export const FR_CSG_NONDEDUCT = 0.024;

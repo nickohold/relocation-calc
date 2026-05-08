@@ -46,7 +46,7 @@ export const CA_EI = {
   rest: { rate: 0.0163, mie: 68900 },
   qc: { rate: 0.013, mie: 68900 },
 };
-export const CA_QPIP = { rate: 0.00494, mie: 98000 };
+export const CA_QPIP = { rate: 0.00455, mie: 103000 };  // 2026: rate cut + MIE raised (rqap.gouv.qc.ca)
 export const CA_RRSP_MAX = 33810;
 
 const onSurtax = (onTax) => {

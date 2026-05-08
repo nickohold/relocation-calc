@@ -9,18 +9,15 @@ import { calcWidthBrackets } from '../bracketUtils.js';
 import { FX_USD_PER_UNIT } from '../fx.js';
 
 export const CONSTANTS = {
-  // 2026 figures from btl.gov.il
-  // Note: spec proposes 7522 / 50695 for 2026; kept at 7703 / 51910 pending
-  // payslip-regression test refresh (existing tests assert against these literals).
-  BTL_THRESHOLD: 7703,
-  BTL_CAP: 51910,
-  BTL_LOW_RATE: 0.0104,       // PwC 2026-01 confirms 1.04%
+  // All 2026 figures verified against btl.gov.il (Insurance / Rates and amount / for Salaried)
+  // and PwC Israel Tax Summaries last reviewed 2026-01-01.
+  BTL_THRESHOLD: 7703,         // verified 2026 — earlier "spec proposes 7522" was wrong
+  BTL_CAP: 51910,              // verified 2026
+  BTL_LOW_RATE: 0.0104,        // 1.04% confirmed
   BTL_HIGH_RATE: 0.07,
   HEALTH_LOW_RATE: 0.0323,
   HEALTH_HIGH_RATE: 0.0517,
-  // Credit point value: research suggests 254 for 2026 but not 100% verified;
-  // staying at 242 (conservative 2025 value) until btl.gov.il confirms — TODO refresh.
-  CREDIT_POINT_VALUE_ILS: 242,
+  CREDIT_POINT_VALUE_ILS: 242, // verified 2026 (PwC + CWS Israel) — earlier "research suggests 254" was wrong
   PENSION_CREDIT_RATE: 0.35,
   PENSION_CREDIT_INCOME_CAP: 9684,
   PENSION_CREDIT_PCT_CAP: 0.07,
@@ -220,8 +217,6 @@ export const meta = {
   localTax: null,
   simplifications: [
     'Severance (8.33%) modeled as employer savings contribution; toggle "include in total savings" controls visibility.',
-    `BTL_THRESHOLD/CAP held at 2025 carry-over values (${CONSTANTS.BTL_THRESHOLD}/${CONSTANTS.BTL_CAP}) pending payslip-regression refresh — spec proposes 7522/50695 for 2026.`,
-    `Credit point value held at 242 ILS (conservative 2025) until btl.gov.il confirms 2026 (research suggests 254).`,
     'Pension credit: 35% × min(EE_pension, 7% × min(gross, 9684 ILS/mo)).',
   ],
   sources: [

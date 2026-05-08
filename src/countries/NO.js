@@ -19,8 +19,8 @@ export const NO_TRYGDEAVGIFT = 0.076;
 export const NO_PERSONFRADRAG = 114540;
 export const NO_MINSTEFRADRAG_RATE = 0.46;
 export const NO_MINSTEFRADRAG_CAP = 95700;
-export const NO_IPS_CAP = 15000;
-export const NO_G_2025 = 130000;
+export const NO_IPS_CAP = 25000;       // 2026: raised from 15,000 (skatteetaten.no)
+export const NO_G_2025 = 130160;       // G as of 1 May 2025 (nav.no); May 2026 trygdeoppgjør pending
 
 export const compute = ({
   grossLocal,

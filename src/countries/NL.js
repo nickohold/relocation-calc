@@ -8,7 +8,7 @@ import { FX_USD_PER_UNIT } from '../fx.js';
 
 export const NL_BOX1_2026 = [
   { max: 38883, rate: 0.357 },
-  { max: 79137, rate: 0.3756 },
+  { max: 78426, rate: 0.3756 },  // 2026 box-1 bracket 2 cap per belastingdienst.nl
   { max: Infinity, rate: 0.495 },
 ];
 

@@ -11,10 +11,10 @@ export const DK_BUNDSKAT = 0.1201;
 export const DK_MELLEMSKAT = 0.075;
 export const DK_TOPSKAT = 0.075;
 export const DK_TOPTOPSKAT = 0.05;
-export const DK_KOMMUNESKAT_CPH = 0.238;
+export const DK_KOMMUNESKAT_CPH = 0.2339;  // 2026 — Copenhagen reduced 0.11pp, lowest of 98 municipalities (skm.dk)
 export const DK_SKATTELOFT = 0.5207;
 export const DK_RATEPENSION_CAP = 68700;
-export const DK_ATP_EMPLOYEE_ANNUAL = 1135;
+export const DK_ATP_EMPLOYEE_ANNUAL = 1188;  // 2026 — DKK 99/mo × 12 (full-time monthly-paid private sector, borger.dk)
 
 export const compute = ({
   grossLocal,

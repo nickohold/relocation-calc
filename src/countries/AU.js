@@ -17,8 +17,8 @@ export const AU_MLS_SINGLE = [
   { max: 158000, rate: 0.0125 }, { max: Infinity, rate: 0.015 },
 ];
 export const AU_SUPER_RATE = 0.12;
-export const AU_SUPER_CONCESSIONAL_CAP = 32500;
-export const AU_MSCB_OTE = 65070 * 4;
+export const AU_SUPER_CONCESSIONAL_CAP = 30000;       // FY2025-26 per ato.gov.au (unchanged since Jul 2024)
+export const AU_MSCB_OTE = 62500 * 4;                  // FY2025-26 quarterly MSCB AUD 62,500 → annual $250,000
 
 const calcMLS = (income) => {
   for (const b of AU_MLS_SINGLE) if (income <= b.max) return income * b.rate;
