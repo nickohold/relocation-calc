@@ -421,6 +421,10 @@ const App = () => {
             theme={theme}
             comparison={comparison}
             displayCurrency={displayCurrency}
+            displayMode={displayMode}
+            setDisplayMode={setDisplayMode}
+            sourceCurrency={sourceCurrency}
+            destCurrency={destCurrency}
           />
 
           <FXFooter theme={theme} sourceCurrency={sourceCurrency} destCurrency={destCurrency} />

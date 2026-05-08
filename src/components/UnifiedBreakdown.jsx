@@ -34,12 +34,24 @@ const mergeItems = (sourceItems, destItems) => {
   }));
 };
 
-const UnifiedBreakdown = ({ theme, comparison, displayCurrency }) => {
+const PERIOD_STORAGE = 'relocation-calc:breakdownPeriod';
+
+const UnifiedBreakdown = ({
+  theme, comparison, displayCurrency,
+  displayMode, setDisplayMode, sourceCurrency, destCurrency,
+}) => {
   // Defaults match main: all closed initially.
   const [bankOpen, setBankOpen] = useState(false);
   const [taxesOpen, setTaxesOpen] = useState(false);
   const [expensesOpen, setExpensesOpen] = useState(false);
   const [savingsOpen, setSavingsOpen] = useState(false);
+  const [period, setPeriod] = useState(() => {
+    if (typeof window === 'undefined') return 'annual';
+    return window.localStorage.getItem(PERIOD_STORAGE) === 'monthly' ? 'monthly' : 'annual';
+  });
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') window.localStorage.setItem(PERIOD_STORAGE, period);
+  }, [period]);
 
   const { source, dest } = comparison ?? {};
   if (!source && !dest) return null;
@@ -48,9 +60,11 @@ const UnifiedBreakdown = ({ theme, comparison, displayCurrency }) => {
   const sourceFx = source ? (FX_USD_PER_UNIT[source.currency] ?? 1) : 1;
   const destFx = dest ? (FX_USD_PER_UNIT[dest.currency] ?? 1) : 1;
 
-  const fmt = (usd) => fmtAmount(usd ?? 0, displayCurrency);
-  // Cell formatter for the bank/savings top rows: show — for nullish.
-  const cell = (usd) => (usd == null ? <span className="opacity-30">—</span> : fmtAmount(usd, displayCurrency));
+  const periodDivisor = period === 'monthly' ? 12 : 1;
+  const periodLabel = period === 'monthly' ? 'Monthly' : 'Annual';
+
+  const fmt = (usd) => fmtAmount((usd ?? 0) / periodDivisor, displayCurrency);
+  const cell = (usd) => (usd == null ? <span className="opacity-30">—</span> : fmtAmount(usd / periodDivisor, displayCurrency));
 
   // Aggregates (USD).
   const grossSource = source ? source.grossLocal * sourceFx : 0;
@@ -88,17 +102,60 @@ const UnifiedBreakdown = ({ theme, comparison, displayCurrency }) => {
   const savingsDelta = (savingsDest ?? 0) - (savingsSource ?? 0);
   const netDelta = netDest - netSource;
 
+  const isLight = theme.name === 'Sunrise';
+  const activeCls = isLight ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20' : 'bg-indigo-500 text-white shadow';
+  const inactiveCls = isLight ? 'text-slate-500 hover:text-slate-800' : 'text-slate-500 hover:text-slate-300';
+  const shellCls = isLight ? 'bg-slate-200/50 border border-slate-300/50' : 'bg-white/5 border border-white/10';
+
+  const currencyBtn = (id, label) => (
+    <button
+      type="button"
+      onClick={() => setDisplayMode?.(id)}
+      className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all ${displayMode === id ? activeCls : inactiveCls}`}
+      aria-pressed={displayMode === id}
+    >{label}</button>
+  );
+  const periodBtn = (id, label) => (
+    <button
+      type="button"
+      onClick={() => setPeriod(id)}
+      className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all ${period === id ? activeCls : inactiveCls}`}
+      aria-pressed={period === id}
+    >{label}</button>
+  );
+
   return (
-    <div className={theme.tableShell}>
-      <table className="w-full text-left text-xs sm:text-sm min-w-[560px]">
-        <thead className={theme.tableHead}>
-          <tr>
-            <th className="p-3 pl-4 sm:p-4 sm:pl-6">Annual Breakdown ({displayCurrency})</th>
-            <th className="p-3 sm:p-4">Source</th>
-            <th className="p-3 sm:p-4">Destination</th>
-            <th className="p-3 pr-4 sm:p-4 sm:pr-6 text-right">Δ (Dest − Source)</th>
-          </tr>
-        </thead>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        {setDisplayMode && (
+          <div className="flex flex-col items-end gap-0.5">
+            <div className={`flex p-1 rounded-lg ${shellCls}`}>
+              {currencyBtn('source', `Source (${sourceCurrency})`)}
+              {currencyBtn('dest', `Dest (${destCurrency})`)}
+              {currencyBtn('USD', '$ USD')}
+            </div>
+            <span className="text-[9px] uppercase tracking-widest font-black opacity-50">Display currency</span>
+          </div>
+        )}
+        <div className="flex flex-col items-end gap-0.5">
+          <div className={`flex p-1 rounded-lg ${shellCls}`}>
+            {periodBtn('annual', 'Yr')}
+            {periodBtn('monthly', 'Mo')}
+          </div>
+          <span className="text-[9px] uppercase tracking-widest font-black opacity-50">Period</span>
+        </div>
+      </div>
+
+      <div className={theme.tableShell}>
+        <table className="w-full text-left text-xs sm:text-sm min-w-[560px]">
+          <thead className={theme.tableHead}>
+            <tr>
+              <th className="p-3 pl-4 sm:p-4 sm:pl-6">{periodLabel} Breakdown ({displayCurrency})</th>
+              <th className="p-3 sm:p-4">Source</th>
+              <th className="p-3 sm:p-4">Destination</th>
+              <th className="p-3 pr-4 sm:p-4 sm:pr-6 text-right">Δ (Dest − Source)</th>
+            </tr>
+          </thead>
         <tbody className={theme.tableDivide}>
           {/* Bank balance roll-up */}
           <tr className={theme.bankRow} onClick={() => setBankOpen(!bankOpen)}>
@@ -106,7 +163,7 @@ const UnifiedBreakdown = ({ theme, comparison, displayCurrency }) => {
               <span className={theme.bankRowChevron}>
                 {bankOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               </span>
-              Annual Liquid (Bank balance)
+              {periodLabel} Liquid (Bank balance)
             </td>
             <td className={theme.bankRowSource}>{cell(liquidSource)}</td>
             <td className={theme.bankRowDest}>{cell(liquidDest)}</td>
@@ -170,7 +227,7 @@ const UnifiedBreakdown = ({ theme, comparison, displayCurrency }) => {
                   <BreakdownRow
                     theme={theme}
                     fmt={fmt}
-                    label="Rent (annual)"
+                    label="Rent"
                     source={-rentSource}
                     dest={-rentDest}
                     isExpense
@@ -179,7 +236,7 @@ const UnifiedBreakdown = ({ theme, comparison, displayCurrency }) => {
                   <BreakdownRow
                     theme={theme}
                     fmt={fmt}
-                    label="Misc burn (annual)"
+                    label="Misc burn"
                     source={-miscSource}
                     dest={-miscDest}
                     isExpense
@@ -196,7 +253,7 @@ const UnifiedBreakdown = ({ theme, comparison, displayCurrency }) => {
               <span className={theme.savingsRowChevron}>
                 {savingsOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               </span>
-              Annual Savings
+              {periodLabel} Savings
             </td>
             <td className={theme.savingsRowSource}>{cell(savingsSource)}</td>
             <td className={theme.savingsRowDest}>{cell(savingsDest)}</td>
@@ -218,7 +275,8 @@ const UnifiedBreakdown = ({ theme, comparison, displayCurrency }) => {
             <tr><td colSpan={4} className="p-3 pl-8 text-sm opacity-50 italic">No pension/retirement contributions configured for either side.</td></tr>
           )}
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
   );
 };
