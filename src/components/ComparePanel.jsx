@@ -3,6 +3,7 @@ import { HelpCircle } from 'lucide-react';
 import { COUNTRIES, LOCATIONS } from '../countries.js';
 import { FX_USD_PER_UNIT } from '../fx.js';
 import { fmtAmount, fmtPct } from './formatCurrency.js';
+import { PENSION_META } from './pensionMeta.js';
 
 const KpiCell = ({ theme, label, hint, children }) => (
   <div>
@@ -283,11 +284,14 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, displayCurrenc
           </>
         )}
 
-        {ui.kind === 'GENERIC' && (
-          <Field theme={theme} label="Pension %" hint="Generic employee pension/social-supplement contribution.">
-            <NumInput theme={theme} value={payload.eePensionPct} onChange={(v) => setField('eePensionPct', v)} step={0.5} />
-          </Field>
-        )}
+        {ui.kind === 'GENERIC' && (() => {
+          const meta = PENSION_META[payload.countryCode] ?? { label: 'Pension %', hint: 'Employee retirement contribution as % of gross.' };
+          return (
+            <Field theme={theme} label={meta.label} hint={meta.hint}>
+              <NumInput theme={theme} value={payload.eePensionPct} onChange={(v) => setField('eePensionPct', v)} step={0.5} />
+            </Field>
+          );
+        })()}
 
         <Field theme={theme} label={`Monthly Rent (${country?.currency})`} hint="Default pre-filled from city; override if needed.">
           <NumInput theme={theme} value={payload.rentLocal} onChange={(v) => setField('rentLocal', v)} step={50} />
