@@ -400,13 +400,9 @@ export const MethodologyTrigger = ({ theme, sourceCode, destCode, onOpen }) => {
 
 const MethodologyDrawer = ({ theme, open, onClose, sourceCode, destCode }) => {
   const cardsRef = useRef(null);
-  const touchStartY = useRef(null);
   const [activeCard, setActiveCard] = useState(0);
-  const [dragOffset, setDragOffset] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
 
   const isLight = theme?.name === 'Sunrise';
-  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
 
   // Reset state on open transition. Use a ref to avoid resetting on every render.
   const wasOpenRef = useRef(false);
@@ -453,40 +449,15 @@ const MethodologyDrawer = ({ theme, open, onClose, sourceCode, destCode }) => {
     rail.scrollTo({ left: idx * rail.clientWidth, behavior: 'smooth' });
   };
 
-  // Swipe-to-dismiss (mobile only): track vertical touch on the header to drag the panel down.
-  const onTouchStart = (e) => {
-    if (!isMobile) return;
-    touchStartY.current = e.touches[0].clientY;
-    setIsDragging(true);
-  };
-  const onTouchMove = (e) => {
-    if (!isMobile || touchStartY.current == null) return;
-    const dy = e.touches[0].clientY - touchStartY.current;
-    if (dy > 0) setDragOffset(dy);
-  };
-  const onTouchEnd = () => {
-    if (!isMobile) return;
-    if (dragOffset > 120) {
-      onClose();
-    }
-    setDragOffset(0);
-    setIsDragging(false);
-    touchStartY.current = null;
-  };
-
   if (!open || typeof document === 'undefined') return null;
 
-  const backdropCls = 'fixed inset-0 z-[1000] bg-black/50 backdrop-blur-sm transition-opacity';
-  const panelCls = isLight
-    ? 'fixed z-[1001] bg-slate-50 text-slate-800 shadow-2xl flex flex-col'
-    : 'fixed z-[1001] bg-[#0B0F19] text-slate-200 shadow-2xl flex flex-col';
-
-  // Mobile: full-screen overlay sliding up from bottom.
-  // Desktop (md+): right-side panel ~520px wide.
-  const panelStyle = {
-    transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
-    transition: isDragging ? 'none' : 'transform 220ms cubic-bezier(0.32, 0.72, 0, 1)',
-  };
+  // Centered modal with backdrop-blurred page behind. Cards swipe horizontally
+  // (mobile gesture) or via tabs/dots/arrow keys (desktop). All viewports use
+  // the same centered card carousel — only the size adjusts.
+  const backdropCls = 'fixed inset-0 z-[1000] bg-black/40 backdrop-blur-md transition-opacity animate-in fade-in duration-200';
+  const cardCls = isLight
+    ? 'relative flex flex-col w-full max-w-[480px] max-h-[85vh] rounded-3xl bg-slate-50 text-slate-800 shadow-2xl border border-slate-200/80 overflow-hidden'
+    : 'relative flex flex-col w-full max-w-[480px] max-h-[85vh] rounded-3xl bg-[#0B0F19] text-slate-200 shadow-2xl border border-white/10 overflow-hidden';
 
   const headerCls = isLight
     ? 'flex items-center justify-between px-4 py-3 border-b border-slate-200/80 bg-slate-100/60'
@@ -510,18 +481,16 @@ const MethodologyDrawer = ({ theme, open, onClose, sourceCode, destCode }) => {
     : (isLight ? 'px-3 py-1.5 rounded-md text-xs font-bold text-slate-500 hover:text-slate-800' : 'px-3 py-1.5 rounded-md text-xs font-bold text-slate-500 hover:text-slate-200');
 
   return createPortal(
-    <>
+    <div
+      className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6 animate-in fade-in zoom-in-95 duration-200"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Methodology details"
+    >
       <div className={backdropCls} onClick={onClose} aria-hidden />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Methodology details"
-        className={`${panelCls} inset-x-0 bottom-0 top-0 md:top-0 md:bottom-0 md:right-0 md:left-auto md:w-[520px] md:max-w-full animate-in slide-in-from-bottom-12 md:slide-in-from-right-12 duration-300`}
-        style={panelStyle}
-      >
-        <div className={headerCls} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-          <div className="md:hidden w-10 h-1 rounded-full bg-slate-400/40 absolute left-1/2 -translate-x-1/2 top-1.5" aria-hidden />
-          <div className="min-w-0 pt-1 md:pt-0">
+      <div className={cardCls}>
+        <div className={headerCls}>
+          <div className="min-w-0">
             <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Methodology</div>
             <h2 className="text-base font-black">Details for nerds</h2>
           </div>
@@ -530,8 +499,8 @@ const MethodologyDrawer = ({ theme, open, onClose, sourceCode, destCode }) => {
           </button>
         </div>
 
-        {/* Tabs (desktop) */}
-        <div className="hidden md:flex items-center gap-1 px-4 py-2 border-b border-slate-200/60 dark:border-white/5">
+        {/* Tabs */}
+        <div className="flex items-center justify-center gap-1 px-4 py-2 border-b border-slate-200/60 dark:border-white/5">
           {cards.map((c, i) => (
             <button key={c.key} type="button" className={tabBtnCls(activeCard === i)} onClick={() => goToCard(i)}>
               {c.label}
@@ -539,7 +508,7 @@ const MethodologyDrawer = ({ theme, open, onClose, sourceCode, destCode }) => {
           ))}
         </div>
 
-        {/* Cards rail (horizontal swipe on mobile, click-tab on desktop) */}
+        {/* Swipeable card rail */}
         <div
           ref={cardsRef}
           onScroll={onScroll}
@@ -559,14 +528,14 @@ const MethodologyDrawer = ({ theme, open, onClose, sourceCode, destCode }) => {
           ))}
         </div>
 
-        {/* Dots indicator (mobile) */}
-        <div className="md:hidden flex items-center justify-center gap-1.5 py-2 border-t border-slate-200/60 dark:border-white/5">
+        {/* Dots indicator */}
+        <div className="flex items-center justify-center gap-1.5 py-2 border-t border-slate-200/60 dark:border-white/5">
           {cards.map((c, i) => (
             <button key={c.key} type="button" aria-label={`Go to ${c.label}`} className={dotCls(activeCard === i)} onClick={() => goToCard(i)} />
           ))}
         </div>
       </div>
-    </>,
+    </div>,
     document.body
   );
 };
