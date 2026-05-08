@@ -22,6 +22,17 @@ export function fmtAmount(usdAmount, currency) {
   return `${sign}${sym}${rounded.toLocaleString()}`;
 }
 
+// Format an amount that's ALREADY in the given currency (no FX conversion).
+// Use this when displaying per-side panel numbers in their local currency directly.
+export function fmtLocal(amount, currency) {
+  if (!Number.isFinite(amount)) return '—';
+  if (Math.abs(amount) < 0.5) return '—';
+  const sym = SYMBOLS[currency] ?? '';
+  const sign = amount < 0 ? '-' : '';
+  const rounded = Math.round(Math.abs(amount));
+  return `${sign}${sym}${rounded.toLocaleString()}`;
+}
+
 export function fmtPct(frac, digits = 1) {
   if (!Number.isFinite(frac)) return '—';
   return `${(frac * 100).toFixed(digits)}%`;

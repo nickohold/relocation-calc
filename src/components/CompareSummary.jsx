@@ -1,6 +1,16 @@
 import React from 'react';
-import { TrendingUp, Wallet } from 'lucide-react';
+import { TrendingUp, Wallet, HelpCircle } from 'lucide-react';
 import { fmtAmount, fmtPct } from './formatCurrency.js';
+
+const Tip = ({ theme, text }) => (
+  <span className="relative group inline-flex items-center">
+    <HelpCircle size={11} className={theme.tooltipIcon} />
+    <span className={`${theme.tooltipBox} max-w-[80vw]`}>
+      {text}
+      <span className={theme.tooltipArrow}></span>
+    </span>
+  </span>
+);
 
 const CompareSummary = ({ theme, comparison, displayCurrency, sourceCurrency, destCurrency }) => {
   const { source, dest, liquidDeltaUSD, savingsDeltaUSD, takeHomeDeltaPctOfGross, liquidDeltaCOLAdjustedUSD } = comparison;
@@ -30,7 +40,7 @@ const CompareSummary = ({ theme, comparison, displayCurrency, sourceCurrency, de
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className={`${theme.kpiCardBase} ${liquidPos ? theme.kpiPositive : theme.kpiNegative}`}>
           <div className={theme.kpiLabel}>
-            <span className="flex items-center gap-1"><Wallet size={14} /> Net Take-Home Δ</span>
+            <span className="flex items-center gap-1"><Wallet size={14} /> Net Take-Home Δ <Tip theme={theme} text="Destination's annual net take-home minus source's, in USD. Net = gross − tax − social security − pre-tax retirement. The % below is delta as a fraction of source's net." /></span>
           </div>
           <div className={`text-2xl sm:text-4xl font-black tracking-tighter ${liquidPos ? theme.kpiValuePositive : theme.kpiValueNegative}`}>
             {netDeltaUSD >= 0 ? '+' : ''}{fmtAmount(netDeltaUSD, displayCurrency)}
@@ -42,7 +52,7 @@ const CompareSummary = ({ theme, comparison, displayCurrency, sourceCurrency, de
 
         <div className={`${theme.kpiCardBase} ${savingsPos ? theme.kpiPositive : theme.kpiNegative}`}>
           <div className={theme.kpiLabel}>
-            <span className="flex items-center gap-1"><TrendingUp size={14} /> Savings Δ</span>
+            <span className="flex items-center gap-1"><TrendingUp size={14} /> Savings Δ <Tip theme={theme} text="Annual retirement savings delta in USD: dest total savings (EE + ER + severance where applicable) minus source total savings. Includes 401(k), pension, Säule 3a, iDeCo, EOSG, etc., per each country's vehicle." /></span>
           </div>
           <div className={`text-2xl sm:text-4xl font-black tracking-tighter ${savingsPos ? theme.kpiValuePositive : theme.kpiValueNegative}`}>
             {savingsDeltaUSD >= 0 ? '+' : ''}{fmtAmount(savingsDeltaUSD, displayCurrency)}
@@ -52,7 +62,7 @@ const CompareSummary = ({ theme, comparison, displayCurrency, sourceCurrency, de
 
         <div className={`${theme.kpiCardBase} ${colPos ? theme.kpiAccent : theme.kpiNegative}`}>
           <div className={theme.kpiLabel}>
-            <span className="flex items-center gap-1"><TrendingUp size={14} className={theme.kpiTrendIcon} /> Liquid (COL-adj) Δ</span>
+            <span className="flex items-center gap-1"><TrendingUp size={14} className={theme.kpiTrendIcon} /> Liquid (COL-adj) Δ <Tip theme={theme} text="Annual money left over after rent + misc burn, normalized for cost of living. Formula: dest_liquid × (sourceCOL/destCOL) − source_liquid. Higher = dest's leftover stretches further than source's. Raw (non-COL-adjusted) delta shown below." /></span>
           </div>
           <div className={`text-2xl sm:text-4xl font-black tracking-tighter ${colPos ? theme.kpiValueAccent : theme.kpiValueNegative}`}>
             {liquidDeltaCOLAdjustedUSD >= 0 ? '+' : ''}{fmtAmount(liquidDeltaCOLAdjustedUSD, displayCurrency)}
@@ -65,17 +75,17 @@ const CompareSummary = ({ theme, comparison, displayCurrency, sourceCurrency, de
 
       <div className={`${theme.sectionCard} grid grid-cols-1 sm:grid-cols-3 gap-4`}>
         <div>
-          <div className={theme.kpiLabel}><span>Source effective tax</span></div>
+          <div className={theme.kpiLabel}><span className="flex items-center gap-1">Source effective tax <Tip theme={theme} text="(Source income tax + social security + state/local tax) ÷ source gross. Excludes pension contributions." /></span></div>
           <div className="text-xl font-black">{fmtPct(source?.effectiveTaxRate ?? 0)}</div>
           <div className="text-xs opacity-60 mt-1">{sourceCurrency}</div>
         </div>
         <div>
-          <div className={theme.kpiLabel}><span>Dest effective tax</span></div>
+          <div className={theme.kpiLabel}><span className="flex items-center gap-1">Dest effective tax <Tip theme={theme} text="(Dest income tax + social security + state/local tax) ÷ dest gross. Excludes pension contributions." /></span></div>
           <div className="text-xl font-black">{fmtPct(dest?.effectiveTaxRate ?? 0)}</div>
           <div className="text-xs opacity-60 mt-1">{destCurrency}</div>
         </div>
         <div>
-          <div className={theme.kpiLabel}><span>Take-home Δ (% of gross)</span></div>
+          <div className={theme.kpiLabel}><span className="flex items-center gap-1">Take-home Δ (% of gross) <Tip theme={theme} text="(Dest take-home % of dest gross) − (source take-home % of source gross). Captures whether moving improves or worsens what fraction of your salary you keep, independent of absolute numbers." /></span></div>
           <div className="text-xl font-black">{takeHomeDeltaPctOfGross >= 0 ? '+' : ''}{fmtPct(takeHomeDeltaPctOfGross)}</div>
         </div>
       </div>

@@ -404,7 +404,6 @@ const App = () => {
               payload={sourcePayload}
               setPayload={setSourcePayload}
               result={comparison.source}
-              displayCurrency={displayCurrency}
               headingClass={theme.sourceHeading}
               headingLabel="Source"
               headingIcon={<ShieldCheck size={16} />}
@@ -427,7 +426,6 @@ const App = () => {
               payload={destPayload}
               setPayload={setDestPayload}
               result={comparison.dest}
-              displayCurrency={displayCurrency}
               headingClass={theme.destHeading}
               headingLabel="Destination"
               headingIcon={<Target size={16} />}

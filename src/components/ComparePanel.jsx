@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { HelpCircle } from 'lucide-react';
 import { COUNTRIES, LOCATIONS } from '../countries.js';
 import { FX_USD_PER_UNIT } from '../fx.js';
-import { fmtAmount, fmtPct } from './formatCurrency.js';
+import { fmtAmount, fmtLocal, fmtPct } from './formatCurrency.js';
 import { PENSION_META } from './pensionMeta.js';
 
 const KpiCell = ({ theme, label, hint, children }) => (
@@ -186,17 +186,23 @@ const SelectBox = ({ theme, value, onChange, options }) => (
 //   matchLimitPct, rentLocal, miscBurnLocal,
 //   erPensionPct, erSeverancePct, erKerenPct, includeSeveranceInSavings,
 //   creditPoints, imputedBenefits }
-const ComparePanel = ({ theme, side, payload, setPayload, result, displayCurrency, headingClass, headingLabel, headingIcon }) => {
+const ComparePanel = ({ theme, side, payload, setPayload, result, headingClass, headingLabel, headingIcon }) => {
+  // Each panel always renders its own local currency. Display-currency toggle only affects
+  // the breakdown table and comparison-summary cards, not these per-side headlines.
+  const localCurrency = COUNTRIES[payload.countryCode]?.currency || 'USD';
   const country = COUNTRIES[payload.countryCode];
   const ui = getCountryUI(payload.countryCode);
 
   const countryOptions = useMemo(
-    () => Object.entries(COUNTRIES).map(([code, c]) => [code, c.name]),
+    () => Object.entries(COUNTRIES)
+      .map(([code, c]) => [code, c.name])
+      .sort((a, b) => a[1].localeCompare(b[1])),
     [],
   );
   const cityOptions = useMemo(() => {
     return (country?.locations || [])
-      .map((key) => [key, LOCATIONS[key].name]);
+      .map((key) => [key, LOCATIONS[key].name])
+      .sort((a, b) => a[1].localeCompare(b[1]));
   }, [country]);
 
   const handleCountry = (code) => {
@@ -357,13 +363,13 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, displayCurrenc
           <NumInput theme={theme} value={payload.miscBurnLocal} onChange={(v) => setField('miscBurnLocal', v)} step={50} />
         </Field>
 
-        {/* Headline numbers */}
+        {/* Headline numbers — always in this panel's local currency */}
         <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/5">
-          <KpiCell theme={theme} label="Gross" hint="Annual gross salary, converted to the selected display currency.">
-            <span className="text-lg font-black">{fmtAmount(grossUSD, displayCurrency)}</span>
+          <KpiCell theme={theme} label={`Gross (${localCurrency})`} hint="Annual gross salary, in this panel's local currency.">
+            <span className="text-lg font-black">{fmtLocal(result?.grossLocal ?? 0, localCurrency)}</span>
           </KpiCell>
           <KpiCell theme={theme} label="Net Take-Home" hint="Annual gross minus all income tax, social security/insurance, and your pre-tax retirement contributions. What hits your bank account.">
-            <span className="text-lg font-black">{fmtAmount(netUSD, displayCurrency)}</span>
+            <span className="text-lg font-black">{fmtLocal(result?.netLocal ?? 0, localCurrency)}</span>
           </KpiCell>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -371,7 +377,7 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, displayCurrenc
             <span className="text-base font-bold">{fmtPct(result?.effectiveTaxRate ?? 0)}</span>
           </KpiCell>
           <KpiCell theme={theme} label="Liquid (after rent+burn)" hint="Net take-home minus annual rent and misc burn. Whatever's left over for everything else (taxable savings, RSUs, fun, etc.).">
-            <span className="text-base font-bold">{fmtAmount(result?.liquidUSD ?? 0, displayCurrency)}</span>
+            <span className="text-base font-bold">{fmtLocal(result?.liquidLocal ?? 0, localCurrency)}</span>
           </KpiCell>
         </div>
 
