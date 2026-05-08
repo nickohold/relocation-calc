@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { COUNTRIES, LOCATIONS } from '../countries.js';
+import { COUNTRIES, LOCATIONS, META } from '../countries.js';
 import { FX_USD_PER_UNIT } from '../fx.js';
 import { fmtAmount, fmtLocal, fmtPct } from './formatCurrency.js';
 import { PENSION_META } from './pensionMeta.js';
@@ -318,8 +318,40 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, headingClass, 
           </KpiCell>
         </div>
 
+        <TaxDataFooter theme={theme} countryCode={payload.countryCode} />
+
       </div>
     </section>
+  );
+};
+
+// Renders a small staleness footer per country panel. Amber when lastUpdated > 12mo old.
+// `now` is captured once at module load — date drift across a single session is acceptable.
+const STALENESS_NOW = Date.now();
+const TaxDataFooter = ({ theme, countryCode }) => {
+  const m = META[countryCode];
+  if (!m?.taxYear && !m?.lastUpdated) return null;
+  let isStale = false;
+  if (m.lastUpdated) {
+    const d = new Date(m.lastUpdated);
+    if (!Number.isNaN(d.getTime())) {
+      isStale = (STALENESS_NOW - d.getTime()) > 365 * 24 * 60 * 60 * 1000;
+    }
+  }
+  const isLight = theme.name === 'Sunrise';
+  const baseColor = isLight ? 'text-slate-400' : 'text-slate-500';
+  const staleColor = isLight ? 'text-amber-600' : 'text-amber-400';
+  return (
+    <div className={`pt-2 text-[10px] uppercase tracking-widest font-bold ${isStale ? staleColor : baseColor}`}>
+      Tax data: {m.taxYear || '—'}
+      {m.lastUpdated && (
+        <>
+          {' · updated '}
+          {m.lastUpdated}
+          {isStale && ' (stale >12mo)'}
+        </>
+      )}
+    </div>
   );
 };
 
