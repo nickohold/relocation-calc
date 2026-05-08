@@ -25,12 +25,13 @@ export const ES_MAD_BRACKETS = [
   { max: Infinity, rate: 0.205 },
 ];
 
+// Catalonia 2026 — Decree-law 5/2025 reform: 8 brackets (was 5-6),
+// first-bracket rate cut from 10.5% to 9.5%.
 export const ES_CAT_BRACKETS = [
-  { max: 12450, rate: 0.105 },
-  { max: 17707, rate: 0.12 },
-  { max: 21000, rate: 0.14 },
-  { max: 33007, rate: 0.15 },
-  { max: 53407, rate: 0.188 },
+  { max: 12500, rate: 0.095 },
+  { max: 22000, rate: 0.125 },
+  { max: 33000, rate: 0.16 },
+  { max: 53000, rate: 0.19 },
   { max: 90000, rate: 0.215 },
   { max: 120000, rate: 0.235 },
   { max: 175000, rate: 0.245 },
