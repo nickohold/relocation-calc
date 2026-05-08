@@ -53,7 +53,9 @@ const CompareSummary = ({ theme, comparison, displayCurrency, sourceCurrency, de
             <span className="flex items-center gap-1"><TrendingUp size={14} /> Savings Δ <Tip theme={theme} text="Annual retirement savings delta in USD: dest total savings (EE + ER + severance where applicable) minus source total savings. Includes 401(k), pension, Säule 3a, iDeCo, EOSG, etc., per each country's vehicle." /></span>
           </div>
           <div className={`text-2xl sm:text-4xl font-black tracking-tighter ${savingsPos ? theme.kpiValuePositive : theme.kpiValueNegative}`}>
-            {savingsDeltaUSD >= 0 ? '+' : ''}{fmtAmount(savingsDeltaUSD, displayCurrency)}
+            {Math.abs(savingsDeltaUSD * periodDivisor) < 100
+              ? <span className="opacity-70">Matched</span>
+              : <>{savingsDeltaUSD >= 0 ? '+' : ''}{fmtAmount(savingsDeltaUSD, displayCurrency)}</>}
           </div>
           <div className="text-xs font-bold mt-1 opacity-70">{period === 'monthly' ? 'Monthly' : 'Annual'}</div>
         </div>
