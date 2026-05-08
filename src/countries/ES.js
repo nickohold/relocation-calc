@@ -14,7 +14,7 @@ export const ES_STATE_BRACKETS = [
 ];
 
 export const ES_MAD_BRACKETS = [
-  { max: 13362, rate: 0.085 }, { max: 18004, rate: 0.107 }, { max: 35425, rate: 0.128 },
+  { max: 13362.22, rate: 0.085 }, { max: 19004.63, rate: 0.107 }, { max: 35425.68, rate: 0.128 },  // comunidad.madrid tarifa autonómica
   { max: 57320, rate: 0.174 }, { max: Infinity, rate: 0.205 },
 ];
 
