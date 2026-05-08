@@ -202,10 +202,15 @@ city_annual   = (location.city == 'NYC')
 
 #### NJ (Hoboken/JC, West NY/Guttenberg)
 
-**NJ does NOT conform — 401(k) is NOT pre-tax for NJ state.** This was a bug previously; fixed 2026-05.
+**NJ DOES conform on 401(k) — employee contributions are pre-tax for NJ state income tax.**
+Per NJ Division of Taxation GIT-1&2 (Jan 2026): "Since January 1, 1984, employee
+contributions to 401(k) Plans are excluded from taxable wages when earned." NJ does NOT
+conform on 403(b)/457/IRA, but those are out of scope here. (A prior version of this code
+incorrectly treated 401(k) as taxable for NJ — corrected 2026-05-08 after primary-source
+verification.)
 
 ```
-nj_taxable   = max(0, gross_annual − 1,000)         # personal_annual NOT subtracted
+nj_taxable   = max(0, gross_annual − personal_annual − 1,000)
 state_annual = progressive_brackets(nj_taxable, NJ_STATE_BRACKETS)
 city_annual  = 0
 ```
@@ -361,6 +366,7 @@ When you change a top-level input, follow the arrows to predict downstream effec
 | 2026-05-06 | NaN in US tax columns — `usFICAMonthly` etc. were referenced but never computed | Added FICA / state / city to `useMemo` return |
 | 2026-05-06 | Lifestyle had a non-monotonic "U-curve" — at 4% match the answer peaked, but went down both above and below | Removed forced "match employer dollar-for-dollar" strategy; now `personal = max(0, target − employer)` |
 | 2026-05-06 | NJ state tax incorrectly treated 401k as pre-tax (NJ does not conform to federal) | NJ taxable now uses gross with no `personal_annual` subtraction |
+| 2026-05-08 | Reverted the 2026-05-06 NJ "fix" — it was based on a wrong premise. Per NJ Div. of Taxation GIT-1&2 (Jan 2026), NJ DOES exclude 401(k) employee contributions from taxable wages (since 1984). NJ only diverges from federal on 403(b)/457/IRA. | NJ branch in `calcStateCityTax` now subtracts `personal_annual` from the bracket base. Test flipped to assert state tax DROPS with 401k contribution. Verified via gemini-verify + NJ.gov primary source. |
 | 2026-05-06 | Israeli pension tax credit (35% × min(EE, 7%)) was missing — overstated IL tax | Added `calcPensionCredit` |
 | 2026-05-06 | Severance pitzuim (8.33%) always counted as savings, inflating US 401k target | Added `includeSeveranceInSavings` toggle |
 | 2026-05-06 | No IRS $23,500 cap on personal 401k contribution | Cap enforced; surplus surfaces as `wealthGap` with UI warning |
@@ -382,7 +388,7 @@ When you change a top-level input, follow the arrows to predict downstream effec
 - Severance toggle effect on `erSavingsILS` and `totalILSPct`
 - FICA wage base cap + Additional Medicare threshold
 - NY 401k pre-tax behavior
-- **NJ 401k NOT pre-tax** (regression test for the bug)
+- **NJ 401k IS pre-tax** (regression test, per NJ Div. of Taxation GIT-1&2 Jan 2026)
 - TX no-income-tax
 - Wealth Gap triggers above IRS cap
 - 401k personal contribution monotonic in employer match (regression test for U-curve bug)
