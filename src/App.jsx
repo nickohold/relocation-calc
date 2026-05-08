@@ -14,6 +14,7 @@ import { FX_USD_PER_UNIT } from './fx.js';
 import ComparePanel from './components/ComparePanel.jsx';
 import CompareSummary from './components/CompareSummary.jsx';
 import UnifiedBreakdown from './components/UnifiedBreakdown.jsx';
+import BreakdownControls from './components/BreakdownControls.jsx';
 import { pickDisplayCurrency } from './components/formatCurrency.js';
 import { PENSION_META } from './components/pensionMeta.js';
 
@@ -56,8 +57,8 @@ const THEMES = {
     inputBox: 'bg-white/60 border border-slate-200/80 rounded-xl px-4 py-3 focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-slate-900 w-full text-sm font-bold transition-all',
     inputDisabled: 'opacity-60 bg-slate-200/50 cursor-not-allowed',
     tooltipIcon: 'text-slate-400 cursor-help hover:text-orange-500 transition-colors',
-    tooltipBox: 'absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-48 p-2.5 bg-slate-800 border border-slate-700 text-slate-200 text-[10px] leading-relaxed rounded shadow-xl z-50 normal-case tracking-normal',
-    tooltipArrow: 'absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800',
+    tooltipBox: 'absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-[min(14rem,calc(100vw-1rem))] p-2.5 bg-slate-800 border border-slate-700 text-slate-200 text-[10px] leading-relaxed rounded shadow-xl z-50 normal-case tracking-normal pointer-events-none',
+    tooltipArrow: 'absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-4 border-transparent border-t-slate-800',
 
     severanceBox: 'flex items-start gap-2 text-[11px] text-slate-600 font-medium leading-snug cursor-pointer p-2 bg-white/40 border border-slate-200/60 rounded-lg hover:bg-white/70 transition-colors',
     severanceCheck: 'mt-0.5 accent-orange-500',
@@ -142,8 +143,8 @@ const THEMES = {
     inputBox: 'bg-black/20 border border-white/5 rounded-xl px-4 py-3 focus:border-indigo-500 focus:bg-white/5 outline-none text-white w-full text-sm font-bold transition-all',
     inputDisabled: 'opacity-60 bg-black/40 cursor-not-allowed',
     tooltipIcon: 'text-slate-500 cursor-help hover:text-indigo-400 transition-colors',
-    tooltipBox: 'absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-48 p-2.5 bg-slate-900 border border-white/10 text-slate-200 text-[10px] leading-relaxed rounded shadow-xl z-50 normal-case tracking-normal',
-    tooltipArrow: 'absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900',
+    tooltipBox: 'absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-[min(14rem,calc(100vw-1rem))] p-2.5 bg-slate-900 border border-white/10 text-slate-200 text-[10px] leading-relaxed rounded shadow-xl z-50 normal-case tracking-normal pointer-events-none',
+    tooltipArrow: 'absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-4 border-transparent border-t-slate-900',
 
     severanceBox: 'flex items-start gap-2 text-[11px] text-slate-300 font-medium leading-snug cursor-pointer p-2 bg-black/20 border border-white/5 rounded-lg hover:bg-black/30 transition-colors',
     severanceCheck: 'mt-0.5 accent-indigo-500',
@@ -280,6 +281,10 @@ const App = () => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem(MATCH_SAVINGS_STORAGE) === '1';
   });
+  const [period, setPeriod] = useState(() => {
+    if (typeof window === 'undefined') return 'annual';
+    return window.localStorage.getItem('relocation-calc:breakdownPeriod') === 'monthly' ? 'monthly' : 'annual';
+  });
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -301,6 +306,11 @@ const App = () => {
       window.localStorage.setItem(MATCH_SAVINGS_STORAGE, matchSourceSavings ? '1' : '0');
     }
   }, [matchSourceSavings]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('relocation-calc:breakdownPeriod', period);
+    }
+  }, [period]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(THEME_STORAGE, activeLayout);
@@ -408,7 +418,7 @@ const App = () => {
               headingLabel="Source"
               headingIcon={<ShieldCheck size={16} />}
             />
-            <div className="flex md:flex-col items-center justify-center gap-2 py-4 md:py-12">
+            <div className="flex md:flex-col items-center justify-center gap-2 py-2 md:py-12">
               <button
                 type="button"
                 onClick={swap}
@@ -432,6 +442,20 @@ const App = () => {
             />
           </div>
 
+          <BreakdownControls
+            theme={theme}
+            displayMode={displayMode}
+            setDisplayMode={setDisplayMode}
+            sourceCurrency={sourceCurrency}
+            destCurrency={destCurrency}
+            period={period}
+            setPeriod={setPeriod}
+            matchSourceSavings={matchSourceSavings}
+            setMatchSourceSavings={setMatchSourceSavings}
+            wealthGapUSD={comparison?.wealthGapUSD}
+            displayCurrency={displayCurrency}
+          />
+
           <CompareSummary
             theme={theme}
             comparison={comparison}
@@ -444,12 +468,7 @@ const App = () => {
             theme={theme}
             comparison={comparison}
             displayCurrency={displayCurrency}
-            displayMode={displayMode}
-            setDisplayMode={setDisplayMode}
-            sourceCurrency={sourceCurrency}
-            destCurrency={destCurrency}
-            matchSourceSavings={matchSourceSavings}
-            setMatchSourceSavings={setMatchSourceSavings}
+            period={period}
           />
 
           <FXFooter theme={theme} sourceCurrency={sourceCurrency} destCurrency={destCurrency} />

@@ -34,25 +34,15 @@ const mergeItems = (sourceItems, destItems) => {
   }));
 };
 
-const PERIOD_STORAGE = 'relocation-calc:breakdownPeriod';
-
 const UnifiedBreakdown = ({
   theme, comparison, displayCurrency,
-  displayMode, setDisplayMode, sourceCurrency, destCurrency,
-  matchSourceSavings, setMatchSourceSavings,
+  period = 'annual',
 }) => {
   // Defaults match main: all closed initially.
   const [bankOpen, setBankOpen] = useState(false);
   const [taxesOpen, setTaxesOpen] = useState(false);
   const [expensesOpen, setExpensesOpen] = useState(false);
   const [savingsOpen, setSavingsOpen] = useState(false);
-  const [period, setPeriod] = useState(() => {
-    if (typeof window === 'undefined') return 'annual';
-    return window.localStorage.getItem(PERIOD_STORAGE) === 'monthly' ? 'monthly' : 'annual';
-  });
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') window.localStorage.setItem(PERIOD_STORAGE, period);
-  }, [period]);
 
   const { source, dest } = comparison ?? {};
   if (!source && !dest) return null;
@@ -103,69 +93,8 @@ const UnifiedBreakdown = ({
   const savingsDelta = (savingsDest ?? 0) - (savingsSource ?? 0);
   const netDelta = netDest - netSource;
 
-  const isLight = theme.name === 'Sunrise';
-  const activeCls = isLight ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20' : 'bg-indigo-500 text-white shadow';
-  const inactiveCls = isLight ? 'text-slate-500 hover:text-slate-800' : 'text-slate-500 hover:text-slate-300';
-  const shellCls = isLight ? 'bg-slate-200/50 border border-slate-300/50' : 'bg-white/5 border border-white/10';
-
-  const currencyBtn = (id, label) => (
-    <button
-      type="button"
-      onClick={() => setDisplayMode?.(id)}
-      className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all ${displayMode === id ? activeCls : inactiveCls}`}
-      aria-pressed={displayMode === id}
-    >{label}</button>
-  );
-  const periodBtn = (id, label) => (
-    <button
-      type="button"
-      onClick={() => setPeriod(id)}
-      className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all ${period === id ? activeCls : inactiveCls}`}
-      aria-pressed={period === id}
-    >{label}</button>
-  );
-
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        {setDisplayMode && (
-          <div className="flex flex-col items-end gap-0.5">
-            <div className={`flex p-1 rounded-lg ${shellCls}`}>
-              {currencyBtn('source', `Source (${sourceCurrency})`)}
-              {currencyBtn('dest', `Dest (${destCurrency})`)}
-            </div>
-            <span className="text-[9px] uppercase tracking-widest font-black opacity-50">Display currency</span>
-          </div>
-        )}
-        <div className="flex flex-col items-end gap-0.5">
-          <div className={`flex p-1 rounded-lg ${shellCls}`}>
-            {periodBtn('annual', 'Yr')}
-            {periodBtn('monthly', 'Mo')}
-          </div>
-          <span className="text-[9px] uppercase tracking-widest font-black opacity-50">Period</span>
-        </div>
-        {setMatchSourceSavings && (
-          <div className="flex flex-col items-end gap-0.5">
-            <button
-              type="button"
-              onClick={() => setMatchSourceSavings(!matchSourceSavings)}
-              className={`px-3 py-1.5 rounded-md text-[11px] font-bold transition-all ${matchSourceSavings ? activeCls : `${inactiveCls} ${shellCls}`}`}
-              aria-pressed={matchSourceSavings}
-              title="Force destination 401(k)/pension EE % to match source's total savings (in USD). Surfaces a Wealth Gap if uncoverable."
-            >
-              {matchSourceSavings ? '✓ Match savings' : 'Match savings'}
-            </button>
-            <span className="text-[9px] uppercase tracking-widest font-black opacity-50">Savings lock</span>
-          </div>
-        )}
-      </div>
-      {matchSourceSavings && comparison?.wealthGapUSD > 0 && (
-        <div className={`px-4 py-2 rounded-lg text-xs ${theme.name === 'Sunrise' ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-rose-500/10 text-rose-300 border border-rose-500/30'}`}>
-          <strong>Wealth Gap:</strong> Destination's pre-tax retirement vehicles can't fully match source's savings. Shortfall: {fmtAmount(comparison.wealthGapUSD, displayCurrency)} per year.
-        </div>
-      )}
-
-      <div className={theme.tableShell}>
+    <div className={theme.tableShell}>
         <table className="w-full text-left text-xs sm:text-sm min-w-[560px]">
           <thead className={theme.tableHead}>
             <tr>
@@ -294,8 +223,7 @@ const UnifiedBreakdown = ({
             <tr><td colSpan={4} className="p-3 pl-8 text-sm opacity-50 italic">No pension/retirement contributions configured for either side.</td></tr>
           )}
         </tbody>
-        </table>
-      </div>
+      </table>
     </div>
   );
 };

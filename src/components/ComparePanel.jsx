@@ -1,24 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { HelpCircle } from 'lucide-react';
 import { COUNTRIES, LOCATIONS } from '../countries.js';
 import { FX_USD_PER_UNIT } from '../fx.js';
 import { fmtAmount, fmtLocal, fmtPct } from './formatCurrency.js';
 import { PENSION_META } from './pensionMeta.js';
+import Tooltip from './Tooltip.jsx';
 
 const KpiCell = ({ theme, label, hint, children }) => (
-  <div>
+  <div className="min-w-0">
     <div className={theme.kpiLabel}>
-      <span className="flex items-center gap-1">
-        <span>{label}</span>
-        {hint && (
-          <div className="relative group inline-block">
-            <HelpCircle size={11} className={theme.tooltipIcon} />
-            <div className={theme.tooltipBox}>
-              {hint}
-              <div className={theme.tooltipArrow}></div>
-            </div>
-          </div>
-        )}
+      <span className="flex items-start gap-1 min-w-0 leading-tight">
+        <span className="flex-1 min-w-0">{label}</span>
+        {hint && <span className="flex-shrink-0 mt-0.5"><Tooltip theme={theme} text={hint} iconSize={11} /></span>}
       </span>
     </div>
     {children}
@@ -68,22 +60,14 @@ const SalaryInput = ({ theme, side, currency, annualValue, onAnnualChange, hint 
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-1.5 gap-2">
-        <div className="flex items-center gap-1">
-          <label className={theme.inputLabel}>
+      <div className="flex items-center justify-between mb-1.5 gap-2 min-w-0">
+        <div className="flex items-center gap-1 min-w-0">
+          <label className={`${theme.inputLabel} leading-tight`}>
             {isMonthly ? `Monthly Gross (${currency})` : `Annual Gross (${currency})`}
           </label>
-          {hint && (
-            <div className="relative group inline-block">
-              <HelpCircle size={12} className={theme.tooltipIcon} />
-              <div className={theme.tooltipBox}>
-                {hint}
-                <div className={theme.tooltipArrow}></div>
-              </div>
-            </div>
-          )}
+          {hint && <span className="flex-shrink-0"><Tooltip theme={theme} text={hint} iconSize={12} /></span>}
         </div>
-        <div className={`flex p-0.5 rounded-md ${shellCls}`}>
+        <div className={`flex p-0.5 rounded-md flex-shrink-0 ${shellCls}`}>
           {modeBtn('annual', 'Yr')}
           {modeBtn('monthly', 'Mo')}
         </div>
@@ -107,18 +91,10 @@ function getCountryUI(code) {
 }
 
 const Field = ({ theme, label, children, hint }) => (
-  <div>
-    <div className="flex items-center mb-1.5 gap-1">
-      <label className={theme.inputLabel}>{label}</label>
-      {hint && (
-        <div className="relative group inline-block">
-          <HelpCircle size={12} className={theme.tooltipIcon} />
-          <div className={theme.tooltipBox}>
-            {hint}
-            <div className={theme.tooltipArrow}></div>
-          </div>
-        </div>
-      )}
+  <div className="min-w-0">
+    <div className="flex items-start mb-1.5 gap-1 min-w-0">
+      <label className={`${theme.inputLabel} flex-1 min-w-0 leading-tight`}>{label}</label>
+      {hint && <span className="flex-shrink-0 mt-0.5"><Tooltip theme={theme} text={hint} iconSize={12} /></span>}
     </div>
     {children}
   </div>
@@ -298,7 +274,7 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, headingClass, 
                 <NumInput theme={theme} value={payload.eeOtherPct} onChange={(v) => setField('eeOtherPct', v)} step={0.1} />
               </Field>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
               <Field theme={theme} label="ER Pension %" hint="Employer pension contribution rate. Standard in Israel: 6.5% of gross. Counts toward your retirement savings.">
                 <NumInput theme={theme} value={payload.erPensionPct ?? 6.5} onChange={(v) => setField('erPensionPct', v)} step={0.1} />
               </Field>

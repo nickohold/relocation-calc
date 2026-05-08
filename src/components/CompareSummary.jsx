@@ -1,16 +1,9 @@
 import React from 'react';
-import { TrendingUp, Wallet, HelpCircle } from 'lucide-react';
+import { TrendingUp, Wallet } from 'lucide-react';
 import { fmtAmount, fmtPct } from './formatCurrency.js';
+import Tooltip from './Tooltip.jsx';
 
-const Tip = ({ theme, text }) => (
-  <span className="relative group inline-flex items-center">
-    <HelpCircle size={11} className={theme.tooltipIcon} />
-    <span className={`${theme.tooltipBox} max-w-[80vw]`}>
-      {text}
-      <span className={theme.tooltipArrow}></span>
-    </span>
-  </span>
-);
+const Tip = ({ theme, text }) => <Tooltip theme={theme} text={text} iconSize={11} />;
 
 const CompareSummary = ({ theme, comparison, displayCurrency, sourceCurrency, destCurrency }) => {
   const { source, dest, liquidDeltaUSD, savingsDeltaUSD, takeHomeDeltaPctOfGross, liquidDeltaCOLAdjustedUSD } = comparison;
