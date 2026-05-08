@@ -4,8 +4,28 @@ import { COUNTRIES, LOCATIONS } from '../countries.js';
 import { FX_USD_PER_UNIT } from '../fx.js';
 import { fmtAmount, fmtPct } from './formatCurrency.js';
 
+const KpiCell = ({ theme, label, hint, children }) => (
+  <div>
+    <div className={theme.kpiLabel}>
+      <span className="flex items-center gap-1">
+        <span>{label}</span>
+        {hint && (
+          <div className="relative group inline-block">
+            <HelpCircle size={11} className={theme.tooltipIcon} />
+            <div className={theme.tooltipBox}>
+              {hint}
+              <div className={theme.tooltipArrow}></div>
+            </div>
+          </div>
+        )}
+      </span>
+    </div>
+    {children}
+  </div>
+);
+
 // Per-side gross salary input with annual ↔ monthly toggle. Stores annual in payload.
-const SalaryInput = ({ theme, side, currency, annualValue, onAnnualChange }) => {
+const SalaryInput = ({ theme, side, currency, annualValue, onAnnualChange, hint }) => {
   const storageKey = `relocation-calc:salaryMode:${side}`;
   const [mode, setMode] = useState(() => {
     if (typeof window === 'undefined') return 'annual';
@@ -48,9 +68,20 @@ const SalaryInput = ({ theme, side, currency, annualValue, onAnnualChange }) => 
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5 gap-2">
-        <label className={theme.inputLabel}>
-          {isMonthly ? `Monthly Gross (${currency})` : `Annual Gross (${currency})`}
-        </label>
+        <div className="flex items-center gap-1">
+          <label className={theme.inputLabel}>
+            {isMonthly ? `Monthly Gross (${currency})` : `Annual Gross (${currency})`}
+          </label>
+          {hint && (
+            <div className="relative group inline-block">
+              <HelpCircle size={12} className={theme.tooltipIcon} />
+              <div className={theme.tooltipBox}>
+                {hint}
+                <div className={theme.tooltipArrow}></div>
+              </div>
+            </div>
+          )}
+        </div>
         <div className={`flex p-0.5 rounded-md ${shellCls}`}>
           {modeBtn('annual', 'Yr')}
           {modeBtn('monthly', 'Mo')}
@@ -202,6 +233,7 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, displayCurrenc
           currency={country?.currency ?? ''}
           annualValue={payload.grossLocal}
           onAnnualChange={(v) => setField('grossLocal', v)}
+          hint="Salary before tax, in local currency. Toggle Yr/Mo to enter as annual or monthly — both are equivalent and convert internally."
         />
 
         {ui.kind === 'US' && (
@@ -226,9 +258,15 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, displayCurrenc
               </Field>
             </div>
             <div className="grid grid-cols-3 gap-3">
-              <Field theme={theme} label="ER Pension %"><NumInput theme={theme} value={payload.erPensionPct ?? 6.5} onChange={(v) => setField('erPensionPct', v)} step={0.1} /></Field>
-              <Field theme={theme} label="ER Severance %"><NumInput theme={theme} value={payload.erSeverancePct ?? 8.33} onChange={(v) => setField('erSeverancePct', v)} step={0.1} /></Field>
-              <Field theme={theme} label="ER Keren %"><NumInput theme={theme} value={payload.erKerenPct ?? 7.5} onChange={(v) => setField('erKerenPct', v)} step={0.1} /></Field>
+              <Field theme={theme} label="ER Pension %" hint="Employer pension contribution rate. Standard in Israel: 6.5% of gross. Counts toward your retirement savings.">
+                <NumInput theme={theme} value={payload.erPensionPct ?? 6.5} onChange={(v) => setField('erPensionPct', v)} step={0.1} />
+              </Field>
+              <Field theme={theme} label="ER Severance %" hint="Pitzuim — severance fund contribution. Standard 8.33% (1/12 of monthly salary). Counts as savings only if rolled into pension at end of employment (see toggle below).">
+                <NumInput theme={theme} value={payload.erSeverancePct ?? 8.33} onChange={(v) => setField('erSeverancePct', v)} step={0.1} />
+              </Field>
+              <Field theme={theme} label="ER Keren %" hint="Employer Keren Hishtalmut (study fund) contribution. Standard 7.5%. Tax-free vehicle, capped at ₪15,712/mo gross.">
+                <NumInput theme={theme} value={payload.erKerenPct ?? 7.5} onChange={(v) => setField('erKerenPct', v)} step={0.1} />
+              </Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Field theme={theme} label="Credit Points"><NumInput theme={theme} value={payload.creditPoints ?? 2.25} onChange={(v) => setField('creditPoints', v)} step={0.25} /></Field>
@@ -260,24 +298,20 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, displayCurrenc
 
         {/* Headline numbers */}
         <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/5">
-          <div>
-            <div className={theme.kpiLabel}><span>Gross (USD)</span></div>
-            <div className="text-lg font-black">{fmtAmount(grossUSD, displayCurrency)}</div>
-          </div>
-          <div>
-            <div className={theme.kpiLabel}><span>Net Take-Home</span></div>
-            <div className="text-lg font-black">{fmtAmount(netUSD, displayCurrency)}</div>
-          </div>
+          <KpiCell theme={theme} label="Gross" hint="Annual gross salary, converted to the selected display currency.">
+            <span className="text-lg font-black">{fmtAmount(grossUSD, displayCurrency)}</span>
+          </KpiCell>
+          <KpiCell theme={theme} label="Net Take-Home" hint="Annual gross minus all income tax, social security/insurance, and your pre-tax retirement contributions. What hits your bank account.">
+            <span className="text-lg font-black">{fmtAmount(netUSD, displayCurrency)}</span>
+          </KpiCell>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <div className={theme.kpiLabel}><span>Effective Tax</span></div>
-            <div className="text-base font-bold">{fmtPct(result?.effectiveTaxRate ?? 0)}</div>
-          </div>
-          <div>
-            <div className={theme.kpiLabel}><span>Liquid (after rent+burn)</span></div>
-            <div className="text-base font-bold">{fmtAmount(result?.liquidUSD ?? 0, displayCurrency)}</div>
-          </div>
+          <KpiCell theme={theme} label="Effective Tax" hint="(Income tax + social security + state/local tax) ÷ gross. Excludes pension contributions, which reduce taxable income but aren't a tax.">
+            <span className="text-base font-bold">{fmtPct(result?.effectiveTaxRate ?? 0)}</span>
+          </KpiCell>
+          <KpiCell theme={theme} label="Liquid (after rent+burn)" hint="Net take-home minus annual rent and misc burn. Whatever's left over for everything else (taxable savings, RSUs, fun, etc.).">
+            <span className="text-base font-bold">{fmtAmount(result?.liquidUSD ?? 0, displayCurrency)}</span>
+          </KpiCell>
         </div>
 
       </div>
