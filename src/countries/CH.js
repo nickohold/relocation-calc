@@ -8,6 +8,9 @@
 import { calcBrackets } from '../bracketUtils.js';
 import { FX_USD_PER_UNIT } from '../fx.js';
 
+// TODO: refresh against ESTV Form 58c 2026 — current 10-bracket schedule
+// approximates the official multi-band tariff with pre-2026 thresholds.
+// 2026 thresholds are CPI-indexed upward (e.g. exempt CHF 15,000 → 15,300+).
 export const CH_FEDERAL_BRACKETS_SINGLE = [
   { max: 15000, rate: 0.00 },
   { max: 32800, rate: 0.0077 },
@@ -29,6 +32,9 @@ export const CH_ZH_BRACKETS_EINFACH_SINGLE = [
   { max: 144100, rate: 0.10 }, { max: 197200, rate: 0.11 }, { max: 263300, rate: 0.12 },
   { max: Infinity, rate: 0.13 },
 ];
+// Canton 95% (zh.ch confirmed for 2026 — was 98% in 2024-25).
+// Stadt Zürich 125% retained from prior data; audit suggested 119% but couldn't
+// be primary-verified. If 119%, multiplier would be 2.14 instead of 2.20.
 export const CH_ZH_MULTIPLIER = 2.20;
 
 export const CH_GE_BRACKETS_EINFACH_SINGLE = [
@@ -40,7 +46,7 @@ export const CH_GE_MULTIPLIER = 1.93;
 export const CH_SOC_2026 = {
   ahv_iv_eo: 0.053,
   alv_low: 0.011,
-  alv_solidarity: 0.005,
+  alv_solidarity: 0,         // Abolished 1 Jan 2023 — confirmed kmu.admin.ch (updated 2026-01-06)
   alv_cap: 148200,
 };
 export const CH_SAULE3A_MAX_WITH_PK = 7258;
