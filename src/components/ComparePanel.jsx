@@ -288,12 +288,14 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, headingClass, 
           );
         })()}
 
-        <Field theme={theme} label={`Monthly Rent (${country?.currency})`} hint="Default pre-filled from city; override if needed.">
-          <NumInput theme={theme} value={payload.rentLocal} onChange={(v) => setField('rentLocal', v)} step={50} />
-        </Field>
-        <Field theme={theme} label={`Monthly Misc Burn (${country?.currency})`} hint="Food, transit, leisure, utilities not in rent.">
-          <NumInput theme={theme} value={payload.miscBurnLocal} onChange={(v) => setField('miscBurnLocal', v)} step={50} />
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field theme={theme} label={`Monthly Rent (${country?.currency})`} hint="Default pre-filled from city; override if needed.">
+            <NumInput theme={theme} value={payload.rentLocal} onChange={(v) => setField('rentLocal', v)} step={50} />
+          </Field>
+          <Field theme={theme} label={`Monthly Misc Burn (${country?.currency})`} hint="Food, transit, leisure, utilities not in rent.">
+            <NumInput theme={theme} value={payload.miscBurnLocal} onChange={(v) => setField('miscBurnLocal', v)} step={50} />
+          </Field>
+        </div>
 
         {/* Headline numbers — always in this panel's local currency */}
         <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/5">
