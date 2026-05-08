@@ -51,6 +51,7 @@ export const PENSION_META = {
     fields: [
       { key: 'perPct', label: 'PER (individual) %', default: 5, step: 0.5, kind: 'pct', hint: 'Pre-tax PER. Cap: min €4,710 / max €37,680 (2026, 10% × 8 × PASS).' },
       { key: 'erPerPct', label: 'PER Collectif/Obligatoire ER %', default: 3, step: 0.5, kind: 'pct', hint: 'Employer-funded retirement supplement (Article 83/PER Obligatoire).' },
+      { key: 'isCadre', label: 'Cadre (executive status)', default: true, kind: 'toggle', hint: 'Cadres pay extra Agirc-Arrco T1, APEC, CEG/CET — total EE cotisations ~25% vs ~22% non-cadre. Default on for senior tech.' },
     ],
   },
 

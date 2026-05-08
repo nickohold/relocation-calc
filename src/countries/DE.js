@@ -1,12 +1,15 @@
-// Germany tax engine — single, employee, 2026. APPROXIMATION of §32a EStG (zone 2/3 are quadratic).
+// Germany tax engine — single, employee, 2026. Implements real §32a EStG piecewise tariff.
 // Sources:
-//   - https://www.bundesfinanzministerium.de/ (Einkommensteuertarif §32a)
+//   - https://www.gesetze-im-internet.de/estg/__32a.html (§32a EStG full text)
+//   - https://www.finanz-tools.de/einkommensteuer/berechnung-formeln/2026 (2026 coefficients)
+//   - https://www.bundesfinanzministerium.de/ (Einkommensteuertarif §32a, Lohnsteuerhandbuch)
 //   - https://www.deutsche-rentenversicherung.de/ (BBG-RV)
 //   - https://www.gkv-spitzenverband.de/ (BBG-KV)
 
-import { calcBrackets } from '../bracketUtils.js';
 import { FX_USD_PER_UNIT } from '../fx.js';
 
+// Display-only flat-rate approximation of §32a zones (used only by meta.incomeTax.brackets
+// for UI display). NOT used by compute() — compute uses calcESt2026() below.
 export const DE_BRACKETS_SINGLE = [
   { max: 12348, rate: 0.00 },
   { max: 17800, rate: 0.19 },
@@ -14,6 +17,29 @@ export const DE_BRACKETS_SINGLE = [
   { max: 277825, rate: 0.42 },
   { max: Infinity, rate: 0.45 },
 ];
+
+// 2026 §32a EStG piecewise tariff (Grundtabelle, single).
+// Zone 1: 0..12,348 → 0
+// Zone 2: 12,349..17,799 → (914.51 * y + 1400) * y, y = (E - 12348) / 10000
+// Zone 3: 17,800..69,878 → (173.10 * z + 2397) * z + 1034.87, z = (E - 17799) / 10000
+// Zone 4: 69,879..277,825 → 0.42 * E - 11135.63
+// Zone 5: ≥ 277,826 → 0.45 * E - 19470.38
+export const calcESt2026 = (zvE) => {
+  const E = Math.max(0, Math.floor(zvE)); // §32a rounds taxable income down to whole euros
+  if (E <= 12348) return 0;
+  if (E <= 17799) {
+    const y = (E - 12348) / 10000;
+    return Math.floor((914.51 * y + 1400) * y);
+  }
+  if (E <= 69878) {
+    const z = (E - 17799) / 10000;
+    return Math.floor((173.10 * z + 2397) * z + 1034.87);
+  }
+  if (E <= 277825) {
+    return Math.floor(0.42 * E - 11135.63);
+  }
+  return Math.floor(0.45 * E - 19470.38);
+};
 
 export const DE_SOLI_RATE = 0.055;
 export const DE_SOLI_FREIGRENZE_TAX = 20350;  // 2026 — §3 Abs.3 SolZG 1995 (gesetze-im-internet.de)
@@ -50,7 +76,7 @@ export const compute = ({
   const pensionDeductible = Math.min(bavContribution, bavTaxFreeCap) + riester;
 
   const taxable = Math.max(0, grossLocal - pensionDeductible - DE_WERBUNGSKOSTEN_PAUSCHALE);
-  const grossIT = calcBrackets(taxable, DE_BRACKETS_SINGLE);
+  const grossIT = calcESt2026(taxable);
   const soli = grossIT > DE_SOLI_FREIGRENZE_TAX ? grossIT * DE_SOLI_RATE : 0;
   const incomeTax = grossIT + soli;
 
@@ -91,10 +117,10 @@ export const meta = {
   taxYear: '2026',
   lastUpdated: '2026-05-08',
   incomeTax: {
-    label: 'Einkommensteuer (§32a EStG, single — APPROXIMATED)',
+    label: 'Einkommensteuer (§32a EStG, single, 2026)',
     brackets: DE_BRACKETS_SINGLE.map((b) => ({ upTo: b.max, rate: b.rate })),
     notes: [
-      'Real §32a uses quadratic zones 2 and 3 — flat-rate approximation here.',
+      'Computed via the real §32a EStG piecewise formula (linear in zones 1/4/5, quadratic in zones 2/3). The bracket table shown here is a display-only flat-rate approximation.',
       `Solidaritätszuschlag (${(DE_SOLI_RATE * 100).toFixed(1)}%) applies when gross IT > €${DE_SOLI_FREIGRENZE_TAX.toLocaleString()}.`,
     ],
   },
@@ -117,7 +143,6 @@ export const meta = {
   ],
   localTax: null,
   simplifications: [
-    'Income-tax brackets approximated as flat rates per zone (real §32a is quadratic in zones 2-3).',
     'Childless LTC surcharge applied; family/Kirchensteuer not modeled.',
     'bAV via Entgeltumwandlung; Riester applied only when flag set.',
   ],
