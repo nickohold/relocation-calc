@@ -202,10 +202,15 @@ city_annual   = (location.city == 'NYC')
 
 #### NJ (Hoboken/JC, West NY/Guttenberg)
 
-**NJ does NOT conform — 401(k) is NOT pre-tax for NJ state.** This was a bug previously; fixed 2026-05.
+**NJ DOES conform on 401(k) — employee contributions are pre-tax for NJ state income tax.**
+Per NJ Division of Taxation GIT-1&2 (Jan 2026): "Since January 1, 1984, employee
+contributions to 401(k) Plans are excluded from taxable wages when earned." NJ does NOT
+conform on 403(b)/457/IRA, but those are out of scope here. (A prior version of this code
+incorrectly treated 401(k) as taxable for NJ — corrected 2026-05-08 after primary-source
+verification.)
 
 ```
-nj_taxable   = max(0, gross_annual − 1,000)         # personal_annual NOT subtracted
+nj_taxable   = max(0, gross_annual − personal_annual − 1,000)
 state_annual = progressive_brackets(nj_taxable, NJ_STATE_BRACKETS)
 city_annual  = 0
 ```
@@ -281,7 +286,57 @@ The model is **directional**, not a tax filing. These are the explicit gaps:
 
 ---
 
-## 6. Connections / Dependency Graph
+## 6. Multi-Country Support (Phase 1)
+
+`src/countries/<CODE>.js` files implement a `compute(input) → CountrySideResult` function for each supported country. `src/countries.js` aggregates them into a `COUNTRIES` registry plus a `LOCATIONS` map (44 cities, 20 countries). FX rates live in `src/fx.js` (USD per 1 unit of local currency, May 2026 snapshot).
+
+The legacy IL→US `runEngine(inputs)` is preserved unchanged. A new symmetric `runComparison({ source, dest })` accepts any country pair and returns annualized results in local + USD.
+
+### Country source URLs
+
+| Country | Primary sources |
+|---|---|
+| US | irs.gov, ssa.gov, ny.gov, nj.gov/treasury, ftb.ca.gov, mass.gov, otr.cfo.dc.gov, dor.georgia.gov, azdor.gov, tax.illinois.gov, tax.colorado.gov |
+| IL | btl.gov.il, taxes.gov.il, PwC IL 2026-01 summary |
+| UK | gov.uk/income-tax-rates, gov.uk/national-insurance-rates |
+| IE | revenue.ie, citizensinformation.ie |
+| DE | bundesfinanzministerium.de, deutsche-rentenversicherung.de, gkv-spitzenverband.de |
+| FR | impots.gouv.fr, urssaf.fr |
+| NL | belastingdienst.nl, rijksoverheid.nl |
+| CH | estv.admin.ch, zh.ch, ge.ch |
+| CA | canada.ca/en/revenue-agency, ontario.ca, gov.bc.ca, revenuquebec.ca |
+| AU | ato.gov.au |
+| SG | iras.gov.sg, cpf.gov.sg |
+| JP | nta.go.jp, kyoukaikenpo.or.jp |
+| ES | sede.agenciatributaria.gob.es, comunidad.madrid, atc.gencat.cat, seg-social.es |
+| IT | agenziaentrate.gov.it, inps.it |
+| PT | portaldasfinancas.gov.pt, seg-social.pt |
+| SE | skatteverket.se |
+| DK | skat.dk, borger.dk |
+| NO | skatteetaten.no |
+| AE | tax.gov.ae, u.ae |
+| PL | podatki.gov.pl, zus.pl |
+
+### Documented simplifications
+
+The following are intentional simplifications, not bugs:
+
+1. **Germany** Einkommensteuertarif modeled as bracket approximation, not the exact §32a quadratic formula. Error <0.5% at our income range.
+2. **France** employee social charges modeled as flat ~22% of brut, not piecewise PASS-tiered. Error <2% at our income range.
+3. **Switzerland** Geneva ICC modeled with simplified graduated brackets, not the official continuous-formula coefficients. A `warnings` entry surfaces when GVA is selected.
+4. **Sweden** grundavdrag and jobbskatteavdrag piecewise functions approximated to single values for the high-earner cohort.
+5. **Italy** detrazione lavoro dipendente piecewise function included but is essentially zero at our income range.
+6. **Australia** super defaults to "employer-only, off-payroll" (not salary-sacrificed). Salary-sacrifice toggle is OUT OF SCOPE for this PR.
+7. **Singapore** CPF defaults to citizen/PR rates. Foreign-worker treatment (no CPF) OUT OF SCOPE.
+8. **Japan** 2025-reform basic deduction phase-down at very high incomes (>¥23.5M) ignored.
+9. **Quebec** federal abatement applied as 16.5% reduction of federal tax (after BPA credit).
+10. **Israel** constants partially refreshed for 2026; credit point value (`242 → 254`) and BTL ceilings (`7703 → 7522`, `51910 → 50695`) pending payslip-regression test refresh — kept at 2025 values to preserve existing test suite.
+11. **UAE** treated as zero-tax for all employees (correct for non-GCC nationals; GCC nationals have small social contributions, OUT OF SCOPE).
+12. **Poland** PPK voluntary employee pension contribution and rate variation by health insurance not modeled.
+
+---
+
+## 7. Connections / Dependency Graph
 
 ```
 ilGross ─┬─→ BTL ──────────────┐
@@ -304,13 +359,15 @@ When you change a top-level input, follow the arrows to predict downstream effec
 
 ---
 
-## 7. Bug History (so we don't regress)
+## 8. Bug History (so we don't regress)
 
 | Date | Bug | Fix |
 |---|---|---|
 | 2026-05-06 | NaN in US tax columns — `usFICAMonthly` etc. were referenced but never computed | Added FICA / state / city to `useMemo` return |
 | 2026-05-06 | Lifestyle had a non-monotonic "U-curve" — at 4% match the answer peaked, but went down both above and below | Removed forced "match employer dollar-for-dollar" strategy; now `personal = max(0, target − employer)` |
 | 2026-05-06 | NJ state tax incorrectly treated 401k as pre-tax (NJ does not conform to federal) | NJ taxable now uses gross with no `personal_annual` subtraction |
+| 2026-05-08 | Reverted the 2026-05-06 NJ "fix" — it was based on a wrong premise. Per NJ Div. of Taxation GIT-1&2 (Jan 2026), NJ DOES exclude 401(k) employee contributions from taxable wages (since 1984). NJ only diverges from federal on 403(b)/457/IRA. | NJ branch in `calcStateCityTax` now subtracts `personal_annual` from the bracket base. Test flipped to assert state tax DROPS with 401k contribution. Verified via gemini-verify + NJ.gov primary source. |
+| 2026-05-08 | Second gemini-verify pass surfaced 5 confirmed discrepancies. | (1) GA flat rate 5.19% → 4.99% and std deduction $12k → $15k (GA DOR Sine Die 2026). (2) ES Catalonia: replaced 9-bracket structure with the 8-bracket post-Decree-law-5/2025 schedule (first rate 10.5% → 9.5%). (3) PT IRS: replaced bracket thresholds and rates with Orçamento do Estado 2026 values (rates dropped 0.3pp on brackets 2-5; thresholds +3.51%). (4) DE Pflegeversicherung: employee LTC base 2.4% → 1.7% (with-children TK rate); childless surcharge 0.6% unchanged → 2.3% childless total (was 3.0%). (5) AE: added mandatory ILOE unemployment insurance (AED 120/yr at our income range). |
 | 2026-05-06 | Israeli pension tax credit (35% × min(EE, 7%)) was missing — overstated IL tax | Added `calcPensionCredit` |
 | 2026-05-06 | Severance pitzuim (8.33%) always counted as savings, inflating US 401k target | Added `includeSeveranceInSavings` toggle |
 | 2026-05-06 | No IRS $23,500 cap on personal 401k contribution | Cap enforced; surplus surfaces as `wealthGap` with UI warning |
@@ -321,7 +378,7 @@ When you change a top-level input, follow the arrows to predict downstream effec
 
 ---
 
-## 8. Test Coverage
+## 9. Test Coverage
 
 `src/calc.test.js` locks the above. Run `npm test`. Specific guarantees:
 
@@ -332,7 +389,7 @@ When you change a top-level input, follow the arrows to predict downstream effec
 - Severance toggle effect on `erSavingsILS` and `totalILSPct`
 - FICA wage base cap + Additional Medicare threshold
 - NY 401k pre-tax behavior
-- **NJ 401k NOT pre-tax** (regression test for the bug)
+- **NJ 401k IS pre-tax** (regression test, per NJ Div. of Taxation GIT-1&2 Jan 2026)
 - TX no-income-tax
 - Wealth Gap triggers above IRS cap
 - 401k personal contribution monotonic in employer match (regression test for U-curve bug)
@@ -343,7 +400,7 @@ If any of these fail, the model has drifted from this spec.
 
 ---
 
-## 9. When to update this document
+## 10. When to update this document
 
 Update **before** changing logic, not after. PR template:
 

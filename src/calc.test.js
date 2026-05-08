@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
-  calcBrackets, calcBTL, calcPensionCredit, calcIL, calcUS, runEngine,
+  calcBrackets, calcBTL, calcPensionCredit, calcIL, calcUS, runEngine, runComparison,
   FED_BRACKETS, NY_STATE_BRACKETS, NJ_STATE_BRACKETS, NYC_LOCAL_BRACKETS,
-  LOCATIONS, CONSTANTS,
+  LOCATIONS, CONSTANTS, COUNTRIES, MULTI_LOCATIONS, FX_USD_PER_UNIT,
 } from './calc.js';
+import { fromUSD } from './fx.js';
 
 // Tolerance helper for FP comparisons
 const $close = (a, b, eps = 0.5) => Math.abs(a - b) < eps;
@@ -230,11 +231,11 @@ describe('calcUS — US engine', () => {
     expect(taxesWith).toBeLessThan(taxesNo);
   });
 
-  it('NJ: 401k is NOT pre-tax for state tax (BUG FIX)', () => {
+  it('NJ: 401k IS pre-tax for state tax (per NJ Div. of Taxation GIT-1&2 Jan 2026)', () => {
     const nj_no401k = calcUS({ ...baseUS, targetSavingsUSD: 0, matchLimitPct: 0, location: LOCATIONS.NJ });
     const nj_with401k = calcUS({ ...baseUS, targetSavingsUSD: 12000, matchLimitPct: 0, location: LOCATIONS.NJ });
-    // NJ state tax should be IDENTICAL with or without 401k contribution
-    expect(nj_with401k.stateMonthly).toBeCloseTo(nj_no401k.stateMonthly, 2);
+    // NJ excludes 401(k) employee contributions from taxable wages — state tax must drop with contribution
+    expect(nj_with401k.stateMonthly).toBeLessThan(nj_no401k.stateMonthly);
   });
 
   it('TX: no state or city tax', () => {
@@ -393,4 +394,155 @@ describe('Constants & metadata', () => {
       prev = b.max;
     }
   });
+});
+
+// ── Multi-country sanity tests (Phase 1 refactor) ──
+//
+// Each country's effective-tax-rate band at ~$120k USD-equivalent gross is documented
+// from primary-source research; bands are intentionally wide to absorb minor
+// modeling choices (pension toggles, std-deduction nuances).
+describe('Multi-country effective tax bands at ~$120k USD equivalent', () => {
+  const cases = [
+    // [code, locationKey, minPct, maxPct]
+    ['UK', 'UK-LON', 26, 38],
+    ['IE', 'IE-DUB', 30, 42],
+    ['DE', 'DE-BER', 42, 56],
+    ['FR', 'FR-PAR', 38, 52],
+    ['NL', 'NL-AMS', 32, 44],
+    ['CH', 'CH-ZRH', 16, 30],
+    ['CA', 'CA-TOR', 26, 40],
+    ['AU', 'AU-SYD', 24, 36],
+    ['SG', 'SG-SIN', 14, 26],
+    ['JP', 'JP-TYO', 26, 40],
+    ['ES', 'ES-MAD', 28, 42],
+    ['IT', 'IT-MIL', 36, 50],
+    ['PT', 'PT-LIS', 34, 50],
+    ['SE', 'SE-STO', 28, 42],
+    ['DK', 'DK-CPH', 32, 46],
+    ['NO', 'NO-OSL', 26, 40],
+    ['AE', 'AE-DXB', 0, 0.5],
+    ['PL', 'PL-WAW', 32, 46],
+  ];
+
+  for (const [code, locationKey, minPct, maxPct] of cases) {
+    it(`${code}: effective tax rate at $120k USD-equiv is in [${minPct}%, ${maxPct}%]`, () => {
+      const country = COUNTRIES[code];
+      const gross = fromUSD(120000, country.currency);
+      const r = country.compute({ grossLocal: gross, locationKey });
+      const pct = r.effectiveTaxRate * 100;
+      expect(pct).toBeGreaterThanOrEqual(minPct);
+      expect(pct).toBeLessThanOrEqual(maxPct);
+      expect(Number.isFinite(r.netLocal)).toBe(true);
+      expect(Number.isFinite(r.netUSD)).toBe(true);
+    });
+  }
+});
+
+describe('Multi-country registry integrity', () => {
+  it('every LOCATIONS entry has a country in COUNTRIES', () => {
+    for (const [key, loc] of Object.entries(MULTI_LOCATIONS)) {
+      expect(COUNTRIES[loc.country], `${key} has unknown country ${loc.country}`).toBeDefined();
+    }
+  });
+
+  it('every LOCATIONS entry has a defaultRent and name', () => {
+    for (const [key, loc] of Object.entries(MULTI_LOCATIONS)) {
+      expect(typeof loc.defaultRent, `${key} missing defaultRent`).toBe('number');
+      expect(loc.defaultRent).toBeGreaterThan(0);
+      expect(typeof loc.name).toBe('string');
+    }
+  });
+
+  it('FX_USD_PER_UNIT covers all currencies in COUNTRIES', () => {
+    for (const [code, country] of Object.entries(COUNTRIES)) {
+      expect(FX_USD_PER_UNIT[country.currency], `${code} currency ${country.currency} missing FX`).toBeGreaterThan(0);
+    }
+  });
+
+  it('every country in COUNTRIES has at least one location', () => {
+    for (const [code, country] of Object.entries(COUNTRIES)) {
+      expect(country.locations.length, `${code} has no locations`).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('runComparison — symmetric IL→US sanity', () => {
+  it('produces a result with source/dest CountrySideResult shape', () => {
+    const r = runComparison({
+      source: {
+        countryCode: 'IL', locationKey: 'IL-TLV',
+        grossLocal: 15000 * 12, eePensionPct: 6, eeOtherPct: 2.5,
+        rentLocal: 8650, miscBurnLocal: 9000,
+        erPensionPct: 6.5, erSeverancePct: 8.33, erKerenPct: 7.5,
+      },
+      dest: {
+        countryCode: 'US', locationKey: 'US-NYC',
+        grossLocal: 180000, eePensionPct: 6, matchLimitPct: 6,
+        rentLocal: 4500, miscBurnLocal: 900,
+      },
+    });
+    expect(r.source.countryCode).toBe('IL');
+    expect(r.dest.countryCode).toBe('US');
+    expect(Number.isFinite(r.liquidDeltaUSD)).toBe(true);
+    expect(Number.isFinite(r.savingsDeltaUSD)).toBe(true);
+    expect(Number.isFinite(r.liquidDeltaCOLAdjustedUSD)).toBe(true);
+    expect(Array.isArray(r.warnings)).toBe(true);
+  });
+
+  it('IL liquid_USD is approximately consistent with legacy runEngine (within 5%)', () => {
+    const fxRate = FX_USD_PER_UNIT.ILS; // ~0.344
+    const legacy = runEngine({
+      ilGross: 15000, ilEEPension: 6, ilEEKeren: 2.5,
+      ilERPension: 6.5, ilERSeverance: 8.33, ilERKeren: 7.5,
+      ilRent: 8650, ilBurn: 9000,
+      fxRate,
+      selectedLoc: 'NYC',
+      usGrossAnnual: 180000, usRent: 4500, us401kMatchLimit: 6, usMiscBurn: 900,
+    });
+    const newR = runComparison({
+      source: {
+        countryCode: 'IL', locationKey: 'IL-TLV',
+        grossLocal: 15000 * 12, eePensionPct: 6, eeOtherPct: 2.5,
+        rentLocal: 8650, miscBurnLocal: 9000,
+        erPensionPct: 6.5, erSeverancePct: 8.33, erKerenPct: 7.5,
+      },
+      dest: {
+        countryCode: 'US', locationKey: 'US-NYC',
+        grossLocal: 180000, eePensionPct: 6, matchLimitPct: 6,
+        rentLocal: 4500, miscBurnLocal: 900,
+      },
+    });
+    // legacy.ilLiquidFlowUSD is monthly; new is annual.
+    const legacyAnnual = legacy.ilLiquidFlowUSD * 12;
+    const denom = Math.abs(legacyAnnual) || 1;
+    const diff = Math.abs(newR.source.liquidUSD - legacyAnnual) / denom;
+    expect(diff).toBeLessThan(0.05);
+  });
+});
+
+describe('Country savings sanity — non-US/IL', () => {
+  const sane = (cc, payload, min, max) => {
+    const r = COUNTRIES[cc].compute(payload);
+    expect(r.totalSavingsLocal).toBeGreaterThan(min);
+    expect(r.totalSavingsLocal).toBeLessThan(max);
+  };
+
+  it('UK at £80,000', () => sane('UK', { grossLocal: 80000, eePensionPct: 5, erPensionPct: 3, salarySacrifice: false }, 2000, 15000));
+  it('IE at €100,000 age 35', () => sane('IE', { grossLocal: 100000, eePensionPct: 15, erPensionPct: 5, age: 35 }, 10000, 30000));
+  it('DE at €110,000', () => sane('DE', { grossLocal: 110000, bavPct: 4, erBavPct: 0, riesterFlag: false }, 3000, 20000));
+  it('FR at €100,000', () => sane('FR', { grossLocal: 100000, perPct: 5, erPerPct: 3 }, 5000, 20000));
+  it('NL at €110,000', () => sane('NL', { grossLocal: 110000, eePensionPct: 7.5, erPensionPct: 15.9, lijfrenteAmt: 0 }, 10000, 35000));
+  it('CH at CHF 130,000 age 40', () => sane('CH', { grossLocal: 130000, eeBvgPct: 0, erBvgPct: 0, pillar3aAmt: 7258, buyInsAmt: 0, age: 40, locationKey: 'CH-ZRH' }, 10000, 25000));
+  it('CA at CAD 120,000', () => sane('CA', { grossLocal: 120000, rrspPct: 10, erRrspMatchPct: 3, tfsaAmt: 7000, locationKey: 'CA-TOR' }, 15000, 35000));
+  it('AU at AUD 150,000', () => sane('AU', { grossLocal: 150000, salarySacrificePct: 0 }, 10000, 35000));
+  it('SG at SGD 180,000 local age 35', () => sane('SG', { grossLocal: 180000, srsAmt: 0, isForeigner: false, age: 35 }, 15000, 50000));
+  it('JP at ¥18,000,000', () => sane('JP', { grossLocal: 18000000, iDecoMonthlyJpy: 23000, dcCorpMonthlyJpy: 0, age: 35 }, 500000, 2500000));
+  it('ES at €70,000', () => sane('ES', { grossLocal: 70000, planPensionesAmt: 1500, erPlanEmpleoAmt: 0, locationKey: 'ES-MAD' }, 500, 12000));
+  it('IT at €60,000', () => sane('IT', { grossLocal: 60000, fondoPensioneEePct: 1, fondoPensioneErPct: 1, includeTfrInSavings: true, locationKey: 'IT-MIL' }, 3000, 15000));
+  it('PT at €60,000 age 30', () => sane('PT', { grossLocal: 60000, pprAmt: 2000, age: 30 }, 500, 5000));
+  it('SE at SEK 800,000', () => sane('SE', { grossLocal: 800000, eeSalaryExchangePct: 0 }, 30000, 200000));
+  it('DK at DKK 600,000', () => sane('DK', { grossLocal: 600000, eePensionPct: 4, erPensionPct: 8, aldersopsparingAmt: 0 }, 50000, 120000));
+  it('NO at NOK 900,000', () => sane('NO', { grossLocal: 900000, erOtpPct: 5, eeOtpPct: 0, ipsAmt: 0 }, 20000, 80000));
+  it('AE at AED 400,000', () => sane('AE', { grossLocal: 400000, basicPctOfGross: 60, yearsOfService: 3, includeEosgInSavings: true }, 5000, 30000));
+  it('PL at PLN 200,000', () => sane('PL', { grossLocal: 200000, ppkEePct: 2, ppkErPct: 1.5, ikzeAmt: 0 }, 5000, 15000));
 });
