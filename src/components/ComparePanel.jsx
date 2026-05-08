@@ -18,16 +18,7 @@ const KpiCell = ({ theme, label, hint, children }) => (
 );
 
 // Per-side gross salary input with annual ↔ monthly toggle. Stores annual in payload.
-const SalaryInput = ({ theme, side, currency, annualValue, onAnnualChange, hint }) => {
-  const storageKey = `relocation-calc:salaryMode:${side}`;
-  const [mode, setMode] = useState(() => {
-    if (typeof window === 'undefined') return 'annual';
-    return window.localStorage.getItem(storageKey) === 'monthly' ? 'monthly' : 'annual';
-  });
-  useEffect(() => {
-    if (typeof window !== 'undefined') window.localStorage.setItem(storageKey, mode);
-  }, [mode, storageKey]);
-
+const SalaryInput = ({ theme, currency, annualValue, onAnnualChange, hint, mode, setMode }) => {
   const annualNum = Number(annualValue) || 0;
   const isMonthly = mode === 'monthly';
   const displayed = isMonthly ? Math.round(annualNum / 12).toString() : String(annualValue);
@@ -172,6 +163,17 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, headingClass, 
   const country = COUNTRIES[payload.countryCode];
   const ui = getCountryUI(payload.countryCode);
 
+  // Per-side Yr/Mo state — drives both the salary input AND the headline KPIs.
+  const salaryStorageKey = `relocation-calc:salaryMode:${side}`;
+  const [salaryMode, setSalaryMode] = useState(() => {
+    if (typeof window === 'undefined') return 'annual';
+    return window.localStorage.getItem(salaryStorageKey) === 'monthly' ? 'monthly' : 'annual';
+  });
+  useEffect(() => {
+    if (typeof window !== 'undefined') window.localStorage.setItem(salaryStorageKey, salaryMode);
+  }, [salaryMode, salaryStorageKey]);
+  const periodDivisor = salaryMode === 'monthly' ? 12 : 1;
+
   const countryOptions = useMemo(
     () => Object.entries(COUNTRIES)
       .map(([code, c]) => [code, c.name])
@@ -249,11 +251,12 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, headingClass, 
 
         <SalaryInput
           theme={theme}
-          side={side}
           currency={country?.currency ?? ''}
           annualValue={payload.grossLocal}
           onAnnualChange={(v) => setField('grossLocal', v)}
-          hint="Salary before tax, in local currency. Toggle Yr/Mo to enter as annual or monthly — both are equivalent and convert internally."
+          mode={salaryMode}
+          setMode={setSalaryMode}
+          hint="Salary before tax, in local currency. Toggle Yr/Mo to enter as annual or monthly — also flips the panel's headline KPIs."
         />
 
         {(() => {
@@ -297,21 +300,21 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, headingClass, 
           </Field>
         </div>
 
-        {/* Headline numbers — always in this panel's local currency */}
+        {/* Headline numbers — local currency, period follows the salary Yr/Mo toggle */}
         <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/5">
-          <KpiCell theme={theme} label={`Gross (${localCurrency})`} hint="Annual gross salary, in this panel's local currency.">
-            <span className="text-lg font-black">{fmtLocal(result?.grossLocal ?? 0, localCurrency)}</span>
+          <KpiCell theme={theme} label={`Gross (${localCurrency}) ${salaryMode === 'monthly' ? '/mo' : '/yr'}`} hint="Gross salary in this panel's local currency. Period follows the Yr/Mo toggle on the salary input above.">
+            <span className="text-lg font-black">{fmtLocal((result?.grossLocal ?? 0) / periodDivisor, localCurrency)}</span>
           </KpiCell>
-          <KpiCell theme={theme} label="Net Take-Home" hint="Annual gross minus all income tax, social security/insurance, and your pre-tax retirement contributions. What hits your bank account.">
-            <span className="text-lg font-black">{fmtLocal(result?.netLocal ?? 0, localCurrency)}</span>
+          <KpiCell theme={theme} label={`Net Take-Home ${salaryMode === 'monthly' ? '/mo' : '/yr'}`} hint="Gross minus all income tax, social security/insurance, and your pre-tax retirement contributions. What hits your bank account.">
+            <span className="text-lg font-black">{fmtLocal((result?.netLocal ?? 0) / periodDivisor, localCurrency)}</span>
           </KpiCell>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <KpiCell theme={theme} label="Effective Tax" hint="(Income tax + social security + state/local tax) ÷ gross. Excludes pension contributions, which reduce taxable income but aren't a tax.">
+          <KpiCell theme={theme} label="Effective Tax" hint="(Income tax + social security + state/local tax) ÷ gross. Excludes pension contributions, which reduce taxable income but aren't a tax. Independent of period.">
             <span className="text-base font-bold">{fmtPct(result?.effectiveTaxRate ?? 0)}</span>
           </KpiCell>
-          <KpiCell theme={theme} label="Liquid (after rent+burn)" hint="Net take-home minus annual rent and misc burn. Whatever's left over for everything else (taxable savings, RSUs, fun, etc.).">
-            <span className="text-base font-bold">{fmtLocal(result?.liquidLocal ?? 0, localCurrency)}</span>
+          <KpiCell theme={theme} label={`Liquid (after rent+burn) ${salaryMode === 'monthly' ? '/mo' : '/yr'}`} hint="Net take-home minus rent and misc burn. Whatever's left over for everything else (taxable savings, RSUs, fun, etc.).">
+            <span className="text-base font-bold">{fmtLocal((result?.liquidLocal ?? 0) / periodDivisor, localCurrency)}</span>
           </KpiCell>
         </div>
 
