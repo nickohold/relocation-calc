@@ -93,10 +93,9 @@ const Tooltip = ({ theme, text, iconSize = 12, children }) => {
         ref={triggerRef}
         tabIndex={0}
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen((v) => !v); }}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
+        // Hover is ignored on touch devices to avoid the double-click bug
+        // (touch fires mouseenter+mouseleave+click on a single tap, cancelling out).
+        // Click-toggle works consistently across all input types.
         className={`inline-flex items-center justify-center align-middle ${theme?.tooltipIcon || ''}`}
         aria-label="More info"
         aria-expanded={open}
