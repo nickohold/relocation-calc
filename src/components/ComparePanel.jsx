@@ -129,7 +129,10 @@ const FieldRenderer = ({ theme, field, payload, setField, setPayload }) => {
           onChange={(e) => setPayload({ ...payload, [field.key]: e.target.checked })}
           className={theme.severanceCheck}
         />
-        <span>{field.label}{field.hint && <span className={theme.severanceSub}>{field.hint}</span>}</span>
+        <span className="flex items-center gap-1 flex-1 min-w-0">
+          <span className="truncate">{field.label}</span>
+          {field.hint && <Tooltip theme={theme} text={field.hint} iconSize={11} />}
+        </span>
       </label>
     );
   }
@@ -253,54 +256,7 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, headingClass, 
           hint="Salary before tax, in local currency. Toggle Yr/Mo to enter as annual or monthly — both are equivalent and convert internally."
         />
 
-        {ui.kind === 'US' && (
-          <div className="grid grid-cols-2 gap-3">
-            <Field theme={theme} label="401(k) EE %" hint="Your 401(k) contribution % of gross.">
-              <NumInput theme={theme} value={payload.eePensionPct} onChange={(v) => setField('eePensionPct', v)} step={0.5} />
-            </Field>
-            <Field theme={theme} label="401(k) Match %" hint="Employer match cap, % of gross.">
-              <NumInput theme={theme} value={payload.matchLimitPct} onChange={(v) => setField('matchLimitPct', v)} step={0.5} />
-            </Field>
-          </div>
-        )}
-
-        {ui.kind === 'IL' && (
-          <>
-            <div className="grid grid-cols-2 gap-3">
-              <Field theme={theme} label="EE Pension %" hint="Your pension contribution.">
-                <NumInput theme={theme} value={payload.eePensionPct} onChange={(v) => setField('eePensionPct', v)} step={0.1} />
-              </Field>
-              <Field theme={theme} label="EE Keren %" hint="Your Keren Hishtalmut contribution.">
-                <NumInput theme={theme} value={payload.eeOtherPct} onChange={(v) => setField('eeOtherPct', v)} step={0.1} />
-              </Field>
-            </div>
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-              <Field theme={theme} label="ER Pension %" hint="Employer pension contribution rate. Standard in Israel: 6.5% of gross. Counts toward your retirement savings.">
-                <NumInput theme={theme} value={payload.erPensionPct ?? 6.5} onChange={(v) => setField('erPensionPct', v)} step={0.1} />
-              </Field>
-              <Field theme={theme} label="ER Severance %" hint="Pitzuim — severance fund contribution. Standard 8.33% (1/12 of monthly salary). Counts as savings only if rolled into pension at end of employment (see toggle below).">
-                <NumInput theme={theme} value={payload.erSeverancePct ?? 8.33} onChange={(v) => setField('erSeverancePct', v)} step={0.1} />
-              </Field>
-              <Field theme={theme} label="ER Keren %" hint="Employer Keren Hishtalmut (study fund) contribution. Standard 7.5%. Tax-free vehicle, capped at ₪15,712/mo gross.">
-                <NumInput theme={theme} value={payload.erKerenPct ?? 7.5} onChange={(v) => setField('erKerenPct', v)} step={0.1} />
-              </Field>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Field theme={theme} label="Credit Points"><NumInput theme={theme} value={payload.creditPoints ?? 2.25} onChange={(v) => setField('creditPoints', v)} step={0.25} /></Field>
-              <label className={theme.severanceBox}>
-                <input
-                  type="checkbox"
-                  checked={!!payload.includeSeveranceInSavings}
-                  onChange={(e) => setPayload({ ...payload, includeSeveranceInSavings: e.target.checked })}
-                  className={theme.severanceCheck}
-                />
-                <span>Count severance as savings.<span className={theme.severanceSub}>On if rolled into pension.</span></span>
-              </label>
-            </div>
-          </>
-        )}
-
-        {ui.kind === 'GENERIC' && (() => {
+        {(() => {
           const meta = PENSION_META[payload.countryCode];
           if (!meta?.fields) {
             return (

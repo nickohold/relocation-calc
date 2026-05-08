@@ -248,7 +248,9 @@ export const compute = ({
 
   // Employee 401k contribution (pre-tax federal & all modeled states; NJ DOES conform).
   const personalAnnual = Math.min(grossAnnual * (eePensionPct / 100), C.IRS_401K_LIMIT_ANNUAL);
-  const employerAnnual = grossAnnual * (matchLimitPct / 100);
+  // Employer match is dollar-for-dollar up to matchLimitPct of gross — capped by what
+  // the employee actually contributes. (Conventional "X% match" semantics.)
+  const employerAnnual = grossAnnual * (Math.min(eePensionPct, matchLimitPct) / 100);
 
   // FICA
   const ssTax = Math.min(grossAnnual, C.SS_WAGE_BASE) * C.SS_RATE;

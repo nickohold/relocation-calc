@@ -1,24 +1,27 @@
-// Per-country savings field metadata. Each country (other than US/IL — handled bespoke
-// in ComparePanel) describes the EE/ER/voluntary fields the UI should render.
+// Per-country savings field metadata. Every country uses the same UI rendering loop;
+// each entry describes the EE/ER/voluntary fields the UI should render.
 //
 // Field shape:
 //   { key, label, default, step, kind: 'pct' | 'amount' | 'toggle', hint }
 // `needsAge: true` hoists an age input to the side-panel (for IE, CH, SG, JP, PT).
-//
-// US and IL are kept here only for legacy reads (display label/hint elsewhere); their
-// engines and UI blocks are bespoke. Their `fields` arrays are intentionally absent.
 
 export const PENSION_META = {
   US: {
-    label: '401(k) EE %',
-    hint: 'Pre-tax 401(k) employee contribution as % of gross. IRS cap $24,500/yr (2026). Reduces federal + most states + NJ taxable wages.',
-    defaultPct: 6,
-    secondary: { key: 'matchLimitPct', label: '401(k) Match %', hint: 'Employer match cap as % of gross. Default 6% is typical. Match is added to your savings; not taxable to you.', defaultPct: 6 },
+    fields: [
+      { key: 'eePensionPct', label: '401(k) EE %', default: 6, step: 0.5, kind: 'pct', hint: 'Your 401(k) employee contribution as % of gross. Pre-tax federal + all modeled states (incl. NJ). IRS cap $24,500/yr (2026).' },
+      { key: 'matchLimitPct', label: '401(k) Match Cap %', default: 6, step: 0.5, kind: 'pct', hint: 'Employer match cap as % of gross. Conventional "X% match" means employer contributes the lesser of (your %) and (this cap). E.g., cap 6% + EE 3% → employer contributes 3%.' },
+    ],
   },
   IL: {
-    label: 'EE Pension %',
-    hint: 'Israeli pension (Pensiya) employee contribution. Standard 6%. Eligible for 35% tax credit on first 7% (capped at insured-salary cap).',
-    defaultPct: 6,
+    fields: [
+      { key: 'eePensionPct', label: 'EE Pension %', default: 6, step: 0.1, kind: 'pct', hint: 'Israeli pension (Pensiya) employee contribution. Standard 6%. Eligible for 35% tax credit on first 7% (capped at insured-salary cap).' },
+      { key: 'eeOtherPct', label: 'EE Keren %', default: 2.5, step: 0.1, kind: 'pct', hint: 'Your Keren Hishtalmut (study fund) contribution. Standard 2.5%. Tax-free vehicle, capped at ₪15,712/mo gross.' },
+      { key: 'erPensionPct', label: 'ER Pension %', default: 6.5, step: 0.1, kind: 'pct', hint: 'Employer pension contribution. Standard 6.5% of gross. Counts toward your retirement savings.' },
+      { key: 'erSeverancePct', label: 'ER Severance %', default: 8.33, step: 0.1, kind: 'pct', hint: 'Pitzuyim — severance fund contribution. Standard 8.33% (1/12 of monthly salary). Counts as savings only if rolled into pension at end of employment (see toggle below).' },
+      { key: 'erKerenPct', label: 'ER Keren %', default: 7.5, step: 0.1, kind: 'pct', hint: 'Employer Keren Hishtalmut contribution. Standard 7.5%. Tax-free vehicle, capped at ₪15,712/mo gross.' },
+      { key: 'creditPoints', label: 'Credit Points', default: 2.25, step: 0.25, kind: 'pct', hint: 'Nekudat Zikkui — Israeli tax-residency credit points. Resident male: 2.25. Resident female: 2.75. Each point = ₪242/mo off your income tax.' },
+      { key: 'includeSeveranceInSavings', label: 'Count severance as savings', default: true, kind: 'toggle', hint: 'On if pitzuyim is rolled into pension at end of employment. Default on for tech employees.' },
+    ],
   },
 
   UK: {
