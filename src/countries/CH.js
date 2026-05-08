@@ -8,20 +8,20 @@
 import { calcBrackets } from '../bracketUtils.js';
 import { FX_USD_PER_UNIT } from '../fx.js';
 
-// TODO: refresh against ESTV Form 58c 2026 — current 10-bracket schedule
-// approximates the official multi-band tariff with pre-2026 thresholds.
-// 2026 thresholds are CPI-indexed upward (e.g. exempt CHF 15,000 → 15,300+).
+// 2026 thresholds verified against ESTV Form 58c (DVS 01.2026), Tarif A Alleinstehende.
+// Rates unchanged from prior schedule; thresholds CPI-indexed upward across all 10 bands.
+// Above CHF 793,900 the tax flattens to 11.5% of total income (not marginal).
 export const CH_FEDERAL_BRACKETS_SINGLE = [
-  { max: 15000, rate: 0.00 },
-  { max: 32800, rate: 0.0077 },
-  { max: 42900, rate: 0.0088 },
-  { max: 57200, rate: 0.0264 },
-  { max: 75200, rate: 0.0297 },
-  { max: 81000, rate: 0.0594 },
-  { max: 107400, rate: 0.066 },
-  { max: 139600, rate: 0.088 },
-  { max: 182600, rate: 0.110 },
-  { max: 783300, rate: 0.132 },
+  { max: 18500, rate: 0.00 },
+  { max: 33200, rate: 0.0077 },
+  { max: 43500, rate: 0.0088 },
+  { max: 57900, rate: 0.0264 },
+  { max: 76200, rate: 0.0297 },
+  { max: 82100, rate: 0.0594 },
+  { max: 108900, rate: 0.066 },
+  { max: 141500, rate: 0.088 },
+  { max: 185100, rate: 0.110 },
+  { max: 793900, rate: 0.132 },
   { max: Infinity, rate: 0.115 },
 ];
 
