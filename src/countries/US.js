@@ -239,7 +239,7 @@ export const compute = ({
   rentLocal = 0,
   miscBurnLocal = 0,
   locationKey,
-  matchLimitPct = 0,
+  matchLimitPct = 6,           // Default: typical US tech employer matches up to 6% (UI no longer exposes this)
 }) => {
   void eeOtherPct;
   const C = CONSTANTS;

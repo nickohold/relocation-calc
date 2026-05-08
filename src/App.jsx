@@ -464,6 +464,7 @@ const App = () => {
             displayCurrency={displayCurrency}
             sourceCurrency={sourceCurrency}
             destCurrency={destCurrency}
+            period={period}
           />
 
           <UnifiedBreakdown

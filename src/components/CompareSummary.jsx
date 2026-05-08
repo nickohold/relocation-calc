@@ -5,11 +5,16 @@ import Tooltip from './Tooltip.jsx';
 
 const Tip = ({ theme, text }) => <Tooltip theme={theme} text={text} iconSize={11} />;
 
-const CompareSummary = ({ theme, comparison, displayCurrency, sourceCurrency, destCurrency }) => {
-  const { source, dest, liquidDeltaUSD, savingsDeltaUSD, takeHomeDeltaPctOfGross, liquidDeltaCOLAdjustedUSD } = comparison;
+const CompareSummary = ({ theme, comparison, displayCurrency, sourceCurrency, destCurrency, period = 'annual' }) => {
+  const { source, dest, liquidDeltaUSD: rawLiquidDelta, savingsDeltaUSD: rawSavingsDelta, takeHomeDeltaPctOfGross, liquidDeltaCOLAdjustedUSD: rawColDelta } = comparison;
+  const periodDivisor = period === 'monthly' ? 12 : 1;
+  const periodSuffix = period === 'monthly' ? '/mo' : '/yr';
+  const liquidDeltaUSD = rawLiquidDelta / periodDivisor;
+  const savingsDeltaUSD = rawSavingsDelta / periodDivisor;
+  const liquidDeltaCOLAdjustedUSD = rawColDelta / periodDivisor;
 
-  const netDeltaUSD = (dest?.netUSD ?? 0) - (source?.netUSD ?? 0);
-  const netDeltaPct = source?.netUSD ? netDeltaUSD / source.netUSD : 0;
+  const netDeltaUSD = ((dest?.netUSD ?? 0) - (source?.netUSD ?? 0)) / periodDivisor;
+  const netDeltaPct = source?.netUSD ? (netDeltaUSD * periodDivisor) / source.netUSD : 0;
 
   const liquidPos = liquidDeltaUSD >= 0;
   const colPos = liquidDeltaCOLAdjustedUSD >= 0;
@@ -50,7 +55,7 @@ const CompareSummary = ({ theme, comparison, displayCurrency, sourceCurrency, de
           <div className={`text-2xl sm:text-4xl font-black tracking-tighter ${savingsPos ? theme.kpiValuePositive : theme.kpiValueNegative}`}>
             {savingsDeltaUSD >= 0 ? '+' : ''}{fmtAmount(savingsDeltaUSD, displayCurrency)}
           </div>
-          <div className="text-xs font-bold mt-1 opacity-70">Annual</div>
+          <div className="text-xs font-bold mt-1 opacity-70">{period === 'monthly' ? 'Monthly' : 'Annual'}</div>
         </div>
 
         <div className={`${theme.kpiCardBase} ${colPos ? theme.kpiAccent : theme.kpiNegative}`}>

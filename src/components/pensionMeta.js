@@ -8,8 +8,7 @@
 export const PENSION_META = {
   US: {
     fields: [
-      { key: 'eePensionPct', label: '401(k) EE %', default: 6, step: 0.5, kind: 'pct', hint: 'Your 401(k) employee contribution as % of gross. Pre-tax federal + all modeled states (incl. NJ). IRS cap $24,500/yr (2026).' },
-      { key: 'matchLimitPct', label: '401(k) Match Cap %', default: 6, step: 0.5, kind: 'pct', hint: 'Employer match cap as % of gross. Conventional "X% match" means employer contributes the lesser of (your %) and (this cap). E.g., cap 6% + EE 3% → employer contributes 3%.' },
+      { key: 'eePensionPct', label: '401(k) %', default: 6, step: 0.5, kind: 'pct', hint: 'Your 401(k) employee contribution as % of gross. Pre-tax federal + all modeled states (incl. NJ). IRS cap $24,500/yr (2026). Engine assumes employer matches dollar-for-dollar up to 6% of gross (typical US tech default).' },
     ],
   },
   IL: {
