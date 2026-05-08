@@ -39,6 +39,7 @@ const PERIOD_STORAGE = 'relocation-calc:breakdownPeriod';
 const UnifiedBreakdown = ({
   theme, comparison, displayCurrency,
   displayMode, setDisplayMode, sourceCurrency, destCurrency,
+  matchSourceSavings, setMatchSourceSavings,
 }) => {
   // Defaults match main: all closed initially.
   const [bankOpen, setBankOpen] = useState(false);
@@ -143,7 +144,26 @@ const UnifiedBreakdown = ({
           </div>
           <span className="text-[9px] uppercase tracking-widest font-black opacity-50">Period</span>
         </div>
+        {setMatchSourceSavings && (
+          <div className="flex flex-col items-end gap-0.5">
+            <button
+              type="button"
+              onClick={() => setMatchSourceSavings(!matchSourceSavings)}
+              className={`px-3 py-1.5 rounded-md text-[11px] font-bold transition-all ${matchSourceSavings ? activeCls : `${inactiveCls} ${shellCls}`}`}
+              aria-pressed={matchSourceSavings}
+              title="Force destination 401(k)/pension EE % to match source's total savings (in USD). Surfaces a Wealth Gap if uncoverable."
+            >
+              {matchSourceSavings ? '✓ Match savings' : 'Match savings'}
+            </button>
+            <span className="text-[9px] uppercase tracking-widest font-black opacity-50">Savings lock</span>
+          </div>
+        )}
       </div>
+      {matchSourceSavings && comparison?.wealthGapUSD > 0 && (
+        <div className={`px-4 py-2 rounded-lg text-xs ${theme.name === 'Sunrise' ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-rose-500/10 text-rose-300 border border-rose-500/30'}`}>
+          <strong>Wealth Gap:</strong> Destination's pre-tax retirement vehicles can't fully match source's savings. Shortfall: {fmtAmount(comparison.wealthGapUSD, displayCurrency)} per year.
+        </div>
+      )}
 
       <div className={theme.tableShell}>
         <table className="w-full text-left text-xs sm:text-sm min-w-[560px]">

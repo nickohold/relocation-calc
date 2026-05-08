@@ -20,6 +20,7 @@ const SOURCE_KEY_STORAGE = 'relocation-calc:sourceKey';
 const DEST_KEY_STORAGE = 'relocation-calc:destKey';
 const DISPLAY_MODE_STORAGE = 'relocation-calc:displayMode'; // 'source' | 'dest' | 'USD'
 const THEME_STORAGE = 'relocation-calc:theme';
+const MATCH_SAVINGS_STORAGE = 'relocation-calc:matchSourceSavings';
 
 const THEMES = {
   sunrise: {
@@ -267,6 +268,10 @@ const App = () => {
     const stored = window.localStorage.getItem(DISPLAY_MODE_STORAGE);
     return ['source', 'dest'].includes(stored) ? stored : 'source';
   });
+  const [matchSourceSavings, setMatchSourceSavings] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(MATCH_SAVINGS_STORAGE) === '1';
+  });
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -283,6 +288,11 @@ const App = () => {
       window.localStorage.setItem(DISPLAY_MODE_STORAGE, displayMode);
     }
   }, [displayMode]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(MATCH_SAVINGS_STORAGE, matchSourceSavings ? '1' : '0');
+    }
+  }, [matchSourceSavings]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(THEME_STORAGE, activeLayout);
@@ -305,7 +315,8 @@ const App = () => {
   const comparison = useMemo(() => runComparison({
     source: coerce(sourcePayload),
     dest: coerce(destPayload),
-  }), [sourcePayload, destPayload, coerce]);
+    options: { matchSourceSavings },
+  }), [sourcePayload, destPayload, matchSourceSavings, coerce]);
 
   const sourceCurrency = COUNTRIES[sourcePayload.countryCode]?.currency || 'USD';
   const destCurrency = COUNTRIES[destPayload.countryCode]?.currency || 'USD';
@@ -414,6 +425,8 @@ const App = () => {
             setDisplayMode={setDisplayMode}
             sourceCurrency={sourceCurrency}
             destCurrency={destCurrency}
+            matchSourceSavings={matchSourceSavings}
+            setMatchSourceSavings={setMatchSourceSavings}
           />
 
           <FXFooter theme={theme} sourceCurrency={sourceCurrency} destCurrency={destCurrency} />

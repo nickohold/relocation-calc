@@ -159,7 +159,34 @@ export const runComparison = ({ source, dest, options = {} }) => {
   };
 
   const srcResult = computeSide(source);
-  const dstResult = computeSide(dest);
+  let dstResult = computeSide(dest);
+
+  // Optional: rebalance dest's eePensionPct so dest savings (USD) ≥ source savings (USD).
+  // Linear extrapolation from a one-shot baseline; capped at MAX_PENSION_PCT_BY_COUNTRY.
+  // Surface wealthGapUSD when uncoverable.
+  let wealthGapUSD = 0;
+  if (options.matchSourceSavings && srcResult && dstResult) {
+    const targetSavingsUSD = srcResult.totalSavingsUSD;
+    const currentSavingsUSD = dstResult.totalSavingsUSD;
+    const currentPct = Number(dest.eePensionPct ?? 0);
+    if (targetSavingsUSD > currentSavingsUSD && currentPct >= 0) {
+      // Probe a 1pp delta (or use the baseline if pct is 0)
+      const probePct = currentPct === 0 ? 1 : currentPct + 1;
+      const probe = computeSide({ ...dest, eePensionPct: probePct });
+      const savingsPerPctUSD = probe ? (probe.totalSavingsUSD - currentSavingsUSD) / (probePct - currentPct) : 0;
+      let neededPct = currentPct;
+      if (savingsPerPctUSD > 0) {
+        neededPct = currentPct + (targetSavingsUSD - currentSavingsUSD) / savingsPerPctUSD;
+      }
+      const maxPct = MAX_PENSION_PCT_BY_COUNTRY[dest.countryCode] ?? 100;
+      const clampedPct = Math.min(neededPct, maxPct);
+      if (clampedPct > currentPct) {
+        const matched = computeSide({ ...dest, eePensionPct: clampedPct });
+        if (matched) dstResult = matched;
+      }
+      wealthGapUSD = Math.max(0, targetSavingsUSD - dstResult.totalSavingsUSD);
+    }
+  }
 
   const liquidDeltaUSD = (dstResult?.liquidUSD ?? 0) - (srcResult?.liquidUSD ?? 0);
   const savingsDeltaUSD = (dstResult?.totalSavingsUSD ?? 0) - (srcResult?.totalSavingsUSD ?? 0);
@@ -190,7 +217,33 @@ export const runComparison = ({ source, dest, options = {} }) => {
     savingsDeltaUSD,
     takeHomeDeltaPctOfGross,
     liquidDeltaCOLAdjustedUSD,
+    wealthGapUSD,
     warnings,
     options,
   };
+};
+
+// Country-specific soft cap on EE pension contribution % (used by matchSourceSavings).
+// Most countries are bounded internally by their compute() (legal caps). These are guard rails.
+const MAX_PENSION_PCT_BY_COUNTRY = {
+  US: 100, // 401(k) capped by IRS dollar limit inside compute
+  IL: 7,   // pension credit caps at 7%
+  UK: 80,  // generous; pension allowance £60k caps it inside compute
+  IE: 40,  // age-based reckonable %, max 40% for 60+
+  DE: 25,
+  FR: 20,
+  NL: 30,
+  CH: 15,  // Säule 3a CHF 7,258 caps inside compute
+  CA: 18,
+  AU: 30,
+  SG: 30,
+  JP: 25,
+  ES: 5,   // €1,500 cap
+  IT: 10,  // €5,300 cap
+  PT: 10,  // PPR €2k cap
+  SE: 7,   // pensionsavgift wash
+  DK: 25,
+  NO: 25,
+  AE: 0,   // no retirement system modeled
+  PL: 5,   // PPK
 };
