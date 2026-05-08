@@ -274,7 +274,7 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, headingClass, 
                 <NumInput theme={theme} value={payload.eeOtherPct} onChange={(v) => setField('eeOtherPct', v)} step={0.1} />
               </Field>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
               <Field theme={theme} label="ER Pension %" hint="Employer pension contribution rate. Standard in Israel: 6.5% of gross. Counts toward your retirement savings.">
                 <NumInput theme={theme} value={payload.erPensionPct ?? 6.5} onChange={(v) => setField('erPensionPct', v)} step={0.1} />
               </Field>
