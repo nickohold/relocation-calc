@@ -1,26 +1,44 @@
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+// Destination Explorer — multi-country relocation leaderboard.
+// User picks ONE source location + gross + lifestyle inputs; the grid ranks
+// every other destination by liquid delta (and other metrics) vs source.
+
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
-  TrendingUp,
-  ShieldCheck,
-  Wallet,
-  Zap,
-  Target,
-  Lock,
-  HelpCircle,
-  LayoutGrid,
-  Sun,
-  ChevronDown,
-  ChevronRight,
-  Coffee,
+  TrendingUp, ChevronDown, ChevronRight, ChevronUp, Sun, LayoutGrid,
+  HelpCircle, Search, ArrowUpDown, Coffee, Sparkles, Trophy,
 } from 'lucide-react';
-import { runEngine, LOCATIONS, CONSTANTS } from './calc';
-import { formatMoney } from './formatMoney';
+import {
+  runComparison, COUNTRIES, MULTI_LOCATIONS, FX_USD_PER_UNIT,
+} from './calc';
+import { formatUSD, formatLocal } from './formatMoney';
+import {
+  COUNTRY_FLAG, COUNTRY_REGION, REGIONS, regionForLocation, flagForLocation,
+} from './regions';
 
-const CURRENCY_STORAGE_KEY = 'relocation-calc:displayCurrency';
-const SALARY_MODE_STORAGE_KEY = 'relocation-calc:usSalaryMode';
+// ── localStorage keys ──
+const LS_SOURCE         = 'explorer:sourceKey';
+const LS_GROSS          = 'explorer:sourceGrossLocal';
+const LS_CURRENCY_MODE  = 'explorer:currencyMode';   // 'source' | 'usd'
+const LS_SORT_KEY       = 'explorer:sortKey';
+const LS_SORT_DIR       = 'explorer:sortDir';        // 'asc' | 'desc'
+const LS_THEME          = 'explorer:theme';          // 'sunrise' | 'bento'
+const LS_GROSS_MODE     = 'explorer:grossMode';      // 'usd-nominal' | 'ppp-match'
 
-const LOCATION_ENTRIES = Object.entries(LOCATIONS);
+// ── Default inputs ──
+const DEFAULT_SOURCE_KEY = 'IL-TLV';
+const DEFAULT_SOURCE_GROSS_ILS = 384000; // ₪384,000/yr
 
+const lsGet = (k, fallback) => {
+  if (typeof window === 'undefined') return fallback;
+  const v = window.localStorage.getItem(k);
+  return v ?? fallback;
+};
+const lsSet = (k, v) => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(k, String(v));
+};
+
+// ── Theme tokens — reuse the dual sunrise/bento aesthetic from the previous UI. ──
 const THEMES = {
   sunrise: {
     name: 'Sunrise',
@@ -29,100 +47,38 @@ const THEMES = {
     switcherShell: 'bg-slate-200/50 border-slate-300/50',
     footerText: 'text-slate-400',
     kofiBtn: 'bg-orange-500 text-white shadow-orange-500/30 hover:bg-orange-600',
-
-    headerBorder: 'border-b border-orange-200/50 pb-6',
-    h1Text: 'text-xl sm:text-2xl font-black flex flex-wrap items-center gap-2 text-slate-900',
-    h1Icon: <Sun className="text-orange-500 flex-shrink-0" strokeWidth={3} />,
+    titleText: 'text-slate-900',
+    titleAccent: 'text-orange-500',
     brandPill: 'text-xs bg-orange-100/80 text-orange-600 px-2 py-1 rounded-full border border-orange-200/50',
-    subTitle: 'text-slate-500 text-xs sm:text-sm mt-1 uppercase tracking-widest font-bold',
-
-    totalPillCard: 'bg-slate-50 border border-slate-200/80 p-3 sm:p-4 rounded-2xl text-left md:text-right shadow-sm w-full md:w-auto',
-    totalPillLabel: 'text-[10px] text-slate-400 uppercase font-black block mb-1',
-    totalPillValue: 'text-xl sm:text-2xl font-black text-orange-500 flex items-center md:justify-end gap-2',
-    totalPillSuffix: 'text-xs font-bold text-slate-400',
-
-    kpiPositive: 'bg-emerald-50/50 border-emerald-200/80',
-    kpiNegative: 'bg-rose-50/50 border-rose-200/80',
-    kpiAccent: 'bg-orange-50/50 border-orange-200/80',
-    kpiCardBase: 'p-4 sm:p-6 rounded-3xl border shadow-sm',
-    kpiLabel: 'flex justify-between items-center mb-2 text-[10px] uppercase font-black text-slate-500',
-    kpiValuePositive: 'text-emerald-600',
-    kpiValueNegative: 'text-rose-600',
-    kpiValueAccent: 'text-orange-600',
-    kpiTrendIcon: 'text-orange-500',
-
     sectionCard: 'bg-slate-50 border border-slate-200/80 rounded-2xl p-4 sm:p-6 shadow-sm',
-    ilHeading: 'text-orange-600 text-xs font-black uppercase flex items-center gap-2 mb-4',
-    usHeading: 'text-blue-600 text-xs font-black uppercase flex items-center gap-2 mb-4',
-    locTabBar: 'flex gap-2 p-1 bg-slate-200/50 rounded-xl overflow-x-auto no-scrollbar',
-    locTabActive: 'bg-white text-blue-600 shadow-sm border border-slate-200/50',
-    locTabInactive: 'text-slate-500 hover:text-slate-700',
-
     inputLabel: 'text-[10px] text-slate-400 uppercase font-black tracking-widest block',
-    inputBox: 'bg-white/60 border border-slate-200/80 rounded-xl px-4 py-3 focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-slate-900 w-full text-sm font-bold transition-all',
-    inputDisabled: 'opacity-60 bg-slate-200/50 cursor-not-allowed',
-    tooltipIcon: 'text-slate-400 cursor-help hover:text-orange-500 transition-colors',
-    tooltipBox: 'absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-48 p-2.5 bg-slate-800 border border-slate-700 text-slate-200 text-[10px] leading-relaxed rounded shadow-xl z-50 normal-case tracking-normal',
-    tooltipArrow: 'absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800',
-
-    severanceBox: 'flex items-start gap-2 text-[11px] text-slate-600 font-medium leading-snug cursor-pointer mt-2 p-2 bg-white/40 border border-slate-200/60 rounded-lg hover:bg-white/70 transition-colors',
-    severanceCheck: 'mt-0.5 accent-orange-500',
-    severanceSub: 'block text-slate-500 font-normal',
-
-    tableShell: 'bg-slate-50 border border-slate-200/80 rounded-3xl overflow-x-auto shadow-sm',
-    tableHead: 'bg-slate-100/60 text-slate-500 uppercase font-black text-[10px] sm:text-xs border-b border-slate-200/80',
-    tableDivide: 'divide-y divide-slate-200/40',
-
-    bankRow: 'bg-orange-50/50 border-t-2 border-orange-200/80 cursor-pointer hover:bg-orange-100/50 transition-colors',
-    bankRowLabel: 'p-3 pl-4 sm:p-5 sm:pl-6 font-black text-orange-800 uppercase text-[10px] sm:text-xs tracking-widest',
-    bankRowChevron: 'inline-flex items-center justify-center w-4 h-4 mr-2 align-middle text-orange-700',
-    bankRowIL: 'p-3 sm:p-5 text-slate-500 font-bold',
-    bankRowUS: 'p-3 sm:p-5 text-orange-600 font-black',
-    bankDeltaPos: 'text-emerald-600',
-    bankDeltaNeg: 'text-rose-600',
-
-    netRow: 'bg-slate-100/70',
-    netRowLabel: 'p-3 pl-4 sm:p-4 sm:pl-6 text-sm font-semibold text-slate-700',
-    netRowIL: 'p-3 sm:p-4 text-sm font-semibold text-slate-600',
-    netRowUS: 'p-3 sm:p-4 text-sm font-semibold text-slate-800',
-
-    savingsRow: 'bg-indigo-50/60 border-t-2 border-indigo-200/80 cursor-pointer hover:bg-indigo-100/50 transition-colors',
-    savingsRowLabel: 'p-3 pl-4 sm:p-5 sm:pl-6 font-black text-indigo-800 uppercase text-[10px] sm:text-xs tracking-widest',
-    savingsRowChevron: 'inline-flex items-center justify-center w-4 h-4 mr-2 align-middle text-indigo-700',
-    savingsRowIL: 'p-3 sm:p-5 text-slate-500 font-bold',
-    savingsRowUS: 'p-3 sm:p-5 text-indigo-700 font-black',
-    savingsDeltaPos: 'text-indigo-600',
-    savingsDeltaNeg: 'text-rose-600',
-
-    sectionRowBg: 'bg-slate-100/50',
-    rowHoverExpandable: 'hover:bg-slate-200/50',
-    rowHover: 'hover:bg-slate-100/40',
-    rowSectionLabel: 'uppercase tracking-widest text-[10px] font-black text-slate-700',
-    rowSubLabel: 'text-xs text-slate-500 font-medium',
-    rowLeafLabel: 'text-sm text-slate-700 font-bold',
-    rowChevron: 'inline-flex items-center justify-center w-4 h-4 mr-2 align-middle text-slate-400',
-    rowSectionIL: 'text-sm font-bold text-slate-600',
-    rowSectionUS: 'text-sm font-black text-slate-900',
-    rowSubILBase: 'text-xs font-medium text-slate-400',
-    rowSubUSBase: 'text-xs font-semibold text-slate-600',
-    rowLeafILExpense: 'text-sm font-medium text-slate-400',
-    rowLeafILIncome: 'text-sm font-medium text-slate-500',
-    rowLeafUSExpense: 'text-sm font-bold text-slate-600',
-    rowLeafUSIncome: 'text-sm font-bold text-slate-800',
+    inputBox: 'bg-white border border-slate-200/80 rounded-xl px-3 py-2.5 focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-slate-900 w-full text-sm font-bold transition-all',
+    selectBox: 'bg-white border border-slate-200/80 rounded-xl px-3 py-2.5 focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-slate-900 w-full text-sm font-bold transition-all appearance-none pr-9',
+    chipActive: 'bg-orange-500 text-white border-orange-500',
+    chipInactive: 'bg-white text-slate-600 border-slate-200 hover:border-orange-300',
+    chip: 'px-3 py-1 rounded-full border text-xs font-bold transition-all cursor-pointer',
+    pickCard: 'bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200/80 rounded-2xl p-4 shadow-sm',
+    pickLabel: 'text-[10px] uppercase font-black tracking-widest text-orange-600',
+    pickValue: 'text-2xl sm:text-3xl font-black text-slate-900 mt-1',
+    pickCity: 'text-sm font-bold text-slate-700',
+    pickFlag: 'text-2xl',
+    grid: 'bg-slate-50 border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden',
+    headRow: 'bg-slate-100/80 border-b border-slate-200/80 text-slate-500 uppercase text-[10px] font-black tracking-widest',
+    headCell: 'p-3 text-left cursor-pointer hover:text-orange-600 transition-colors select-none',
+    bodyRow: 'border-b border-slate-200/60 hover:bg-orange-50/40 transition-colors cursor-pointer',
+    bodyRowExpanded: 'bg-orange-50/60',
+    cell: 'p-3 text-sm font-bold text-slate-700',
+    cellMuted: 'p-3 text-sm font-medium text-slate-500',
     deltaPos: 'text-emerald-600',
     deltaNeg: 'text-rose-500',
     deltaNeutral: 'text-slate-400',
-
-    lockedHint: 'flex items-start gap-3 bg-slate-50/80 border border-slate-200/60 rounded-2xl px-4 py-3 shadow-sm',
-    lockedHintIcon: 'text-orange-500',
-    lockedHintText: 'text-xs text-slate-600 font-medium leading-relaxed',
-    lockedHintHighlight: 'text-orange-600 font-bold',
-
-    wealthGapShell: 'bg-rose-50 border-2 border-rose-300 rounded-3xl p-4 sm:p-6 shadow-sm',
-    wealthGapIcon: 'bg-rose-200 p-2.5 sm:p-3 rounded-2xl text-rose-700 flex-shrink-0',
-    wealthGapTitle: 'text-sm font-black uppercase text-rose-800 mb-1',
-    wealthGapText: 'text-xs text-rose-700 font-medium leading-relaxed',
-    wealthGapPrefix: '⚠ ',
+    detailBox: 'bg-white border-x border-b border-orange-200/60 rounded-b-xl p-4 sm:p-6 mb-2',
+    detailLabel: 'text-[10px] uppercase font-black tracking-widest text-slate-400',
+    detailValue: 'text-base font-black text-slate-900',
+    btn: 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all',
+    btnPrimary: 'bg-orange-500 text-white hover:bg-orange-600',
+    btnGhost: 'bg-white border border-slate-200 text-slate-600 hover:border-orange-300',
+    advancedShell: 'border-t border-slate-200/80 mt-4 pt-4',
   },
   bento: {
     name: 'Bento Grid',
@@ -131,251 +87,545 @@ const THEMES = {
     switcherShell: 'bg-white/5 border-white/10',
     footerText: 'text-slate-600',
     kofiBtn: 'bg-indigo-500 text-white shadow-indigo-500/30 hover:bg-indigo-600',
-
-    headerBorder: 'border-b border-white/10 pb-6',
-    h1Text: 'text-xl sm:text-2xl font-black flex flex-wrap items-center gap-2 text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400 tracking-tighter',
-    h1Icon: <Sun className="text-indigo-400 flex-shrink-0" strokeWidth={3} />,
+    titleText: 'text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400',
+    titleAccent: 'text-indigo-400',
     brandPill: 'text-xs bg-indigo-500/10 text-indigo-300 px-2 py-1 rounded-full border border-indigo-500/30',
-    subTitle: 'text-slate-400 text-xs sm:text-sm mt-1 uppercase tracking-widest font-bold',
-
-    totalPillCard: 'bg-white/5 border border-white/10 p-3 sm:p-4 rounded-2xl text-left md:text-right shadow-2xl backdrop-blur-xl w-full md:w-auto',
-    totalPillLabel: 'text-[10px] text-slate-400 uppercase font-black block mb-1',
-    totalPillValue: 'text-xl sm:text-2xl font-black text-white flex items-center md:justify-end gap-2',
-    totalPillSuffix: 'text-xs font-bold text-slate-500',
-
-    kpiPositive: 'bg-gradient-to-br from-[#1A1F2E] to-[#0F131D] border-white/5 relative overflow-hidden',
-    kpiNegative: 'bg-gradient-to-br from-[#1A1F2E] to-[#0F131D] border-rose-500/20 relative overflow-hidden',
-    kpiAccent: 'bg-gradient-to-br from-indigo-900/40 to-[#0F131D] border-indigo-500/20 relative overflow-hidden',
-    kpiCardBase: 'p-5 sm:p-8 rounded-[2rem] border shadow-2xl',
-    kpiLabel: 'flex justify-between items-center mb-2 text-[10px] uppercase font-black text-slate-500',
-    kpiValuePositive: 'text-white',
-    kpiValueNegative: 'text-rose-400',
-    kpiValueAccent: 'text-white',
-    kpiTrendIcon: 'text-indigo-400',
-
-    sectionCard: 'bg-gradient-to-br from-[#1A1F2E] to-[#0F131D] border border-white/5 rounded-[2rem] p-5 sm:p-8 shadow-2xl',
-    ilHeading: 'text-indigo-300 text-xs font-black uppercase flex items-center gap-2 mb-4',
-    usHeading: 'text-cyan-300 text-xs font-black uppercase flex items-center gap-2 mb-4',
-    locTabBar: 'flex gap-2 p-1 bg-black/20 rounded-xl overflow-x-auto no-scrollbar',
-    locTabActive: 'bg-white/10 text-white shadow',
-    locTabInactive: 'text-slate-500 hover:text-slate-300',
-
+    sectionCard: 'bg-gradient-to-br from-[#1A1F2E] to-[#0F131D] border border-white/5 rounded-[1.5rem] p-4 sm:p-6 shadow-2xl',
     inputLabel: 'text-[10px] text-slate-500 uppercase font-black tracking-widest block',
-    inputBox: 'bg-black/20 border border-white/5 rounded-xl px-4 py-3 focus:border-indigo-500 focus:bg-white/5 outline-none text-white w-full text-sm font-bold transition-all',
-    inputDisabled: 'opacity-60 bg-black/40 cursor-not-allowed',
-    tooltipIcon: 'text-slate-500 cursor-help hover:text-indigo-400 transition-colors',
-    tooltipBox: 'absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-48 p-2.5 bg-slate-900 border border-white/10 text-slate-200 text-[10px] leading-relaxed rounded shadow-xl z-50 normal-case tracking-normal',
-    tooltipArrow: 'absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900',
-
-    severanceBox: 'flex items-start gap-2 text-[11px] text-slate-300 font-medium leading-snug cursor-pointer mt-2 p-2 bg-black/20 border border-white/5 rounded-lg hover:bg-black/30 transition-colors',
-    severanceCheck: 'mt-0.5 accent-indigo-500',
-    severanceSub: 'block text-slate-500 font-normal',
-
-    tableShell: 'bg-white/[0.02] border border-white/5 rounded-[2rem] overflow-x-auto shadow-2xl',
-    tableHead: 'bg-white/[0.03] text-slate-500 uppercase font-black text-[10px] sm:text-xs border-b border-white/5',
-    tableDivide: 'divide-y divide-white/5',
-
-    bankRow: 'bg-yellow-400/5 border-t-2 border-yellow-400/30 cursor-pointer hover:bg-yellow-400/10 transition-colors',
-    bankRowLabel: 'p-3 pl-4 sm:p-5 sm:pl-6 font-black text-yellow-300 uppercase text-[10px] sm:text-xs tracking-widest',
-    bankRowChevron: 'inline-flex items-center justify-center w-4 h-4 mr-2 align-middle text-yellow-400',
-    bankRowIL: 'p-3 sm:p-5 text-slate-500 font-bold',
-    bankRowUS: 'p-3 sm:p-5 text-yellow-300 font-black',
-    bankDeltaPos: 'text-emerald-400',
-    bankDeltaNeg: 'text-rose-400',
-
-    netRow: 'bg-white/[0.03]',
-    netRowLabel: 'p-3 pl-4 sm:p-4 sm:pl-6 text-sm font-semibold text-slate-300',
-    netRowIL: 'p-3 sm:p-4 text-sm font-semibold text-slate-400',
-    netRowUS: 'p-3 sm:p-4 text-sm font-semibold text-slate-200',
-
-    savingsRow: 'bg-indigo-500/10 border-t-2 border-indigo-500/30 cursor-pointer hover:bg-indigo-500/15 transition-colors',
-    savingsRowLabel: 'p-3 pl-4 sm:p-5 sm:pl-6 font-black text-indigo-200 uppercase text-[10px] sm:text-xs tracking-widest',
-    savingsRowChevron: 'inline-flex items-center justify-center w-4 h-4 mr-2 align-middle text-indigo-300',
-    savingsRowIL: 'p-3 sm:p-5 text-slate-500 font-bold',
-    savingsRowUS: 'p-3 sm:p-5 text-indigo-300 font-black',
-    savingsDeltaPos: 'text-indigo-400',
-    savingsDeltaNeg: 'text-rose-400',
-
-    sectionRowBg: 'bg-white/[0.03]',
-    rowHoverExpandable: 'hover:bg-white/10',
-    rowHover: 'hover:bg-white/5',
-    rowSectionLabel: 'uppercase tracking-widest text-[10px] font-black text-slate-300',
-    rowSubLabel: 'text-xs text-slate-500 font-medium',
-    rowLeafLabel: 'text-sm text-slate-300 font-bold',
-    rowChevron: 'inline-flex items-center justify-center w-4 h-4 mr-2 align-middle text-slate-500',
-    rowSectionIL: 'text-sm font-bold text-slate-400',
-    rowSectionUS: 'text-sm font-black text-white',
-    rowSubILBase: 'text-xs font-medium text-slate-500',
-    rowSubUSBase: 'text-xs font-semibold text-slate-400',
-    rowLeafILExpense: 'text-sm font-medium text-slate-500',
-    rowLeafILIncome: 'text-sm font-medium text-slate-400',
-    rowLeafUSExpense: 'text-sm font-bold text-slate-400',
-    rowLeafUSIncome: 'text-sm font-bold text-slate-200',
+    inputBox: 'bg-black/30 border border-white/5 rounded-xl px-3 py-2.5 focus:border-indigo-500 focus:bg-white/5 outline-none text-white w-full text-sm font-bold transition-all',
+    selectBox: 'bg-black/30 border border-white/5 rounded-xl px-3 py-2.5 focus:border-indigo-500 focus:bg-white/5 outline-none text-white w-full text-sm font-bold transition-all appearance-none pr-9',
+    chipActive: 'bg-indigo-500 text-white border-indigo-500',
+    chipInactive: 'bg-white/5 text-slate-300 border-white/10 hover:border-indigo-400/60',
+    chip: 'px-3 py-1 rounded-full border text-xs font-bold transition-all cursor-pointer',
+    pickCard: 'bg-gradient-to-br from-indigo-900/30 to-[#0F131D] border border-indigo-500/30 rounded-2xl p-4 shadow-2xl',
+    pickLabel: 'text-[10px] uppercase font-black tracking-widest text-indigo-300',
+    pickValue: 'text-2xl sm:text-3xl font-black text-white mt-1',
+    pickCity: 'text-sm font-bold text-slate-300',
+    pickFlag: 'text-2xl',
+    grid: 'bg-white/[0.02] border border-white/5 rounded-2xl shadow-2xl overflow-hidden',
+    headRow: 'bg-white/[0.04] border-b border-white/5 text-slate-500 uppercase text-[10px] font-black tracking-widest',
+    headCell: 'p-3 text-left cursor-pointer hover:text-indigo-300 transition-colors select-none',
+    bodyRow: 'border-b border-white/5 hover:bg-white/[0.04] transition-colors cursor-pointer',
+    bodyRowExpanded: 'bg-indigo-500/5',
+    cell: 'p-3 text-sm font-bold text-slate-200',
+    cellMuted: 'p-3 text-sm font-medium text-slate-500',
     deltaPos: 'text-emerald-400',
     deltaNeg: 'text-rose-400',
     deltaNeutral: 'text-slate-500',
-
-    lockedHint: 'flex items-start gap-3 bg-white/[0.03] border border-white/5 rounded-2xl px-4 py-3 shadow-2xl',
-    lockedHintIcon: 'text-indigo-400',
-    lockedHintText: 'text-xs text-slate-300 font-medium leading-relaxed',
-    lockedHintHighlight: 'text-indigo-300 font-bold',
-
-    wealthGapShell: 'bg-rose-500/10 border border-rose-500/30 rounded-[2rem] p-4 sm:p-6 shadow-2xl',
-    wealthGapIcon: 'bg-rose-500/20 p-2.5 sm:p-3 rounded-2xl text-rose-300 flex-shrink-0',
-    wealthGapTitle: 'text-sm font-black uppercase text-rose-300 mb-1',
-    wealthGapText: 'text-xs text-rose-200/80 font-medium leading-relaxed',
-    wealthGapPrefix: '⚠ ',
+    detailBox: 'bg-black/30 border-x border-b border-indigo-500/20 rounded-b-xl p-4 sm:p-6 mb-2',
+    detailLabel: 'text-[10px] uppercase font-black tracking-widest text-slate-500',
+    detailValue: 'text-base font-black text-white',
+    btn: 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all',
+    btnPrimary: 'bg-indigo-500 text-white hover:bg-indigo-600',
+    btnGhost: 'bg-white/5 border border-white/10 text-slate-300 hover:border-indigo-400/60',
+    advancedShell: 'border-t border-white/5 mt-4 pt-4',
   },
 };
 
+// ── Sortable column descriptors ──
+const COLUMNS = [
+  { key: 'city',       label: 'Destination',            align: 'left',  numeric: false },
+  { key: 'grossLocal', label: 'Gross (local)',          align: 'right', numeric: true  },
+  { key: 'netUSD',     label: 'Net (USD/yr)',           align: 'right', numeric: true  },
+  { key: 'savingsUSD', label: 'Savings (USD/yr)',       align: 'right', numeric: true  },
+  { key: 'liquidUSD',  label: 'Liquid (USD/yr)',        align: 'right', numeric: true  },
+  { key: 'liquidDelta',label: 'Δ Liquid vs Source',     align: 'right', numeric: true  },
+  { key: 'colDelta',   label: 'Δ COL-adj.',             align: 'right', numeric: true  },
+  { key: 'effRate',    label: 'Eff. Tax %',             align: 'right', numeric: true  },
+];
+
 const App = () => {
-  const [activeLayout, setActiveLayout] = useState('sunrise');
-  const [ilGross, setIlGross] = useState("15000");
-  const [ilERPension, setIlERPension] = useState("6.5");
-  const [ilERSeverance, setIlERSeverance] = useState("8.33");
-  const [ilERKeren, setIlERKeren] = useState("7.5");
-  const [ilEEPension, setIlEEPension] = useState("6.0");
-  const [ilEEKeren, setIlEEKeren] = useState("2.5");
-  const [ilRent, setIlRent] = useState("8650");
-  const [ilBurn, setIlBurn] = useState("9000");
-  const [fxRate, setFxRate] = useState("0.27");
-  const [selectedLoc, setSelectedLoc] = useState('NYC');
-  const [usGrossAnnual, setUsGrossAnnual] = useState("180000");
-  const [usRent, setUsRent] = useState("4500");
-  const [us401kMatchLimit, setUs401kMatchLimit] = useState("6");
-  const [usMiscBurn, setUsMiscBurn] = useState("900");
-  const [includeSeverance, setIncludeSeverance] = useState(true);
-  const [ilImputed, setIlImputed] = useState("0");
-  const [displayCurrency, setDisplayCurrency] = useState(() => {
-    if (typeof window === 'undefined') return 'USD';
-    const stored = window.localStorage.getItem(CURRENCY_STORAGE_KEY);
-    return stored === 'ILS' ? 'ILS' : 'USD';
+  // ── theme ──
+  const [theme, setTheme] = useState(() => lsGet(LS_THEME, 'sunrise'));
+  useEffect(() => lsSet(LS_THEME, theme), [theme]);
+  const t = THEMES[theme] ?? THEMES.sunrise;
+
+  // ── source selection ──
+  const [sourceKey, setSourceKey] = useState(() => {
+    const v = lsGet(LS_SOURCE, DEFAULT_SOURCE_KEY);
+    return MULTI_LOCATIONS[v] ? v : DEFAULT_SOURCE_KEY;
   });
-  const [usSalaryMode, setUsSalaryMode] = useState(() => {
-    if (typeof window === 'undefined') return 'annual';
-    const stored = window.localStorage.getItem(SALARY_MODE_STORAGE_KEY);
-    return stored === 'monthly' ? 'monthly' : 'annual';
+  useEffect(() => lsSet(LS_SOURCE, sourceKey), [sourceKey]);
+
+  const sourceLoc = MULTI_LOCATIONS[sourceKey];
+  const sourceCountry = COUNTRIES[sourceLoc.country];
+
+  // Country dropdown -> filter cities
+  const sourceCountryCode = sourceLoc.country;
+  const setSourceCountry = (code) => {
+    // Pick the first location of that country.
+    const firstKey = Object.keys(MULTI_LOCATIONS).find((k) => MULTI_LOCATIONS[k].country === code);
+    if (firstKey) setSourceKey(firstKey);
+  };
+
+  // ── source gross (annual, in source local currency) ──
+  const [grossLocal, setGrossLocal] = useState(() => {
+    const v = Number(lsGet(LS_GROSS, ''));
+    return Number.isFinite(v) && v > 0 ? v : DEFAULT_SOURCE_GROSS_ILS;
   });
+  useEffect(() => lsSet(LS_GROSS, grossLocal), [grossLocal]);
 
+  // When source country changes, reset gross to a sensible default for that currency.
+  // Default = ~$100k USD in local currency, rounded.
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(CURRENCY_STORAGE_KEY, displayCurrency);
-    }
-  }, [displayCurrency]);
+    // only auto-adjust if user hasn't typed (sentinel: no LS_GROSS yet for this source)
+  }, [sourceKey]);
 
+  // ── source advanced inputs (kept simple — single-source assumption) ──
+  const [eePensionPct, setEePensionPct] = useState(6);
+  const [eeOtherPct, setEeOtherPct]     = useState(2.5);   // IL: keren
+  const [erPensionPct, setErPensionPct] = useState(6.5);
+  const [erKerenPct, setErKerenPct]     = useState(7.5);
+  const [erSeverancePct, setErSeverancePct] = useState(8.33);
+  const [includeSeveranceInSavings, setIncludeSeveranceInSavings] = useState(true);
+  const [rentLocal, setRentLocal]       = useState(sourceLoc.defaultRent);
+  const [miscBurnLocal, setMiscBurnLocal] = useState(0);
+  const [matchLimitPct, setMatchLimitPct] = useState(6); // dest US-only
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // When source changes, reset rent default for that city.
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(SALARY_MODE_STORAGE_KEY, usSalaryMode);
-    }
-  }, [usSalaryMode]);
+    setRentLocal(MULTI_LOCATIONS[sourceKey]?.defaultRent ?? 0);
+  }, [sourceKey]);
 
-  const calc = useMemo(() => runEngine({
-    ilGross: Number(ilGross) || 0,
-    ilEEPension: Number(ilEEPension) || 0,
-    ilEEKeren: Number(ilEEKeren) || 0,
-    ilERPension: Number(ilERPension) || 0,
-    ilERSeverance: Number(ilERSeverance) || 0,
-    ilERKeren: Number(ilERKeren) || 0,
-    ilRent: Number(ilRent) || 0,
-    ilBurn: Number(ilBurn) || 0,
-    fxRate: Number(fxRate) || 0.27,
-    selectedLoc,
-    usGrossAnnual: Number(usGrossAnnual) || 0,
-    usRent: Number(usRent) || 0,
-    us401kMatchLimit: Number(us401kMatchLimit) || 0,
-    usMiscBurn: Number(usMiscBurn) || 0,
-    includeSeveranceInSavings: includeSeverance,
-    ilImputedBenefits: Number(ilImputed) || 0,
-  }), [ilGross, ilEEPension, ilEEKeren, ilERPension, ilERSeverance, ilERKeren,
-       ilRent, ilBurn, fxRate, selectedLoc, usGrossAnnual, usRent,
-       us401kMatchLimit, usMiscBurn, includeSeverance, ilImputed]);
+  // ── currency display mode ──
+  const [currencyMode, setCurrencyMode] = useState(() => lsGet(LS_CURRENCY_MODE, 'usd'));
+  useEffect(() => lsSet(LS_CURRENCY_MODE, currencyMode), [currencyMode]);
 
-  const [giggling, setGiggling] = useState(false);
-  const giggledRef = useRef(false);
+  // ── gross-equivalence mode (how to assign dest gross) ──
+  const [grossMode, setGrossMode] = useState(() => lsGet(LS_GROSS_MODE, 'usd-nominal'));
+  useEffect(() => lsSet(LS_GROSS_MODE, grossMode), [grossMode]);
 
-  useEffect(() => {
-    const onScroll = () => {
-      if (giggledRef.current) return;
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      if (max <= 0) return;
-      if (window.scrollY / max >= 0.75) {
-        giggledRef.current = true;
-        setGiggling(true);
-        window.removeEventListener('scroll', onScroll);
-        setTimeout(() => setGiggling(false), 900);
-      }
+  // ── sorting ──
+  const [sortKey, setSortKey] = useState(() => lsGet(LS_SORT_KEY, 'liquidDelta'));
+  const [sortDir, setSortDir] = useState(() => lsGet(LS_SORT_DIR, 'desc'));
+  useEffect(() => lsSet(LS_SORT_KEY, sortKey), [sortKey]);
+  useEffect(() => lsSet(LS_SORT_DIR, sortDir), [sortDir]);
+
+  // ── filters ──
+  const [activeRegions, setActiveRegions] = useState(() => new Set(REGIONS));
+  const [search, setSearch] = useState('');
+
+  // ── expanded row ──
+  const [expandedKey, setExpandedKey] = useState(null);
+
+  // ── Run comparison for ALL destinations ──
+  // This is the hot path — memoize aggressively.
+  const sourceFx = FX_USD_PER_UNIT[sourceCountry.currency];
+  const sourceGrossUSD = grossLocal * sourceFx;
+
+  const destinations = useMemo(() => {
+    const sourcePayload = {
+      countryCode: sourceLoc.country,
+      locationKey: sourceKey,
+      grossLocal,
+      eePensionPct,
+      eeOtherPct,
+      rentLocal,
+      miscBurnLocal,
+      matchLimitPct,
+      erPensionPct,
+      erSeverancePct,
+      erKerenPct,
+      includeSeveranceInSavings,
     };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+
+    const rows = [];
+    for (const [destKey, destLoc] of Object.entries(MULTI_LOCATIONS)) {
+      if (destKey === sourceKey) continue;
+      const destCountry = COUNTRIES[destLoc.country];
+      const destFx = FX_USD_PER_UNIT[destCountry.currency];
+
+      // Decide dest gross.
+      let destGrossLocal;
+      if (grossMode === 'ppp-match') {
+        // sourceGross_USD × (sourceCOL / destCOL), back to dest currency.
+        const ppp = sourceGrossUSD * ((sourceLoc.colIndex ?? 100) / (destLoc.colIndex ?? 100));
+        destGrossLocal = ppp / destFx;
+      } else {
+        // Same nominal USD: convert source gross to USD, then to dest currency.
+        destGrossLocal = sourceGrossUSD / destFx;
+      }
+
+      const destPayload = {
+        countryCode: destLoc.country,
+        locationKey: destKey,
+        grossLocal: destGrossLocal,
+        eePensionPct,
+        eeOtherPct,
+        rentLocal: destLoc.defaultRent ?? 0,
+        miscBurnLocal: 0,
+        matchLimitPct,
+        // IL extras passed through (only used if dest is IL, harmless otherwise)
+        erPensionPct,
+        erSeverancePct,
+        erKerenPct,
+        includeSeveranceInSavings,
+      };
+
+      const cmp = runComparison({ source: sourcePayload, dest: destPayload });
+      if (!cmp.dest || !cmp.source) continue;
+
+      rows.push({
+        key: destKey,
+        loc: destLoc,
+        country: destCountry,
+        region: regionForLocation(destLoc),
+        flag: flagForLocation(destLoc),
+        cmp,
+        // sort fields:
+        city:       destLoc.name,
+        grossLocal: cmp.dest.grossLocal,
+        netUSD:     cmp.dest.netUSD,
+        savingsUSD: cmp.dest.totalSavingsUSD,
+        liquidUSD:  cmp.dest.liquidUSD,
+        liquidDelta:cmp.liquidDeltaUSD,
+        colDelta:   cmp.liquidDeltaCOLAdjustedUSD,
+        effRate:    cmp.dest.effectiveTaxRate,
+        sourceLiquidUSD: cmp.source.liquidUSD,
+      });
+    }
+    return rows;
+  }, [
+    sourceKey, grossLocal, sourceGrossUSD, sourceLoc, grossMode,
+    eePensionPct, eeOtherPct, rentLocal, miscBurnLocal,
+    matchLimitPct, erPensionPct, erSeverancePct, erKerenPct, includeSeveranceInSavings,
+  ]);
+
+  // ── Filter + sort ──
+  const filteredSorted = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let xs = destinations.filter((r) => activeRegions.has(r.region));
+    if (q) xs = xs.filter((r) => r.city.toLowerCase().includes(q) || r.country.name.toLowerCase().includes(q));
+    const dir = sortDir === 'asc' ? 1 : -1;
+    xs = [...xs].sort((a, b) => {
+      const va = a[sortKey];
+      const vb = b[sortKey];
+      if (typeof va === 'string' && typeof vb === 'string') return va.localeCompare(vb) * dir;
+      return ((va ?? 0) - (vb ?? 0)) * dir;
+    });
+    return xs;
+  }, [destinations, activeRegions, search, sortKey, sortDir]);
+
+  // ── Top picks ──
+  const topPicks = useMemo(() => {
+    if (destinations.length === 0) return null;
+    const byField = (field) => [...destinations].sort((a, b) => (b[field] ?? 0) - (a[field] ?? 0))[0];
+    const bestLiquid = byField('liquidDelta');
+    const bestCOL = byField('colDelta');
+    // Best take-home %: dest.netUSD / dest.grossUSD
+    const withTake = destinations.map((d) => {
+      const grossUSD = d.cmp.dest.grossLocal * (FX_USD_PER_UNIT[d.cmp.dest.currency] ?? 1);
+      return { d, take: grossUSD > 0 ? d.netUSD / grossUSD : 0 };
+    }).sort((a, b) => b.take - a.take);
+    const bestTake = withTake[0]?.d;
+    return { bestLiquid, bestCOL, bestTake, bestTakePct: withTake[0]?.take ?? 0 };
+  }, [destinations]);
+
+  // ── Formatters ──
+  // For display: "USD" mode → numbers in USD. "Source" mode → in source currency.
+  const fmt = useCallback((usdAmount, { signed = false } = {}) => {
+    if (currencyMode === 'usd') return formatUSD(usdAmount, { signed });
+    // source currency
+    if (usdAmount === 0 || usdAmount == null || Number.isNaN(usdAmount)) return signed ? '0' : '--';
+    const local = usdAmount / sourceFx;
+    const sign = local < 0 ? '-' : (signed ? '+' : '');
+    const sym = sourceCountry.currency === 'USD' ? '$' :
+      (sourceCountry.currency === 'ILS' ? '₪' :
+        (sourceCountry.currency === 'GBP' ? '£' :
+          (sourceCountry.currency === 'EUR' ? '€' : `${sourceCountry.currency} `)));
+    return `${sign}${sym}${Math.abs(Math.round(local)).toLocaleString()}`;
+  }, [currencyMode, sourceFx, sourceCountry]);
+
+  // ── Header sort handler ──
+  const handleSort = useCallback((key) => {
+    setSortKey((prev) => {
+      if (prev === key) {
+        setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+        return prev;
+      }
+      // numeric default desc, string default asc.
+      const col = COLUMNS.find((c) => c.key === key);
+      setSortDir(col?.numeric ? 'desc' : 'asc');
+      return key;
+    });
   }, []);
 
-  useEffect(() => {
-    const link = document.querySelector('link[rel="icon"]');
-    if (link) link.href = activeLayout === 'bento' ? '/favicon-bento.svg' : '/favicon.svg';
-  }, [activeLayout]);
-
-  const selectLocation = useCallback((key) => {
-    setSelectedLoc(key);
-    setUsRent(LOCATIONS[key]?.defaultRent?.toString() || "4500");
-  }, []);
-
-  const theme = THEMES[activeLayout];
-
-  const fxRateNum = Number(fxRate) || 0.27;
-  const fmt = useCallback(
-    (usdAmount) => formatMoney(usdAmount, displayCurrency, fxRateNum),
-    [displayCurrency, fxRateNum],
-  );
-
-  const coreState = {
-    ...calc,
-    ilGross, setIlGross, ilERPension, setIlERPension, ilERSeverance, setIlERSeverance,
-    ilERKeren, setIlERKeren, ilEEPension, setIlEEPension, ilEEKeren, setIlEEKeren,
-    ilRent, setIlRent, ilBurn, setIlBurn, selectedLoc, selectLocation,
-    usGrossAnnual, setUsGrossAnnual, usRent, setUsRent,
-    us401kMatchLimit, setUs401kMatchLimit, usMiscBurn, setUsMiscBurn,
-    includeSeverance, setIncludeSeverance,
-    ilImputed, setIlImputed,
-    displayCurrency, setDisplayCurrency,
-    usSalaryMode, setUsSalaryMode,
-    fmt,
-    calc,
+  // ── Region chip toggle ──
+  const toggleRegion = (r) => {
+    setActiveRegions((prev) => {
+      const next = new Set(prev);
+      if (next.has(r)) next.delete(r); else next.add(r);
+      // never empty — if user tries to clear all, restore all.
+      if (next.size === 0) return new Set(REGIONS);
+      return next;
+    });
   };
 
   return (
-    <div className={`min-h-screen p-3 sm:p-4 md:p-8 transition-colors duration-300 ${theme.pageBg}`}>
+    <div className={`min-h-screen p-3 sm:p-4 md:p-8 transition-colors duration-300 ${t.pageBg} ${t.rootText}`}>
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex justify-center mb-6 sm:mb-8">
-          <div className={`flex p-1 rounded-lg border ${theme.switcherShell}`}>
-            <LayoutButton icon={<Sun size={16}/>} label="Sunrise" id="sunrise" active={activeLayout} set={setActiveLayout} />
-            <LayoutButton icon={<LayoutGrid size={16}/>} label="Bento Grid" id="bento" active={activeLayout} set={setActiveLayout} />
+        {/* ── Top bar ── */}
+        <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <h1 className={`text-2xl sm:text-3xl font-black tracking-tight flex items-center gap-3 ${t.titleText}`}>
+            <Sparkles className={t.titleAccent} size={28} strokeWidth={3} />
+            <span>Destination Explorer</span>
+            <span className={t.brandPill}>{t.name}</span>
+          </h1>
+          <div className="flex items-center gap-2">
+            <ThemeSwitch theme={theme} setTheme={setTheme} t={t} />
+            <CurrencyModeSwitch
+              mode={currencyMode}
+              setMode={setCurrencyMode}
+              sourceCurrency={sourceCountry.currency}
+              t={t}
+            />
           </div>
-        </div>
-        <Layout theme={theme} {...coreState} />
-        <footer className={`pt-8 pb-4 text-center space-y-2 ${theme.footerText}`}>
-          <div className="text-[11px] max-w-2xl mx-auto leading-relaxed">
-            Estimates only. Not tax, legal, or financial advice. See{' '}
-            <a href="/disclaimer.html" className="underline hover:text-orange-500">disclaimer</a>
-            {' · '}
-            <a href="/privacy.html" className="underline hover:text-orange-500">privacy</a>
-            .
+        </header>
+
+        {/* ── Source configuration ── */}
+        <section className={t.sectionCard}>
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+            <div className="md:col-span-3">
+              <label className={t.inputLabel}>Source country</label>
+              <div className="relative mt-1.5">
+                <select
+                  className={t.selectBox}
+                  value={sourceCountryCode}
+                  onChange={(e) => setSourceCountry(e.target.value)}
+                >
+                  {Object.entries(COUNTRIES).map(([code, c]) => (
+                    <option key={code} value={code}>
+                      {COUNTRY_FLAG[code] ?? ''} {c.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+              </div>
+            </div>
+            <div className="md:col-span-3">
+              <label className={t.inputLabel}>Source city</label>
+              <div className="relative mt-1.5">
+                <select
+                  className={t.selectBox}
+                  value={sourceKey}
+                  onChange={(e) => setSourceKey(e.target.value)}
+                >
+                  {sourceCountry.locations.map((key) => (
+                    <option key={key} value={key}>{MULTI_LOCATIONS[key].name}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+              </div>
+            </div>
+            <div className="md:col-span-3">
+              <label className={t.inputLabel}>Annual gross ({sourceCountry.currency})</label>
+              <input
+                type="number"
+                className={`${t.inputBox} mt-1.5`}
+                value={grossLocal}
+                step={1000}
+                onChange={(e) => setGrossLocal(Number(e.target.value) || 0)}
+              />
+            </div>
+            <div className="md:col-span-3">
+              <label className={t.inputLabel}>Dest gross =</label>
+              <div className="relative mt-1.5">
+                <select
+                  className={t.selectBox}
+                  value={grossMode}
+                  onChange={(e) => setGrossMode(e.target.value)}
+                >
+                  <option value="usd-nominal">Same nominal USD</option>
+                  <option value="ppp-match">PPP-match (source COL ÷ dest COL)</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+              </div>
+            </div>
           </div>
-          <a
-            href={`https://github.com/nickohold/relocation-calc/commit/${__APP_SHA__}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[10px] font-mono tracking-widest uppercase hover:underline"
-          >
-            {__APP_VERSION__} · {__APP_SHA__} · {__APP_BUILD_DATE__}
-          </a>
+
+          <div className="mt-4 flex items-center justify-between">
+            <button
+              className={`${t.btn} ${t.btnGhost} flex items-center gap-1.5`}
+              onClick={() => setShowAdvanced((v) => !v)}
+            >
+              {showAdvanced ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              Advanced
+            </button>
+            <span className="text-[11px] text-slate-400 italic">
+              Source gross ≈ {formatUSD(sourceGrossUSD)} USD ·
+              {' '}{COUNTRY_FLAG[sourceCountryCode]} {sourceLoc.name}
+            </span>
+          </div>
+
+          {showAdvanced && (
+            <div className={t.advancedShell}>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                <NumInput t={t} label="EE Pension %"      value={eePensionPct}    onChange={setEePensionPct} step={0.5} />
+                <NumInput t={t} label="EE Other %"        value={eeOtherPct}      onChange={setEeOtherPct} step={0.5}
+                          tooltip="IL: Keren Hishtalmut. Other countries: ignored." />
+                <NumInput t={t} label="ER Pension %"      value={erPensionPct}    onChange={setErPensionPct} step={0.5} />
+                <NumInput t={t} label="ER Keren %"        value={erKerenPct}      onChange={setErKerenPct} step={0.5}
+                          tooltip="IL only." />
+                <NumInput t={t} label="ER Severance %"    value={erSeverancePct}  onChange={setErSeverancePct} step={0.5}
+                          tooltip="IL only." />
+                <NumInput t={t} label="US 401k Match %"   value={matchLimitPct}   onChange={setMatchLimitPct} step={0.5}
+                          tooltip="Used for any US destination." />
+                <NumInput t={t} label="Source rent (mo, local)" value={rentLocal} onChange={setRentLocal} step={100} />
+                <NumInput t={t} label="Source misc burn (mo, local)" value={miscBurnLocal} onChange={setMiscBurnLocal} step={100} />
+                <label className="flex items-center gap-2 text-xs text-slate-500 col-span-2 mt-2">
+                  <input
+                    type="checkbox"
+                    checked={includeSeveranceInSavings}
+                    onChange={(e) => setIncludeSeveranceInSavings(e.target.checked)}
+                  />
+                  Count IL severance as savings
+                </label>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* ── Top picks ── */}
+        {topPicks && (
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <PickCard
+              t={t}
+              icon={<Trophy size={16} />}
+              title="Best raw liquid Δ"
+              row={topPicks.bestLiquid}
+              valueText={formatUSD(topPicks.bestLiquid.liquidDelta, { signed: true }) + '/yr'}
+            />
+            <PickCard
+              t={t}
+              icon={<TrendingUp size={16} />}
+              title="Best COL-adj. liquid Δ"
+              row={topPicks.bestCOL}
+              valueText={formatUSD(topPicks.bestCOL.colDelta, { signed: true }) + '/yr'}
+            />
+            <PickCard
+              t={t}
+              icon={<Sparkles size={16} />}
+              title="Best take-home %"
+              row={topPicks.bestTake}
+              valueText={(topPicks.bestTakePct * 100).toFixed(1) + '% net/gross'}
+            />
+          </section>
+        )}
+
+        {/* ── Filters ── */}
+        <section className="flex flex-col md:flex-row gap-3 md:items-center justify-between">
+          <div className="flex flex-wrap gap-2">
+            {REGIONS.map((r) => (
+              <button
+                key={r}
+                onClick={() => toggleRegion(r)}
+                className={`${t.chip} ${activeRegions.has(r) ? t.chipActive : t.chipInactive}`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          <div className="relative md:w-72">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-50" />
+            <input
+              type="text"
+              className={`${t.inputBox} pl-8`}
+              placeholder="Search city or country..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </section>
+
+        {/* ── Grid ── */}
+        <section className={t.grid}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left min-w-[900px]">
+              <thead>
+                <tr className={t.headRow}>
+                  {COLUMNS.map((col) => (
+                    <th
+                      key={col.key}
+                      className={`${t.headCell} ${col.align === 'right' ? 'text-right' : ''}`}
+                      onClick={() => handleSort(col.key)}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        {col.label}
+                        {sortKey === col.key
+                          ? (sortDir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)
+                          : <ArrowUpDown size={12} className="opacity-30" />}
+                      </span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSorted.map((row) => (
+                  <React.Fragment key={row.key}>
+                    <tr
+                      className={`${t.bodyRow} ${expandedKey === row.key ? t.bodyRowExpanded : ''}`}
+                      onClick={() => setExpandedKey(expandedKey === row.key ? null : row.key)}
+                    >
+                      <td className={t.cell}>
+                        <span className="inline-flex items-center gap-2">
+                          {expandedKey === row.key ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          <span className="text-lg">{row.flag}</span>
+                          <span>{row.city}</span>
+                          <span className="text-slate-400 font-medium hidden sm:inline">· {row.country.name}</span>
+                        </span>
+                      </td>
+                      <td className={`${t.cell} text-right`}>
+                        {formatLocal(row.grossLocal, row.cmp.dest.currency)}
+                      </td>
+                      <td className={`${t.cell} text-right`}>{fmt(row.netUSD)}</td>
+                      <td className={`${t.cell} text-right`}>{fmt(row.savingsUSD)}</td>
+                      <td className={`${t.cell} text-right`}>{fmt(row.liquidUSD)}</td>
+                      <td className={`${t.cell} text-right ${
+                        row.liquidDelta > 0 ? t.deltaPos : (row.liquidDelta < 0 ? t.deltaNeg : t.deltaNeutral)
+                      }`}>
+                        {fmt(row.liquidDelta, { signed: true })}
+                      </td>
+                      <td className={`${t.cell} text-right ${
+                        row.colDelta > 0 ? t.deltaPos : (row.colDelta < 0 ? t.deltaNeg : t.deltaNeutral)
+                      }`}>
+                        {fmt(row.colDelta, { signed: true })}
+                      </td>
+                      <td className={`${t.cell} text-right`}>{(row.effRate * 100).toFixed(1)}%</td>
+                    </tr>
+                    {expandedKey === row.key && (
+                      <tr>
+                        <td colSpan={COLUMNS.length} className="p-0">
+                          <RowDetail t={t} row={row} fmt={fmt} sourceLabel={sourceLoc.name} sourceFlag={COUNTRY_FLAG[sourceLoc.country]} />
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+                {filteredSorted.length === 0 && (
+                  <tr>
+                    <td colSpan={COLUMNS.length} className="p-8 text-center text-slate-400 italic">
+                      No destinations match those filters.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <footer className={`pt-4 pb-2 text-center text-[11px] ${t.footerText}`}>
+          {filteredSorted.length} destination{filteredSorted.length === 1 ? '' : 's'} ·
+          ranking estimates only · not financial advice ·
+          <a href="/disclaimer.html" className="underline ml-1">disclaimer</a>
         </footer>
       </div>
+
       <a
         href="https://ko-fi.com/nickholden"
-        target="_blank"
-        rel="noopener noreferrer"
+        target="_blank" rel="noopener noreferrer"
         aria-label="Buy me a coffee on Ko-fi"
-        className={`fixed bottom-4 right-4 z-50 inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-bold shadow-lg transition-transform hover:scale-110 ${giggling ? 'animate-giggle' : ''} ${theme.kofiBtn}`}
+        className={`fixed bottom-4 right-4 z-50 inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-bold shadow-lg transition-transform hover:scale-110 ${t.kofiBtn}`}
       >
         <Coffee size={14} /> <span className="hidden sm:inline">Buy me a coffee</span>
       </a>
@@ -383,427 +633,122 @@ const App = () => {
   );
 };
 
-const LayoutButton = ({ icon, label, id, active, set }) => {
-  const isLight = active === 'sunrise';
-  const isActive = active === id;
-  let baseClass = "flex items-center gap-2 px-4 py-2 rounded-md text-xs font-bold transition-all ";
-  if (isActive) {
-    if (id === 'sunrise') baseClass += "bg-orange-500 text-white shadow-md shadow-orange-500/20";
-    else baseClass += "bg-blue-500 text-white shadow-lg";
-  } else {
-    if (isLight) baseClass += "text-slate-500 hover:text-slate-800 hover:bg-orange-100/50";
-    else baseClass += "text-slate-500 hover:text-slate-300 hover:bg-white/5";
-  }
-  return <button onClick={() => set(id)} className={baseClass}>{icon} {label}</button>;
-};
+// ── Sub-components ──
 
-const CurrencyToggle = ({ theme, displayCurrency, setDisplayCurrency }) => {
-  const isLight = theme.name === 'Sunrise';
-  const activeCls = isLight
-    ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
-    : 'bg-indigo-500 text-white shadow';
-  const inactiveCls = isLight
-    ? 'text-slate-500 hover:text-slate-800'
-    : 'text-slate-500 hover:text-slate-300';
-  const shellCls = isLight
-    ? 'bg-slate-200/50 border border-slate-300/50'
-    : 'bg-white/5 border border-white/10';
-  const captionCls = isLight ? 'text-slate-400' : 'text-slate-500';
-
-  const btn = (id, label) => (
+const ThemeSwitch = ({ theme, setTheme, t }) => {
+  const isLight = t.name === 'Sunrise';
+  const activeCls = isLight ? 'bg-orange-500 text-white' : 'bg-indigo-500 text-white';
+  const inactive = isLight ? 'text-slate-500 hover:text-slate-800' : 'text-slate-400 hover:text-slate-200';
+  const btn = (id, icon, label) => (
     <button
-      onClick={() => setDisplayCurrency(id)}
-      className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-        displayCurrency === id ? activeCls : inactiveCls
-      }`}
-      aria-pressed={displayCurrency === id}
+      onClick={() => setTheme(id)}
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${theme === id ? activeCls : inactive}`}
+      aria-pressed={theme === id}
     >
-      {label}
+      {icon} {label}
     </button>
   );
-
   return (
-    <div className="flex flex-col items-start md:items-end gap-1">
-      <div className="flex items-center gap-1.5">
-        <div className={`flex p-1 rounded-lg ${shellCls}`}>
-          {btn('USD', '$ USD')}
-          {btn('ILS', '₪ ILS')}
-        </div>
-        <div className="relative group inline-block">
-          <HelpCircle size={12} className={theme.tooltipIcon} />
-          <div className={theme.tooltipBox}>
-            Numbers are converted using a flat exchange rate — that&apos;s not what your money actually buys. ₪9,000/mo in Tel Aviv funds a very different lifestyle than $2,430/mo in NYC.
-            <div className={theme.tooltipArrow}></div>
-          </div>
-        </div>
-      </div>
-      <span className={`text-[10px] uppercase tracking-widest font-bold ${captionCls}`}>Exchange rate only</span>
+    <div className={`flex p-1 rounded-lg border ${t.switcherShell}`}>
+      {btn('sunrise', <Sun size={14} />, 'Sunrise')}
+      {btn('bento', <LayoutGrid size={14} />, 'Bento')}
     </div>
   );
 };
 
-const SalaryInput = ({ theme, annualValue, onAnnualChange, mode, setMode }) => {
-  const annualNum = Number(annualValue) || 0;
-  const isMonthly = mode === 'monthly';
-  const displayed = isMonthly ? Math.round(annualNum / 12).toString() : annualValue;
-  const step = isMonthly ? 500 : 5000;
-
-  const isLight = theme.name === 'Sunrise';
-  const activeCls = isLight
-    ? 'bg-orange-500 text-white'
-    : 'bg-indigo-500 text-white';
-  const inactiveCls = isLight
-    ? 'text-slate-500 hover:text-slate-800'
-    : 'text-slate-500 hover:text-slate-300';
-  const shellCls = isLight
-    ? 'bg-slate-200/50 border border-slate-300/50'
-    : 'bg-white/5 border border-white/10';
-
-  const handleChange = (raw) => {
-    if (isMonthly) {
-      const m = Number(raw) || 0;
-      onAnnualChange(String(Math.round(m * 12)));
-    } else {
-      onAnnualChange(raw);
-    }
-  };
-
-  const modeBtn = (id, label) => (
+const CurrencyModeSwitch = ({ mode, setMode, sourceCurrency, t }) => {
+  const isLight = t.name === 'Sunrise';
+  const activeCls = isLight ? 'bg-orange-500 text-white' : 'bg-indigo-500 text-white';
+  const inactive = isLight ? 'text-slate-500 hover:text-slate-800' : 'text-slate-400 hover:text-slate-200';
+  const btn = (id, label) => (
     <button
-      type="button"
       onClick={() => setMode(id)}
-      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all ${
-        mode === id ? activeCls : inactiveCls
-      }`}
+      className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${mode === id ? activeCls : inactive}`}
       aria-pressed={mode === id}
     >
       {label}
     </button>
   );
-
   return (
-    <div>
-      <div className="flex items-center justify-between mb-1.5 gap-2">
-        <label className={theme.inputLabel}>
-          {isMonthly ? 'Monthly Salary ($)' : 'Annual Salary ($)'}
-        </label>
-        <div className={`flex p-0.5 rounded-md ${shellCls}`}>
-          {modeBtn('annual', 'Yr')}
-          {modeBtn('monthly', 'Mo')}
-        </div>
-      </div>
-      <input
-        type="number"
-        value={displayed}
-        step={step}
-        onChange={(e) => handleChange(e.target.value)}
-        className={theme.inputBox}
-      />
+    <div className={`flex p-1 rounded-lg border ${t.switcherShell}`}>
+      {btn('usd', '$ USD')}
+      {btn('source', sourceCurrency)}
     </div>
   );
 };
 
-const Input = ({ theme, label, value, onChange, step = 1, disabled = false, tooltip = null }) => (
+const NumInput = ({ t, label, value, onChange, step = 1, tooltip }) => (
   <div>
-    <div className="flex items-center mb-1.5 gap-1">
-      <label className={theme.inputLabel}>{label}</label>
+    <div className="flex items-center gap-1 mb-1.5">
+      <label className={t.inputLabel}>{label}</label>
       {tooltip && (
-        <div className="relative group inline-block">
-          <HelpCircle size={12} className={theme.tooltipIcon} />
-          <div className={theme.tooltipBox}>
-            {tooltip}
-            <div className={theme.tooltipArrow}></div>
-          </div>
-        </div>
+        <span className="relative group">
+          <HelpCircle size={11} className="opacity-50 cursor-help" />
+          <span className="absolute z-50 bottom-full left-0 mb-1 hidden group-hover:block w-44 p-2 bg-slate-800 text-white text-[10px] rounded shadow normal-case">{tooltip}</span>
+        </span>
       )}
     </div>
     <input
       type="number"
+      className={t.inputBox}
       value={value}
       step={step}
-      disabled={disabled}
-      onChange={(e) => !disabled && onChange(e.target.value)}
-      className={`${theme.inputBox} ${disabled ? theme.inputDisabled : ''}`}
+      onChange={(e) => onChange(Number(e.target.value) || 0)}
     />
   </div>
 );
 
-const Row = ({ theme, fmt, label, il, us, isExpense, variant = 'leaf', bg, expandable, expanded, onToggle }) => {
-  const delta = us - il;
-  let deltaColor = theme.deltaNeutral;
-  if (delta > 0) deltaColor = theme.deltaPos;
-  if (delta < 0) deltaColor = theme.deltaNeg;
+const PickCard = ({ t, icon, title, row, valueText }) => (
+  <div className={t.pickCard}>
+    <div className={`flex items-center gap-1.5 ${t.pickLabel}`}>{icon} {title}</div>
+    <div className="flex items-center gap-2 mt-1">
+      <span className={t.pickFlag}>{row.flag}</span>
+      <div>
+        <div className={t.pickCity}>{row.city}, {row.country.name}</div>
+        <div className={t.pickValue}>{valueText}</div>
+      </div>
+    </div>
+  </div>
+);
 
-  const isSection = variant === 'section';
-  const isSub = variant === 'sub';
-
-  const rowBg = bg || (isSection ? theme.sectionRowBg : '');
-  const hoverBg = expandable ? theme.rowHoverExpandable : theme.rowHover;
-  const baseClass = `${rowBg} ${hoverBg} transition-colors ${expandable ? 'cursor-pointer' : ''}`;
-
-  let labelClass;
-  if (isSection) labelClass = theme.rowSectionLabel;
-  else if (isSub) labelClass = theme.rowSubLabel;
-  else labelClass = theme.rowLeafLabel;
-
-  let valClassIL;
-  let valClassUS;
-  let deltaClass;
-  if (isSection) {
-    valClassIL = theme.rowSectionIL;
-    valClassUS = theme.rowSectionUS;
-    deltaClass = `text-sm font-black ${deltaColor}`;
-  } else if (isSub) {
-    valClassIL = theme.rowSubILBase;
-    valClassUS = theme.rowSubUSBase;
-    deltaClass = `text-xs font-bold ${deltaColor}`;
-  } else {
-    valClassIL = isExpense ? theme.rowLeafILExpense : theme.rowLeafILIncome;
-    valClassUS = isExpense ? theme.rowLeafUSExpense : theme.rowLeafUSIncome;
-    deltaClass = `text-sm font-black ${deltaColor}`;
-  }
-
-  const labelCellPadding = isSub ? 'p-2 pl-10 sm:p-3 sm:pl-14' : 'p-3 pl-4 sm:p-4 sm:pl-6';
-  const valCellPadding = isSub ? 'p-2 sm:p-3' : 'p-3 sm:p-4';
-  const lastCellPadding = isSub ? 'p-2 pr-4 sm:p-3 sm:pr-6' : 'p-3 pr-4 sm:p-4 sm:pr-6';
-
+const RowDetail = ({ t, row, fmt, sourceLabel, sourceFlag }) => {
+  const d = row.cmp.dest;
+  const s = row.cmp.source;
+  const grossUSD = d.grossLocal * (FX_USD_PER_UNIT[d.currency] ?? 1);
   return (
-    <tr className={baseClass} onClick={expandable ? onToggle : undefined}>
-      <td className={`${labelCellPadding} ${labelClass}`}>
-        {!isSub && (
-          <span className={theme.rowChevron}>
-            {expandable ? (expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />) : null}
-          </span>
-        )}
-        {label}
-      </td>
-      <td className={`${valCellPadding} ${valClassIL}`}>{fmt(il)}</td>
-      <td className={`${valCellPadding} ${valClassUS}`}>{fmt(us)}</td>
-      <td className={`${lastCellPadding} text-right ${deltaClass}`}>{delta > 0 ? '+' : ''}{fmt(delta)}</td>
-    </tr>
-  );
-};
-
-const Layout = ({ theme, calc, fmt, displayCurrency, setDisplayCurrency, ...s }) => {
-  const [taxesOpen, setTaxesOpen] = useState(false);
-  const [expensesOpen, setExpensesOpen] = useState(false);
-  const [savingsOpen, setSavingsOpen] = useState(false);
-  const [bankOpen, setBankOpen] = useState(false);
-
-  const cashLeftoverPositive = calc.liquidCashFlow >= 0;
-  const cashLeftoverCardClass = `${theme.kpiCardBase} ${cashLeftoverPositive ? theme.kpiPositive : theme.kpiNegative}`;
-  const cashLeftoverValueClass = cashLeftoverPositive ? theme.kpiValuePositive : theme.kpiValueNegative;
-
-  return (
-    <div className={`space-y-6 animate-in fade-in duration-500 ${theme.rootText}`}>
-      <header className={`${theme.headerBorder} flex flex-col md:flex-row justify-between items-start md:items-center gap-4`}>
-        <div className="min-w-0">
-          <h1 className={theme.h1Text}>
-            {theme.h1Icon}
-            <span>RELOCATION ARCHITECT</span>
-            <span className={theme.brandPill}>{theme.name}</span>
-          </h1>
-          <p className={theme.subTitle}>Savings-Matched Calculator</p>
-        </div>
-        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full md:w-auto">
-          <CurrencyToggle theme={theme} displayCurrency={displayCurrency} setDisplayCurrency={setDisplayCurrency} />
-          <div className={theme.totalPillCard}>
-            <span className={theme.totalPillLabel}>Total IL Savings Rate ({calc.totalILSPct.toFixed(1)}%)</span>
-            <div className={theme.totalPillValue}>
-              <Lock size={18} /> {fmt(calc.targetSavingsUSD)}{' '}
-              <span className={theme.totalPillSuffix}>/mo</span>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className={cashLeftoverCardClass}>
-            <div className={theme.kpiLabel}>
-              <span className="flex items-center gap-1"><Wallet size={14} /> Cash Leftover</span>
-            </div>
-            <div className={`text-3xl sm:text-5xl font-black tracking-tighter ${cashLeftoverValueClass}`}>
-              {fmt(calc.liquidCashFlow)}
-            </div>
-          </div>
-          <div className={`${theme.kpiCardBase} ${theme.kpiAccent}`}>
-            <div className={theme.kpiLabel}>
-              <span className="flex items-center gap-1"><TrendingUp size={14} className={theme.kpiTrendIcon} /> True Lifestyle Change</span>
-            </div>
-            <div className={`text-3xl sm:text-5xl font-black tracking-tighter ${theme.kpiValueAccent}`}>
-              {calc.liquidDelta > 0 ? '+' : ''}{fmt(calc.liquidDelta)}
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <section className={theme.sectionCard}>
-            <h3 className={theme.ilHeading}><ShieldCheck size={16} /> Israel (Current Setup)</h3>
-            <div className="space-y-4">
-              <Input theme={theme} label="Gross Pay (ILS)" value={s.ilGross} onChange={s.setIlGross} tooltip="Total monthly salary before taxes." />
-              <Input theme={theme} label="Net Take-Home (Auto-Calc)" value={Math.round(calc.ilNet)} onChange={() => {}} disabled={true} tooltip="Cash that hits your checking account after taxes and deductions." />
-              <div className="grid grid-cols-2 gap-3">
-                <Input theme={theme} label="Your Pension %" value={s.ilEEPension} onChange={s.setIlEEPension} step={0.1} tooltip="The percentage YOU pay into your pension (usually 6%)." />
-                <Input theme={theme} label="Your Keren %" value={s.ilEEKeren} onChange={s.setIlEEKeren} step={0.1} tooltip="The percentage YOU pay into Keren Hishtalmut (usually 2.5%)." />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <Input theme={theme} label="Employer Pension %" value={s.ilERPension} onChange={s.setIlERPension} step={0.1} tooltip="Employer Pension match (usually 6.5%)." />
-                <Input theme={theme} label="Employer Severance %" value={s.ilERSeverance} onChange={s.setIlERSeverance} step={0.1} tooltip="Employer Severance/Pitzuim (usually 8.33%)." />
-                <Input theme={theme} label="Employer Keren %" value={s.ilERKeren} onChange={s.setIlERKeren} step={0.1} tooltip="Employer Keren Hishtalmut (usually 7.5%)." />
-              </div>
-              <Input theme={theme} label="Rent + Bills (ILS)" value={s.ilRent} onChange={s.setIlRent} tooltip="Monthly housing and utilities." />
-              <Input theme={theme} label="Food, Fun & Living (ILS)" value={s.ilBurn} onChange={s.setIlBurn} tooltip="Remaining monthly spending. We convert this to USD to ensure your lifestyle doesn't drop." />
-              <Input theme={theme} label="Imputed Benefits (ILS)" value={s.ilImputed} onChange={s.setIlImputed} tooltip="Non-cash perks taxed as income (שווי): meal vouchers, holiday gifts, sport benefit, gross-ups (גילום). Inflates BTL+tax base; does NOT add to your cash net. Default 0. Find on payslip as 'שווי' lines." />
-              <label className={theme.severanceBox}>
-                <input
-                  type="checkbox"
-                  checked={s.includeSeverance}
-                  onChange={(e) => s.setIncludeSeverance(e.target.checked)}
-                  className={theme.severanceCheck}
-                />
-                <span>
-                  Count <span className="font-bold">severance</span> ({s.ilERSeverance}%) as savings.
-                  <span className={theme.severanceSub}>On if rolled into pension on exit. Off if you spend it.</span>
-                </span>
-              </label>
-            </div>
-          </section>
-          <section className={theme.sectionCard}>
-            <h3 className={theme.usHeading}><Target size={16} /> US Offer & Costs</h3>
-            <div className="space-y-4">
-              <div className={theme.locTabBar}>
-                {LOCATION_ENTRIES.map(([key, loc]) => (
-                  <button
-                    key={key}
-                    onClick={() => s.selectLocation(key)}
-                    className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${s.selectedLoc === key ? theme.locTabActive : theme.locTabInactive}`}
-                  >
-                    {loc.name}
-                  </button>
-                ))}
-              </div>
-              <SalaryInput
-                theme={theme}
-                annualValue={s.usGrossAnnual}
-                onAnnualChange={s.setUsGrossAnnual}
-                mode={s.usSalaryMode}
-                setMode={s.setUsSalaryMode}
-              />
-              <Input theme={theme} label="Monthly Rent ($)" value={s.usRent} onChange={s.setUsRent} step={100} tooltip="Estimated base rent for the US." />
-              <Input theme={theme} label="401k Match Limit %" value={s.us401kMatchLimit} onChange={s.setUs401kMatchLimit} step={0.5} tooltip="The maximum percentage the US employer will match in your 401k." />
-              <Input theme={theme} label="Other Expenses ($)" value={s.usMiscBurn} onChange={s.setUsMiscBurn} tooltip="Extra US costs like transit, health premiums, and utilities." />
-            </div>
-          </section>
-        </div>
-
-        <div className={theme.tableShell}>
-          <table className="w-full text-left text-xs sm:text-sm min-w-[560px]">
-            <thead className={theme.tableHead}>
-              <tr>
-                <th className="p-3 pl-4 sm:p-4 sm:pl-6">Monthly Breakdown ({displayCurrency})</th>
-                <th className="p-3 sm:p-4">Israel (Current)</th>
-                <th className="p-3 sm:p-4">US (Offer)</th>
-                <th className="p-3 pr-4 sm:p-4 sm:pr-6 text-right">Difference</th>
-              </tr>
-            </thead>
-            <tbody className={theme.tableDivide}>
-              <tr className={theme.bankRow} onClick={() => setBankOpen(!bankOpen)}>
-                <td className={theme.bankRowLabel}>
-                  <span className={theme.bankRowChevron}>
-                    {bankOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                  </span>
-                  Monthly Bank Balance
-                </td>
-                <td className={theme.bankRowIL}>{fmt(calc.ilLiquidFlowUSD)}</td>
-                <td className={theme.bankRowUS}>{fmt(calc.liquidCashFlow)}</td>
-                <td className={`p-3 pr-4 sm:p-5 sm:pr-6 text-right font-black ${calc.liquidDelta >= 0 ? theme.bankDeltaPos : theme.bankDeltaNeg}`}>
-                  {calc.liquidDelta > 0 ? '+' : ''}{fmt(calc.liquidDelta)}
-                </td>
-              </tr>
-              {bankOpen && (
-                <>
-                  <Row theme={theme} fmt={fmt} label="Gross Pay" il={calc.ilGrossUSD} us={calc.usGrossMonthly} />
-                  <Row theme={theme} fmt={fmt} label="Taxes" il={-(calc.ilMasHachnasaUSD + calc.ilBTLUSD)} us={-(calc.usFedMonthly + calc.usFICAMonthly + calc.usStateMonthly + calc.usCityMonthly)} isExpense expandable expanded={taxesOpen} onToggle={() => setTaxesOpen(!taxesOpen)} />
-                  {taxesOpen && (
-                    <>
-                      <Row theme={theme} fmt={fmt} label="Income Tax" il={-calc.ilMasHachnasaUSD} us={-calc.usFedMonthly} isExpense variant="sub" />
-                      <Row theme={theme} fmt={fmt} label="Social Sec. & Health" il={-calc.ilBTLUSD} us={-calc.usFICAMonthly} isExpense variant="sub" />
-                      <Row theme={theme} fmt={fmt} label="State Tax" il={0} us={-calc.usStateMonthly} isExpense variant="sub" />
-                      <Row theme={theme} fmt={fmt} label="City Tax" il={0} us={-calc.usCityMonthly} isExpense variant="sub" />
-                    </>
-                  )}
-                  <tr className={theme.netRow}>
-                    <td className={theme.netRowLabel}>
-                      <span className="inline-flex items-center justify-center w-4 h-4 mr-2 align-middle" />
-                      Net Take-Home Pay
-                    </td>
-                    <td className={theme.netRowIL}>{fmt(calc.ilNetUSD)}</td>
-                    <td className={theme.netRowUS}>{fmt(calc.netTakeHome)}</td>
-                    <td className={`p-3 pr-4 sm:p-4 sm:pr-6 text-right text-sm font-semibold ${(calc.netTakeHome - calc.ilNetUSD) >= 0 ? theme.deltaPos : theme.deltaNeg}`}>
-                      {(calc.netTakeHome - calc.ilNetUSD) > 0 ? '+' : ''}{fmt(calc.netTakeHome - calc.ilNetUSD)}
-                    </td>
-                  </tr>
-                  <Row theme={theme} fmt={fmt} label="Living Expenses" il={-calc.ilTotalOutUSD} us={-calc.usTotalOutUSD} isExpense expandable expanded={expensesOpen} onToggle={() => setExpensesOpen(!expensesOpen)} />
-                  {expensesOpen && (
-                    <>
-                      <Row theme={theme} fmt={fmt} label="Rent & Utilities" il={-calc.ilHousingUSD} us={-calc.usRentUSD} isExpense variant="sub" />
-                      <Row theme={theme} fmt={fmt} label="US Transit & Extras" il={0} us={-calc.usMiscBurnUSD} isExpense variant="sub" />
-                      <Row theme={theme} fmt={fmt} label="Food, Fun & Living" il={-calc.ilLifestyleUSD} us={-calc.usLifestyleUSD} isExpense variant="sub" />
-                    </>
-                  )}
-                </>
-              )}
-              <tr className={theme.savingsRow} onClick={() => setSavingsOpen(!savingsOpen)}>
-                <td className={theme.savingsRowLabel}>
-                  <span className={theme.savingsRowChevron}>
-                    {savingsOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                  </span>
-                  Monthly Savings
-                </td>
-                <td className={theme.savingsRowIL}>{fmt(calc.targetSavingsUSD)}</td>
-                <td className={theme.savingsRowUS}>{fmt(calc.totalInvested)}</td>
-                <td className={`p-3 pr-4 sm:p-5 sm:pr-6 text-right font-black ${(calc.totalInvested - calc.targetSavingsUSD) >= 0 ? theme.savingsDeltaPos : theme.savingsDeltaNeg}`}>
-                  {(calc.totalInvested - calc.targetSavingsUSD) > 0 ? '+' : ''}{fmt(calc.totalInvested - calc.targetSavingsUSD)}
-                </td>
-              </tr>
-              {savingsOpen && (
-                <>
-                  <Row theme={theme} fmt={fmt} label="Your Contribution" il={calc.ilEEMatchUSD} us={calc.personalUSD} />
-                  <Row theme={theme} fmt={fmt} label="Employer Match" il={calc.ilERMatchUSD} us={calc.employerUSD} />
-                </>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className={theme.lockedHint}>
-          <Lock size={14} className={`flex-shrink-0 mt-0.5 ${theme.lockedHintIcon}`} />
-          <p className={theme.lockedHintText}>
-            Savings rate locked. Your US contribution is set to{' '}
-            <span className={theme.lockedHintHighlight}>{calc.optimalPct.toFixed(2)}%</span>{' '}
-            of gross to match your Israeli savings rate.
-          </p>
-        </div>
-
-        {calc.wealthGapUSD > 0 && (
-          <div className={theme.wealthGapShell}>
-            <div className="flex items-start gap-3 sm:gap-4">
-              <div className={theme.wealthGapIcon}>
-                <Lock size={20} />
-              </div>
-              <div className="min-w-0">
-                <h4 className={theme.wealthGapTitle}>{theme.wealthGapPrefix}Wealth Gap: {fmt(calc.wealthGapUSD)}/mo</h4>
-                <p className={theme.wealthGapText}>
-                  Hitting your Israeli savings target requires <span className="font-bold">{fmt(calc.wealthGapUSD)}/mo more</span> than the IRS 401(k) limit allows (${CONSTANTS.IRS_401K_LIMIT_ANNUAL.toLocaleString()}/yr). Even with positive lifestyle delta, this move is a <span className="font-bold">net-worth loss</span> versus staying — unless offset by RSUs, taxable brokerage, or other vehicles not modeled here.
-                </p>
-              </div>
-            </div>
-          </div>
+    <div className={t.detailBox}>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Stat t={t} label="Gross (local)"     value={formatLocal(d.grossLocal, d.currency)} />
+        <Stat t={t} label="Gross (USD)"       value={formatUSD(grossUSD)} />
+        <Stat t={t} label="Income tax"        value={formatLocal(d.incomeTax, d.currency)} />
+        <Stat t={t} label="Social security"   value={formatLocal(d.socialSec, d.currency)} />
+        <Stat t={t} label="Local/state tax"   value={formatLocal(d.localTax, d.currency)} />
+        <Stat t={t} label="EE pension/401k"   value={formatLocal(d.eePensionLocal, d.currency)} />
+        <Stat t={t} label="ER contributions"  value={formatLocal(d.erContributions, d.currency)} />
+        <Stat t={t} label="Effective tax %"   value={`${(d.effectiveTaxRate * 100).toFixed(1)}%`} />
+        <Stat t={t} label="Net take-home"     value={fmt(d.netUSD)} />
+        <Stat t={t} label="Total savings"     value={fmt(d.totalSavingsUSD)} />
+        <Stat t={t} label="Liquid (after rent+burn)" value={fmt(d.liquidUSD)} />
+        <Stat t={t} label="Δ vs source liquid"
+              value={fmt(row.liquidDelta, { signed: true })}
+              valueClass={row.liquidDelta >= 0 ? t.deltaPos : t.deltaNeg} />
+      </div>
+      <div className="mt-4 pt-4 border-t border-slate-200/40 flex flex-wrap gap-x-6 gap-y-1 text-[11px] text-slate-500">
+        <span>Source: {sourceFlag} {sourceLabel} · liquid {fmt(s.liquidUSD)}/yr · net {fmt(s.netUSD)}/yr</span>
+        <span>COL index: {row.loc.colIndex ?? '—'} (source: {MULTI_LOCATIONS[row.cmp.source.locationKey ?? '']?.colIndex ?? '—'})</span>
+        {row.cmp.warnings?.length > 0 && (
+          <span className="text-amber-600 font-bold">⚠ {row.cmp.warnings.join(' · ')}</span>
         )}
       </div>
     </div>
   );
 };
+
+const Stat = ({ t, label, value, valueClass }) => (
+  <div>
+    <div className={t.detailLabel}>{label}</div>
+    <div className={`${t.detailValue} ${valueClass ?? ''}`}>{value}</div>
+  </div>
+);
 
 export default App;
