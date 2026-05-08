@@ -5,10 +5,12 @@
 
 import { FX_USD_PER_UNIT } from './fx.js';
 
-const FRANKFURTER_URL = 'https://api.frankfurter.app/latest';
+const FRANKFURTER_URL = 'https://api.frankfurter.dev/v1/latest';
 const CACHE_KEY = 'relocation-calc:fxCache';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
-const TARGET_CCYS = ['ILS', 'GBP', 'EUR', 'CAD', 'AUD', 'CHF', 'SGD', 'JPY', 'SEK', 'DKK', 'NOK', 'PLN', 'AED'];
+// ECB-published currencies. AED is omitted (USD-pegged at 3.6725 since 1997; ECB
+// doesn't publish it and Frankfurter 404s if you ask). AED keeps its hardcoded peg.
+const TARGET_CCYS = ['ILS', 'GBP', 'EUR', 'CAD', 'AUD', 'CHF', 'SGD', 'JPY', 'SEK', 'DKK', 'NOK', 'PLN'];
 
 // Status surfaced to the UI footer.
 export const fxStatus = {
