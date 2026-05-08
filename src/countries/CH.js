@@ -32,10 +32,9 @@ export const CH_ZH_BRACKETS_EINFACH_SINGLE = [
   { max: 144100, rate: 0.10 }, { max: 197200, rate: 0.11 }, { max: 263300, rate: 0.12 },
   { max: Infinity, rate: 0.13 },
 ];
-// Canton 95% (zh.ch confirmed for 2026 — was 98% in 2024-25).
-// Stadt Zürich 125% retained from prior data; audit suggested 119% but couldn't
-// be primary-verified. If 119%, multiplier would be 2.14 instead of 2.20.
-export const CH_ZH_MULTIPLIER = 2.20;
+// Canton 95% + Stadt Zürich 119% = 2.14 (zh.ch + Raiffeisen Gemeindeinfo + NZZ for 2026).
+// Canton dropped 98% → 95%; Stadt Zürich dropped 125% → 119% for 2026.
+export const CH_ZH_MULTIPLIER = 2.14;
 
 export const CH_GE_BRACKETS_EINFACH_SINGLE = [
   { max: 18000, rate: 0.00 }, { max: 50000, rate: 0.085 }, { max: 100000, rate: 0.13 },
