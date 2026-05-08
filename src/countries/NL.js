@@ -75,3 +75,38 @@ export const compute = ({
     ],
   };
 };
+
+export const meta = {
+  countryCode: 'NL',
+  countryName: 'Netherlands',
+  taxYear: '2026',
+  lastUpdated: '2026-05-08',
+  incomeTax: {
+    label: 'Box 1 (income from work, under AOW age)',
+    brackets: NL_BOX1_2026.map((b) => ({ upTo: b.max, rate: b.rate })),
+    notes: [
+      'Box 1 rates already include national social insurance (volksverzekeringen).',
+      'Heffingskorting (AHK) and Arbeidskorting reduce computed tax.',
+    ],
+  },
+  socialSecurity: {
+    label: 'Built into Box 1 (volksverzekeringen) — no separate EE social charges',
+    rates: [],
+  },
+  deductions: [
+    { label: 'Algemene heffingskorting (max)', amount: NL_AHK_2026.max, currency: 'EUR', note: `Tapers from €${NL_AHK_2026.full_threshold.toLocaleString()} to €${NL_AHK_2026.zero_at.toLocaleString()}.` },
+    { label: 'AOW franchise (pension base offset)', amount: NL_AOW_FRANCHISE, currency: 'EUR' },
+  ],
+  retirementCaps: [
+    { label: 'Pension base cap', amount: NL_PENSION_BASE_CAP, currency: 'EUR', note: '2nd-pillar contributions computed on (gross capped) − AOW franchise.' },
+  ],
+  localTax: null,
+  simplifications: [
+    'Arbeidskorting modeled as piecewise per 2026 tables.',
+    '30%-ruling not applied; assumes regular resident.',
+  ],
+  sources: [
+    { name: 'Belastingdienst', url: 'https://www.belastingdienst.nl/' },
+    { name: 'Rijksoverheid — Belastingplan', url: 'https://www.rijksoverheid.nl/onderwerpen/belastingplan' },
+  ],
+};

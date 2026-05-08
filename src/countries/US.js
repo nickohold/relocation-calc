@@ -308,3 +308,68 @@ export const compute = ({
     ],
   };
 };
+
+export const meta = {
+  countryCode: 'US',
+  countryName: 'United States',
+  taxYear: '2026',
+  lastUpdated: '2026-05-08',
+  incomeTax: {
+    label: 'Federal Income Tax (single, post-OBBBA)',
+    brackets: FED_BRACKETS.map((b) => ({ upTo: b.max, rate: b.rate })),
+    notes: ['Single filer. Standard deduction reduces taxable base before brackets apply.'],
+  },
+  socialSecurity: {
+    label: 'FICA (Social Security + Medicare)',
+    rates: [
+      { label: 'Social Security', rate: CONSTANTS.SS_RATE, threshold: `up to wage base $${CONSTANTS.SS_WAGE_BASE.toLocaleString()}` },
+      { label: 'Medicare', rate: CONSTANTS.MEDICARE_RATE, threshold: 'all wages' },
+      { label: 'Additional Medicare', rate: CONSTANTS.ADDITIONAL_MEDICARE_RATE, threshold: `above $${CONSTANTS.ADDITIONAL_MEDICARE_THRESHOLD_SINGLE.toLocaleString()} (single)` },
+    ],
+  },
+  deductions: [
+    { label: 'Federal Standard Deduction (single)', amount: CONSTANTS.FED_STANDARD_DEDUCTION_SINGLE, currency: 'USD' },
+  ],
+  retirementCaps: [
+    { label: '401(k) employee elective deferral', amount: CONSTANTS.IRS_401K_LIMIT_ANNUAL, currency: 'USD', note: '2026 IRS limit, under-50' },
+  ],
+  localTax: {
+    label: 'State / Local taxes (varies by location)',
+    note: 'TX, FL, WA: no state income tax.',
+  },
+  stateLocal: [
+    { code: 'NY', label: 'New York State', kind: 'progressive', brackets: NY_STATE_BRACKETS.map((b) => ({ upTo: b.max, rate: b.rate })), stdDeduction: CONSTANTS.NY_STD_DEDUCTION_SINGLE, note: '401(k) pre-tax. NYC residents add NYC local tax.' },
+    { code: 'NYC', label: 'New York City (local, on top of NY)', kind: 'progressive', brackets: NYC_LOCAL_BRACKETS.map((b) => ({ upTo: b.max, rate: b.rate })) },
+    { code: 'NJ', label: 'New Jersey', kind: 'progressive', brackets: NJ_STATE_BRACKETS.map((b) => ({ upTo: b.max, rate: b.rate })), exemption: CONSTANTS.NJ_PERSONAL_EXEMPTION, note: '401(k) EE excluded from NJ taxable wages per GIT-1&2 Jan 2026.' },
+    { code: 'CA', label: 'California', kind: 'progressive', brackets: CA_STATE_BRACKETS.map((b) => ({ upTo: b.max, rate: b.rate })), stdDeduction: CONSTANTS.CA_STD_DEDUCTION_SINGLE },
+    { code: 'MA', label: 'Massachusetts', kind: 'flat', rate: CONSTANTS.MA_FLAT_RATE, exemption: CONSTANTS.MA_PERSONAL_EXEMPTION, note: `4% surtax on income above $${CONSTANTS.MA_SURTAX_THRESHOLD.toLocaleString()}.` },
+    { code: 'WA', label: 'Washington', kind: 'none', note: 'No state income tax.' },
+    { code: 'IL', label: 'Illinois', kind: 'flat', rate: CONSTANTS.IL_FLAT_RATE, exemption: CONSTANTS.IL_PERSONAL_EXEMPTION, note: 'Personal exemption phased out above $250k.' },
+    { code: 'CO', label: 'Colorado', kind: 'flat', rate: CONSTANTS.CO_FLAT_RATE, note: 'Federal taxable income base; no state std deduction.' },
+    { code: 'DC', label: 'District of Columbia', kind: 'progressive', brackets: DC_BRACKETS.map((b) => ({ upTo: b.max, rate: b.rate })), stdDeduction: CONSTANTS.DC_STD_DEDUCTION },
+    { code: 'GA', label: 'Georgia', kind: 'flat', rate: CONSTANTS.GA_FLAT_RATE, stdDeduction: CONSTANTS.GA_STD_DEDUCTION, note: '2026 stepdown per HB 1437.' },
+    { code: 'AZ', label: 'Arizona', kind: 'flat', rate: CONSTANTS.AZ_FLAT_RATE, stdDeduction: CONSTANTS.AZ_STD_DEDUCTION },
+    { code: 'TX', label: 'Texas', kind: 'none', note: 'No state income tax.' },
+    { code: 'FL', label: 'Florida', kind: 'none', note: 'No state income tax.' },
+  ],
+  simplifications: [
+    'Single filer assumed. No itemized deductions modeled.',
+    'NJ assumes 401(k) conformity (per GIT-1&2 Jan 2026); 403(b)/457/IRA out of scope.',
+    'Employer match modeled as dollar-for-dollar up to matchLimitPct, capped by employee contribution.',
+    'Geneva-style local taxes not applicable; only listed states/DC modeled.',
+  ],
+  sources: [
+    { name: 'IRS — federal brackets, 401(k) limit, std deduction', url: 'https://www.irs.gov/' },
+    { name: 'SSA — 2026 wage base', url: 'https://www.ssa.gov/oact/cola/cbb.html' },
+    { name: 'NY Tax Department', url: 'https://www.tax.ny.gov/' },
+    { name: 'NJ Division of Taxation', url: 'https://www.nj.gov/treasury/taxation/' },
+    { name: 'California FTB', url: 'https://www.ftb.ca.gov/' },
+    { name: 'Massachusetts DOR', url: 'https://www.mass.gov/orgs/massachusetts-department-of-revenue' },
+    { name: 'DC Office of Tax & Revenue', url: 'https://otr.cfo.dc.gov/' },
+    { name: 'Georgia DOR', url: 'https://dor.georgia.gov/' },
+    { name: 'Arizona DOR', url: 'https://azdor.gov/' },
+    { name: 'Illinois Revenue', url: 'https://tax.illinois.gov/' },
+    { name: 'Colorado Revenue', url: 'https://tax.colorado.gov/' },
+    { name: 'Tax Foundation', url: 'https://taxfoundation.org/' },
+  ],
+};

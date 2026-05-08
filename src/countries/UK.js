@@ -97,3 +97,46 @@ export const compute = ({
     ],
   };
 };
+
+export const meta = {
+  countryCode: 'UK',
+  countryName: 'United Kingdom',
+  taxYear: '2025/26',
+  lastUpdated: '2026-05-08',
+  incomeTax: {
+    label: 'Income Tax (rUK, single)',
+    brackets: UK_BRACKETS.map((b) => ({ upTo: b.max, rate: b.rate, note: b.rate === 0 ? 'Personal Allowance' : undefined })),
+    notes: [
+      'Personal Allowance tapers above £100k (£1 reduction per £2 over).',
+      'Effective marginal rate ~60% in £100k–£125,140 band.',
+      'Scotland uses different bands (not modeled).',
+    ],
+  },
+  socialSecurity: {
+    label: 'National Insurance (Class 1, employee)',
+    rates: [
+      { label: 'Below primary threshold', rate: 0.00, threshold: `up to £${UK_NI.primaryThreshold.toLocaleString()}` },
+      { label: 'Primary band', rate: UK_NI.rateMain, threshold: `£${UK_NI.primaryThreshold.toLocaleString()} – £${UK_NI.upperEarningsLimit.toLocaleString()}` },
+      { label: 'Above UEL', rate: UK_NI.rateAboveUEL, threshold: `above £${UK_NI.upperEarningsLimit.toLocaleString()}` },
+    ],
+  },
+  deductions: [
+    { label: 'Personal Allowance', amount: UK_PA_FULL, currency: 'GBP', note: 'Tapers above £100k, zero at £125,140.' },
+  ],
+  retirementCaps: [
+    { label: 'Annual Allowance (pension)', amount: UK_ANNUAL_ALLOWANCE, currency: 'GBP', note: 'EE + ER combined for tax-relief purposes.' },
+    { label: 'Qualifying earnings band (lower)', amount: UK_BAND_LOWER, currency: 'GBP' },
+    { label: 'Qualifying earnings band (upper)', amount: UK_BAND_UPPER, currency: 'GBP' },
+  ],
+  localTax: null,
+  simplifications: [
+    'rUK rates only (Scotland not modeled).',
+    'Auto-enrolment minimum contributions assumed (5% EE / 3% ER on qualifying earnings band).',
+    'Salary sacrifice flag reduces NI base when enabled.',
+  ],
+  sources: [
+    { name: 'HMRC — Income Tax rates', url: 'https://www.gov.uk/income-tax-rates' },
+    { name: 'HMRC — National Insurance rates', url: 'https://www.gov.uk/national-insurance-rates-letters' },
+    { name: 'HMRC — Personal Allowance', url: 'https://www.gov.uk/government/publications/income-tax-personal-allowance' },
+  ],
+};

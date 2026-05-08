@@ -69,3 +69,47 @@ export const compute = ({
     ],
   };
 };
+
+export const meta = {
+  countryCode: 'DK',
+  countryName: 'Denmark',
+  taxYear: '2026',
+  lastUpdated: '2026-05-08',
+  incomeTax: {
+    label: 'Income Tax (Copenhagen)',
+    brackets: [
+      { upTo: 641200, rate: DK_BUNDSKAT + DK_KOMMUNESKAT_CPH, note: 'Bundskat + Kommune CPH (subject to skatteloft)' },
+      { upTo: 777900, rate: DK_BUNDSKAT + DK_KOMMUNESKAT_CPH + DK_MELLEMSKAT, note: '+ Mellemskat (7.5%)' },
+      { upTo: 2592700, rate: DK_BUNDSKAT + DK_KOMMUNESKAT_CPH + DK_MELLEMSKAT + DK_TOPSKAT, note: '+ Topskat (7.5%)' },
+      { upTo: Infinity, rate: DK_BUNDSKAT + DK_KOMMUNESKAT_CPH + DK_MELLEMSKAT + DK_TOPSKAT + DK_TOPTOPSKAT, note: '+ Top-topskat (5%)' },
+    ],
+    notes: [
+      `Skatteloft (tax ceiling) ${(DK_SKATTELOFT * 100).toFixed(2)}% caps state + kommune + topskat combined.`,
+      'Personfradrag applied to taxable base.',
+    ],
+  },
+  socialSecurity: {
+    label: 'AM-bidrag + ATP (employee)',
+    rates: [
+      { label: 'AM-bidrag (labour market contribution)', rate: DK_AM_BIDRAG, threshold: 'all gross' },
+      { label: 'ATP (flat annual)', rate: 0, threshold: `DKK ${DK_ATP_EMPLOYEE_ANNUAL}/yr fixed` },
+    ],
+  },
+  deductions: [
+    { label: 'Personfradrag', amount: DK_PERSONFRADRAG, currency: 'DKK' },
+  ],
+  retirementCaps: [
+    { label: 'Ratepension cap (deductible)', amount: DK_RATEPENSION_CAP, currency: 'DKK' },
+    { label: 'ATP employee annual', amount: DK_ATP_EMPLOYEE_ANNUAL, currency: 'DKK' },
+  ],
+  localTax: null,
+  simplifications: [
+    'Copenhagen kommuneskat rate only.',
+    'Aldersopsparing modeled as post-tax savings (not deductible).',
+    'No church tax, no special foreign-expert tax regime.',
+  ],
+  sources: [
+    { name: 'Skat.dk', url: 'https://www.skat.dk/' },
+    { name: 'Borger.dk', url: 'https://www.borger.dk/' },
+  ],
+};

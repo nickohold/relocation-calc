@@ -142,3 +142,12 @@ for (const code of Object.keys(COUNTRIES)) {
     .filter(([, loc]) => loc.country === code)
     .map(([key]) => key);
 }
+
+// Methodology metadata registry. Each country file exports `meta` describing
+// brackets, social security bands, deductions, retirement caps, sources, etc.
+export const META = {
+  US: US.meta, IL: IL.meta, UK: UK.meta, IE: IE.meta, DE: DE.meta,
+  FR: FR.meta, NL: NL.meta, CH: CH.meta, CA: CA.meta, AU: AU.meta,
+  SG: SG.meta, JP: JP.meta, ES: ES.meta, IT: IT.meta, PT: PT.meta,
+  SE: SE.meta, DK: DK.meta, NO: NO.meta, AE: AE.meta, PL: PL.meta,
+};

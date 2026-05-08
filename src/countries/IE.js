@@ -73,3 +73,43 @@ export const compute = ({
     ],
   };
 };
+
+export const meta = {
+  countryCode: 'IE',
+  countryName: 'Ireland',
+  taxYear: '2026',
+  lastUpdated: '2026-05-08',
+  incomeTax: {
+    label: 'Income Tax (PAYE, single)',
+    brackets: IE_BRACKETS_SINGLE.map((b) => ({ upTo: b.max, rate: b.rate })),
+    notes: [`PAYE tax credit €${IE_TAX_CREDITS_SINGLE_PAYE.toLocaleString()} reduces gross income tax.`],
+  },
+  socialSecurity: {
+    label: 'USC + PRSI',
+    rates: [
+      ...IE_USC_BANDS.map((b) => ({ label: 'USC', rate: b.rate, threshold: b.max === Infinity ? `> €${IE_USC_BANDS[IE_USC_BANDS.length - 2]?.max ?? 0}` : `up to €${b.max.toLocaleString()}` })),
+      { label: 'PRSI Class A1', rate: IE_PRSI_RATE, threshold: 'all earnings' },
+    ],
+  },
+  deductions: [
+    { label: 'PAYE tax credit', amount: IE_TAX_CREDITS_SINGLE_PAYE, currency: 'EUR' },
+  ],
+  retirementCaps: [
+    { label: 'Earnings cap for pension relief', amount: IE_EARNINGS_CAP, currency: 'EUR' },
+    { label: 'Age-band % of earnings (under 30)', amount: 15, currency: '%' },
+    { label: 'Age-band % (30–39)', amount: 20, currency: '%' },
+    { label: 'Age-band % (40–49)', amount: 25, currency: '%' },
+    { label: 'Age-band % (50–54)', amount: 30, currency: '%' },
+    { label: 'Age-band % (55–59)', amount: 35, currency: '%' },
+    { label: 'Age-band % (60+)', amount: 40, currency: '%' },
+  ],
+  localTax: null,
+  simplifications: [
+    'Pension contribution reduces income tax base only — NOT USC or PRSI.',
+    'Single PAYE filer assumed.',
+  ],
+  sources: [
+    { name: 'Revenue.ie', url: 'https://www.revenue.ie/' },
+    { name: 'Citizens Information — Income Tax', url: 'https://www.citizensinformation.ie/en/money-and-tax/tax/income-tax/' },
+  ],
+};

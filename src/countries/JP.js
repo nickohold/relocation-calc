@@ -81,3 +81,45 @@ export const compute = ({
     ],
   };
 };
+
+export const meta = {
+  countryCode: 'JP',
+  countryName: 'Japan',
+  taxYear: 'CY 2026',
+  lastUpdated: '2026-05-08',
+  incomeTax: {
+    label: 'National Income Tax (single)',
+    brackets: JP_NATIONAL_BRACKETS.map((b) => ({ upTo: b.max, rate: b.rate })),
+    notes: [`Reconstruction surtax ${(JP_RECONSTRUCTION_SURTAX * 100).toFixed(1)}% on national IT.`],
+  },
+  socialSecurity: {
+    label: 'Pension (EPI) + Health + Employment Insurance (employee share)',
+    rates: [
+      { label: 'Pension (EPI, EE half)', rate: JP_PENSION_RATE, threshold: `monthly remuneration capped ¥${JP_PENSION_REM_CAP_MONTHLY.toLocaleString()}` },
+      { label: 'Health (Tokyo Kyokai Kenpo)', rate: JP_HEALTH_RATE, threshold: `monthly cap ¥${JP_HEALTH_REM_CAP_MONTHLY.toLocaleString()}` },
+      { label: 'Employment Insurance (EE)', rate: JP_EMPLOYMENT_INS_RATE, threshold: 'all gross' },
+    ],
+  },
+  deductions: [
+    { label: 'Basic deduction', amount: JP_BASIC_DEDUCTION, currency: 'JPY' },
+    { label: 'Employment income deduction (cap)', amount: JP_EMPLOYMENT_INCOME_DEDUCTION_CAP, currency: 'JPY' },
+  ],
+  retirementCaps: [
+    { label: 'iDeCo + corp DC monthly cap (combined)', amount: JP_DC_MONTHLY_CAP, currency: 'JPY' },
+  ],
+  localTax: {
+    label: 'Inhabitant Tax (residence tax)',
+    flatRate: JP_INHABITANT_FLAT_RATE,
+    perCapita: JP_INHABITANT_PER_CAPITA,
+    note: 'Flat 10% on taxable income + ¥5,000 per-capita component.',
+  },
+  simplifications: [
+    'Tokyo Kyokai Kenpo health rates assumed (varies slightly by prefecture).',
+    'Employment income deduction modeled at flat cap (real schedule is piecewise; high earners hit cap quickly).',
+    'No spouse/dependent deductions.',
+  ],
+  sources: [
+    { name: 'NTA — National Tax Agency', url: 'https://www.nta.go.jp/' },
+    { name: 'Kyokai Kenpo (health insurance)', url: 'https://www.kyoukaikenpo.or.jp/' },
+  ],
+};

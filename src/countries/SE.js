@@ -55,3 +55,43 @@ export const compute = ({
     ],
   };
 };
+
+export const meta = {
+  countryCode: 'SE',
+  countryName: 'Sweden',
+  taxYear: '2026',
+  lastUpdated: '2026-05-08',
+  incomeTax: {
+    label: 'Income Tax (Stockholm: kommunal + statlig)',
+    brackets: [
+      { upTo: SE_NATIONAL_BRACKETS[0].max, rate: SE_MUNICIPAL_RATE_STOCKHOLM, note: 'Kommunalskatt only (Stockholm)' },
+      { upTo: Infinity, rate: SE_MUNICIPAL_RATE_STOCKHOLM + 0.20, note: 'Kommunal + Statlig (20% national above ~SEK 643k)' },
+    ],
+    notes: [
+      `Stockholm kommunalskatt ${(SE_MUNICIPAL_RATE_STOCKHOLM * 100).toFixed(2)}%. Other municipalities differ.`,
+      'Statlig skatt 20% on income above ~SEK 643,000 (national).',
+      `Jobbskatteavdrag (high-income approximation: SEK ${SE_JOBBSKATTEAVDRAG_HIGH.toLocaleString()}) reduces tax.`,
+    ],
+  },
+  socialSecurity: {
+    label: 'Employee social charges effectively zero (employer pays arbetsgivaravgift)',
+    rates: [],
+  },
+  deductions: [
+    { label: 'Grundavdrag (default)', amount: SE_GRUNDAVDRAG_DEFAULT, currency: 'SEK', note: 'Approximation; real schedule is piecewise.' },
+    { label: 'Jobbskatteavdrag (high-income approx)', amount: SE_JOBBSKATTEAVDRAG_HIGH, currency: 'SEK' },
+  ],
+  retirementCaps: [
+    { label: 'IBA 2026 (income base amount)', amount: SE_IBA_2026, currency: 'SEK' },
+    { label: 'ITP1 threshold (7.5 × IBA)', amount: SE_THRESHOLD_75, currency: 'SEK' },
+  ],
+  localTax: null,
+  simplifications: [
+    'Only Stockholm kommunalskatt rate modeled.',
+    'Grundavdrag and jobbskatteavdrag piecewise functions approximated to single values.',
+    'ITP1 modeled as 4.5% under threshold + 30% over.',
+  ],
+  sources: [
+    { name: 'Skatteverket', url: 'https://www.skatteverket.se/' },
+  ],
+};

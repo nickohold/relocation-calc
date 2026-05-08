@@ -70,3 +70,44 @@ export const compute = ({
     ],
   };
 };
+
+export const meta = {
+  countryCode: 'PL',
+  countryName: 'Poland',
+  taxYear: '2026',
+  lastUpdated: '2026-05-08',
+  incomeTax: {
+    label: 'PIT (single)',
+    brackets: [
+      { upTo: PL_FIRST_BRACKET, rate: PL_LOW_RATE, note: `Less reducing amount PLN ${PL_REDUCING_AMOUNT.toLocaleString()}` },
+      { upTo: Infinity, rate: PL_HIGH_RATE },
+    ],
+    notes: [
+      `Solidarity levy ${(PL_SOLIDARITY_LEVY_RATE * 100).toFixed(0)}% on income above PLN ${PL_SOLIDARITY_LEVY_THRESHOLD.toLocaleString()}.`,
+    ],
+  },
+  socialSecurity: {
+    label: 'ZUS + Health (employee)',
+    rates: [
+      { label: 'ZUS (capped)', rate: PL_ZUS_RATE, threshold: `up to PLN ${PL_ZUS_CAP.toLocaleString()}` },
+      { label: 'ZUS (above cap, sickness)', rate: PL_ZUS_RATE_ABOVE_CAP, threshold: `above PLN ${PL_ZUS_CAP.toLocaleString()}` },
+      { label: 'Health (NFZ)', rate: PL_HEALTH_RATE, threshold: 'on (gross − ZUS)' },
+    ],
+  },
+  deductions: [
+    { label: 'PIT reducing amount', amount: PL_REDUCING_AMOUNT, currency: 'PLN' },
+  ],
+  retirementCaps: [
+    { label: 'IKZE deductible cap', amount: PL_IKZE_CAP, currency: 'PLN' },
+    { label: 'PPK state annual subsidy', amount: PL_PPK_STATE_SUBSIDY, currency: 'PLN' },
+  ],
+  localTax: null,
+  simplifications: [
+    'Only IKZE is pre-tax; PPK EE is post-tax.',
+    'Health contribution applied at flat 9% on (gross − ZUS) regardless of business form.',
+  ],
+  sources: [
+    { name: 'podatki.gov.pl', url: 'https://www.podatki.gov.pl/' },
+    { name: 'ZUS', url: 'https://www.zus.pl/' },
+  ],
+};

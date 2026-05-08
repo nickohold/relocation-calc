@@ -97,3 +97,46 @@ export const compute = ({
     ],
   };
 };
+
+export const meta = {
+  countryCode: 'IT',
+  countryName: 'Italy',
+  taxYear: '2026',
+  lastUpdated: '2026-05-08',
+  incomeTax: {
+    label: 'IRPEF national (post-Bilancio 2026, single)',
+    brackets: IT_NATIONAL_BRACKETS_2026.map((b) => ({ upTo: b.max, rate: b.rate })),
+    notes: ['Detrazione lavoro dipendente (employment credit) reduces gross IRPEF.'],
+  },
+  socialSecurity: {
+    label: 'INPS (employee share)',
+    rates: [
+      { label: 'INPS base', rate: IT_INPS_BASE_RATE, threshold: `up to €${IT_INPS_FIRST_CEILING.toLocaleString()}` },
+      { label: 'INPS additional 1%', rate: IT_INPS_BASE_RATE + IT_INPS_ADD_RATE, threshold: `€${IT_INPS_FIRST_CEILING.toLocaleString()} – €${IT_INPS_MASSIMALE.toLocaleString()}` },
+    ],
+  },
+  deductions: [
+    { label: 'Detrazione lavoro (income ≤ €15k)', amount: 1955, currency: 'EUR', note: 'Tapers; piecewise schedule.' },
+  ],
+  retirementCaps: [
+    { label: 'Fondo pensione EE deductible cap', amount: IT_PENSION_DEDUCT_CAP, currency: 'EUR' },
+    { label: 'TFR accrual rate (of gross)', amount: IT_TFR_RATE * 100, currency: '%' },
+  ],
+  localTax: {
+    label: 'Addizionale regionale + comunale',
+    regions: [
+      { code: 'LOM', label: 'Lombardia', brackets: IT_LOMBARDY_BRACKETS.map((b) => ({ upTo: b.max, rate: b.rate })), communal: IT_MILAN_COMMUNAL, communalLabel: 'Milan' },
+      { code: 'LAZ', label: 'Lazio', brackets: IT_LAZIO_BRACKETS.map((b) => ({ upTo: b.max, rate: b.rate })), communal: IT_ROME_COMMUNAL, communalLabel: 'Rome' },
+    ],
+  },
+  simplifications: [
+    'Only Milan (Lombardia) and Rome (Lazio) modeled.',
+    'EE deduction cap clamps EE only; combined EE+ER cap not separately modeled.',
+    'TFR shown as employer savings accrual (toggle to include).',
+    'Impatriate / lavoratori impatriati regimes not applied.',
+  ],
+  sources: [
+    { name: 'Agenzia delle Entrate', url: 'https://www.agenziaentrate.gov.it/' },
+    { name: 'INPS', url: 'https://www.inps.it/' },
+  ],
+};

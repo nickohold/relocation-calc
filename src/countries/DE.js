@@ -84,3 +84,46 @@ export const compute = ({
     ],
   };
 };
+
+export const meta = {
+  countryCode: 'DE',
+  countryName: 'Germany',
+  taxYear: '2026',
+  lastUpdated: '2026-05-08',
+  incomeTax: {
+    label: 'Einkommensteuer (§32a EStG, single — APPROXIMATED)',
+    brackets: DE_BRACKETS_SINGLE.map((b) => ({ upTo: b.max, rate: b.rate })),
+    notes: [
+      'Real §32a uses quadratic zones 2 and 3 — flat-rate approximation here.',
+      `Solidaritätszuschlag (${(DE_SOLI_RATE * 100).toFixed(1)}%) applies when gross IT > €${DE_SOLI_FREIGRENZE_TAX.toLocaleString()}.`,
+    ],
+  },
+  socialSecurity: {
+    label: 'Sozialversicherung (employee share, 2026)',
+    rates: [
+      { label: 'Pension (RV)', rate: DE_SOC_2026.pension, threshold: `up to BBG €${DE_SOC_2026.pension_unemp_cap.toLocaleString()}` },
+      { label: 'Unemployment (ALV)', rate: DE_SOC_2026.unemployment, threshold: `up to BBG €${DE_SOC_2026.pension_unemp_cap.toLocaleString()}` },
+      { label: 'Health (KV base + Zusatz)', rate: DE_SOC_2026.health_base + DE_SOC_2026.health_zusatz, threshold: `up to €${DE_SOC_2026.health_ltc_cap.toLocaleString()}` },
+      { label: 'Long-term care (PV, childless)', rate: DE_SOC_2026.ltc + DE_SOC_2026.ltc_childless_surcharge, threshold: `up to €${DE_SOC_2026.health_ltc_cap.toLocaleString()}` },
+    ],
+  },
+  deductions: [
+    { label: 'Werbungskostenpauschale', amount: DE_WERBUNGSKOSTEN_PAUSCHALE, currency: 'EUR' },
+  ],
+  retirementCaps: [
+    { label: 'BBG-RV (pension/unemp ceiling)', amount: DE_BBG_RV_2026, currency: 'EUR' },
+    { label: 'bAV tax-free cap (8% × BBG)', amount: 0.08 * DE_BBG_RV_2026, currency: 'EUR' },
+    { label: 'Riester max (if eligible)', amount: 2100, currency: 'EUR' },
+  ],
+  localTax: null,
+  simplifications: [
+    'Income-tax brackets approximated as flat rates per zone (real §32a is quadratic in zones 2-3).',
+    'Childless LTC surcharge applied; family/Kirchensteuer not modeled.',
+    'bAV via Entgeltumwandlung; Riester applied only when flag set.',
+  ],
+  sources: [
+    { name: 'Bundesfinanzministerium (BMF) — Einkommensteuertarif', url: 'https://www.bundesfinanzministerium.de/' },
+    { name: 'Deutsche Rentenversicherung — BBG', url: 'https://www.deutsche-rentenversicherung.de/' },
+    { name: 'GKV-Spitzenverband — KV-Beiträge', url: 'https://www.gkv-spitzenverband.de/' },
+  ],
+};

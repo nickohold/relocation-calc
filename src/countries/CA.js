@@ -125,3 +125,54 @@ export const compute = ({
     ],
   };
 };
+
+export const meta = {
+  countryCode: 'CA',
+  countryName: 'Canada',
+  taxYear: '2026',
+  lastUpdated: '2026-05-08',
+  incomeTax: {
+    label: 'Federal Income Tax (single)',
+    brackets: CA_FEDERAL_BRACKETS.map((b) => ({ upTo: b.max, rate: b.rate })),
+    notes: [`Basic Personal Amount $${CA_FEDERAL_BPA.toLocaleString()} as a non-refundable credit at lowest rate.`],
+  },
+  socialSecurity: {
+    label: 'CPP/QPP + EI + (QPIP for QC)',
+    rates: [
+      { label: 'CPP base', rate: CA_CPP.rate, threshold: `$${CA_CPP.basicExemption.toLocaleString()} – $${CA_CPP.ympe.toLocaleString()}` },
+      { label: 'CPP2', rate: CA_CPP.cpp2Rate, threshold: `$${CA_CPP.ympe.toLocaleString()} – $${CA_CPP.yampe.toLocaleString()}` },
+      { label: 'QPP base (QC only)', rate: CA_QPP.rate, threshold: `$${CA_CPP.basicExemption.toLocaleString()} – $${CA_CPP.ympe.toLocaleString()}` },
+      { label: 'EI (rest of Canada)', rate: CA_EI.rest.rate, threshold: `up to $${CA_EI.rest.mie.toLocaleString()}` },
+      { label: 'EI (QC)', rate: CA_EI.qc.rate, threshold: `up to $${CA_EI.qc.mie.toLocaleString()}` },
+      { label: 'QPIP (QC only)', rate: CA_QPIP.rate, threshold: `up to $${CA_QPIP.mie.toLocaleString()}` },
+    ],
+  },
+  deductions: [
+    { label: 'Federal BPA', amount: CA_FEDERAL_BPA, currency: 'CAD' },
+    { label: 'ON BPA', amount: CA_ON_BPA, currency: 'CAD' },
+    { label: 'BC BPA', amount: CA_BC_BPA, currency: 'CAD' },
+    { label: 'QC BPA', amount: CA_QC_BPA, currency: 'CAD' },
+  ],
+  retirementCaps: [
+    { label: 'RRSP annual maximum', amount: CA_RRSP_MAX, currency: 'CAD', note: 'Or 18% of earned income, whichever is lower.' },
+  ],
+  localTax: {
+    label: 'Provincial Income Tax',
+    provinces: [
+      { code: 'ON', label: 'Ontario', brackets: CA_ON_BRACKETS.map((b) => ({ upTo: b.max, rate: b.rate })), note: 'ON surtax: +20% above $5,818 prov tax, +36% above $7,446.' },
+      { code: 'BC', label: 'British Columbia', brackets: CA_BC_BRACKETS.map((b) => ({ upTo: b.max, rate: b.rate })) },
+      { code: 'QC', label: 'Quebec', brackets: CA_QC_BRACKETS.map((b) => ({ upTo: b.max, rate: b.rate })), note: `Federal abatement of ${(CA_QC_FEDERAL_ABATEMENT * 100).toFixed(1)}%.` },
+    ],
+  },
+  simplifications: [
+    'Only ON / BC / QC provinces modeled.',
+    'BPA modeled as credit at lowest bracket rate (federal taper above ~$173k not applied).',
+    'TFSA modeled as already-taxed savings (no IT impact).',
+  ],
+  sources: [
+    { name: 'CRA — federal', url: 'https://www.canada.ca/en/revenue-agency.html' },
+    { name: 'Ontario Personal Income Tax', url: 'https://www.ontario.ca/page/personal-income-tax' },
+    { name: 'BC Personal Income Tax', url: 'https://www2.gov.bc.ca/gov/content/taxes/income-taxes/personal' },
+    { name: 'Revenu Québec', url: 'https://www.revenuquebec.ca/' },
+  ],
+};

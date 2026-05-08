@@ -72,3 +72,46 @@ export const compute = ({
     ],
   };
 };
+
+export const meta = {
+  countryCode: 'ES',
+  countryName: 'Spain',
+  taxYear: '2026',
+  lastUpdated: '2026-05-08',
+  incomeTax: {
+    label: 'IRPF (state portion, single)',
+    brackets: ES_STATE_BRACKETS.map((b) => ({ upTo: b.max, rate: b.rate })),
+    notes: ['Total IRPF = state + regional (autonomous community).'],
+  },
+  socialSecurity: {
+    label: 'Seguridad Social (employee share)',
+    rates: [
+      { label: 'Seguridad Social', rate: ES_SS_RATE, threshold: `up to base cap €${ES_SS_BASE_CAP_ANNUAL.toLocaleString()}/yr` },
+    ],
+  },
+  deductions: [
+    { label: 'Mínimo personal (single)', amount: ES_PERSONAL_ALLOWANCE, currency: 'EUR' },
+  ],
+  retirementCaps: [
+    { label: 'Plan de pensiones individual cap', amount: ES_PENSION_INDIV_CAP, currency: 'EUR' },
+    { label: 'Plan de empleo (ER) cap', amount: ES_PENSION_EMPLEO_CAP, currency: 'EUR' },
+  ],
+  localTax: {
+    label: 'Regional IRPF (autonomous communities)',
+    regions: [
+      { code: 'MAD', label: 'Madrid', brackets: ES_MAD_BRACKETS.map((b) => ({ upTo: b.max, rate: b.rate })) },
+      { code: 'CAT', label: 'Cataluña', brackets: ES_CAT_BRACKETS.map((b) => ({ upTo: b.max, rate: b.rate })) },
+    ],
+  },
+  simplifications: [
+    'Only Madrid and Cataluña regional schedules modeled.',
+    'No reductions for joint filing, large family, etc.',
+    'Beckham Law (impatriate flat 24%) not applied.',
+  ],
+  sources: [
+    { name: 'Agencia Tributaria (AEAT)', url: 'https://sede.agenciatributaria.gob.es/' },
+    { name: 'Comunidad de Madrid — Hacienda', url: 'https://www.comunidad.madrid/' },
+    { name: 'Agència Tributària de Catalunya', url: 'https://atc.gencat.cat/' },
+    { name: 'Seguridad Social', url: 'https://www.seg-social.es/' },
+  ],
+};

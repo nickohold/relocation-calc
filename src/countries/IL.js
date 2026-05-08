@@ -167,3 +167,57 @@ export const compute = ({
     ],
   };
 };
+
+// Build cumulative monthly brackets for display from width-based IL_TAX_BRACKETS.
+const _ilCumulativeBrackets = (() => {
+  let cum = 0;
+  return IL_TAX_BRACKETS.map((b) => {
+    cum += b.width;
+    return { upTo: b.width === Infinity ? Infinity : cum, rate: b.rate };
+  });
+})();
+
+export const meta = {
+  countryCode: 'IL',
+  countryName: 'Israel',
+  taxYear: '2026',
+  lastUpdated: '2026-05-08',
+  incomeTax: {
+    label: 'Mas Hachnasa (monthly brackets, post-March-2026 widening)',
+    brackets: _ilCumulativeBrackets,
+    notes: [
+      'Brackets are MONTHLY (ILS). Annual figures = monthly × 12.',
+      'Frozen 2025–2027 per Israeli MoF.',
+      'Credit points (nekudot zikui) reduce monthly tax: 2.25 default × ' + CONSTANTS.CREDIT_POINT_VALUE_ILS + ' ILS/point.',
+    ],
+  },
+  socialSecurity: {
+    label: 'Bituach Leumi (BTL) + Mas Briut (Health Tax) — monthly',
+    rates: [
+      { label: 'BTL low band', rate: CONSTANTS.BTL_LOW_RATE, threshold: `up to ₪${CONSTANTS.BTL_THRESHOLD.toLocaleString()}/mo` },
+      { label: 'BTL high band', rate: CONSTANTS.BTL_HIGH_RATE, threshold: `₪${CONSTANTS.BTL_THRESHOLD.toLocaleString()} – ₪${CONSTANTS.BTL_CAP.toLocaleString()}/mo` },
+      { label: 'Health low', rate: CONSTANTS.HEALTH_LOW_RATE, threshold: `up to ₪${CONSTANTS.BTL_THRESHOLD.toLocaleString()}/mo` },
+      { label: 'Health high', rate: CONSTANTS.HEALTH_HIGH_RATE, threshold: `₪${CONSTANTS.BTL_THRESHOLD.toLocaleString()} – ₪${CONSTANTS.BTL_CAP.toLocaleString()}/mo` },
+    ],
+  },
+  deductions: [
+    { label: 'Credit point value (per point)', amount: CONSTANTS.CREDIT_POINT_VALUE_ILS, currency: 'ILS', note: 'Monthly tax credit. Default 2.25 points.' },
+  ],
+  retirementCaps: [
+    { label: 'Pension credit income cap', amount: CONSTANTS.PENSION_CREDIT_INCOME_CAP, currency: 'ILS', note: `Monthly. ${(CONSTANTS.PENSION_CREDIT_RATE * 100).toFixed(0)}% credit on min(EE_pension, ${(CONSTANTS.PENSION_CREDIT_PCT_CAP * 100).toFixed(0)}% × insured salary).` },
+    { label: 'Keren Hishtalmut salary cap', amount: CONSTANTS.KEREN_HISHTALMUT_SALARY_CAP, currency: 'ILS', note: 'Monthly cap on tax-favored basis.' },
+  ],
+  localTax: null,
+  simplifications: [
+    'Severance (8.33%) modeled as employer savings contribution; toggle "include in total savings" controls visibility.',
+    `BTL_THRESHOLD/CAP held at 2025 carry-over values (${CONSTANTS.BTL_THRESHOLD}/${CONSTANTS.BTL_CAP}) pending payslip-regression refresh — spec proposes 7522/50695 for 2026.`,
+    `Credit point value held at 242 ILS (conservative 2025) until btl.gov.il confirms 2026 (research suggests 254).`,
+    'Pension credit: 35% × min(EE_pension, 7% × min(gross, 9684 ILS/mo)).',
+  ],
+  sources: [
+    { name: 'Bituach Leumi (BTL) — 2026 rates', url: 'https://www.btl.gov.il/' },
+    { name: 'Mas Hachnasa (taxes.gov.il)', url: 'https://www.taxes.gov.il/' },
+    { name: 'PwC Israel — 2026 summary', url: 'https://taxsummaries.pwc.com/israel' },
+    { name: 'Israeli Ministry of Finance', url: 'https://www.gov.il/en/departments/ministry_of_finance' },
+  ],
+};

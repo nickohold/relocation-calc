@@ -17,6 +17,7 @@ import UnifiedBreakdown from './components/UnifiedBreakdown.jsx';
 import BreakdownControls from './components/BreakdownControls.jsx';
 import { pickDisplayCurrency } from './components/formatCurrency.js';
 import { PENSION_META } from './components/pensionMeta.js';
+import MethodologyDrawer, { MethodologyTrigger } from './components/Methodology.jsx';
 
 const SOURCE_KEY_STORAGE = 'relocation-calc:sourceKey';
 const DEST_KEY_STORAGE = 'relocation-calc:destKey';
@@ -281,6 +282,7 @@ const App = () => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem(MATCH_SAVINGS_STORAGE) === '1';
   });
+  const [methodologyOpen, setMethodologyOpen] = useState(false);
   const [period, setPeriod] = useState(() => {
     if (typeof window === 'undefined') return 'annual';
     return window.localStorage.getItem('relocation-calc:breakdownPeriod') === 'monthly' ? 'monthly' : 'annual';
@@ -480,7 +482,13 @@ const App = () => {
             <a href="/disclaimer.html" className="underline hover:text-orange-500">disclaimer</a>
             {' · '}
             <a href="/privacy.html" className="underline hover:text-orange-500">privacy</a>
-            .
+            {' · '}
+            <MethodologyTrigger
+              theme={theme}
+              sourceCode={sourcePayload.countryCode}
+              destCode={destPayload.countryCode}
+              onOpen={() => setMethodologyOpen(true)}
+            />
           </div>
           <a
             href={`https://github.com/nickohold/relocation-calc/commit/${__APP_SHA__}`}
@@ -492,6 +500,13 @@ const App = () => {
           </a>
         </footer>
       </div>
+      <MethodologyDrawer
+        theme={theme}
+        open={methodologyOpen}
+        onClose={() => setMethodologyOpen(false)}
+        sourceCode={sourcePayload.countryCode}
+        destCode={destPayload.countryCode}
+      />
       <a
         href="https://ko-fi.com/nickholden"
         target="_blank"

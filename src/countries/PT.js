@@ -66,3 +66,40 @@ export const compute = ({
     ],
   };
 };
+
+export const meta = {
+  countryCode: 'PT',
+  countryName: 'Portugal',
+  taxYear: '2026',
+  lastUpdated: '2026-05-08',
+  incomeTax: {
+    label: 'IRS (regular resident, single)',
+    brackets: PT_BRACKETS_2026.map((b) => ({ upTo: b.max, rate: b.rate })),
+    notes: ['Solidarity surcharge: +2.5% above €80k, +5% above €250k.'],
+  },
+  socialSecurity: {
+    label: 'Segurança Social (employee share)',
+    rates: [
+      { label: 'Social Security', rate: PT_SOCIAL_SECURITY_RATE, threshold: 'all gross' },
+    ],
+  },
+  deductions: [
+    { label: 'Dedução específica (employment)', amount: PT_DEDUCAO_ESPECIFICA, currency: 'EUR' },
+  ],
+  retirementCaps: [
+    { label: 'PPR cap (under 35)', amount: 2000, currency: 'EUR' },
+    { label: 'PPR cap (35–49)', amount: 1750, currency: 'EUR' },
+    { label: 'PPR cap (50+)', amount: 1500, currency: 'EUR' },
+    { label: 'PPR tax credit rate', amount: PT_PPR_CREDIT_RATE * 100, currency: '%' },
+  ],
+  localTax: null,
+  simplifications: [
+    'Regular resident only — IFICI / former NHR / RNH 2.0 regimes not applied.',
+    'PPR is a tax credit (post-IRS), not a base reduction.',
+    'No dependents, no health/education itemizations.',
+  ],
+  sources: [
+    { name: 'Portal das Finanças', url: 'https://www.portaldasfinancas.gov.pt/' },
+    { name: 'Segurança Social', url: 'https://www.seg-social.pt/' },
+  ],
+};

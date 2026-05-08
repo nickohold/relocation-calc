@@ -74,3 +74,44 @@ export const compute = ({
     ],
   };
 };
+
+export const meta = {
+  countryCode: 'FR',
+  countryName: 'France',
+  taxYear: '2026',
+  lastUpdated: '2026-05-08',
+  incomeTax: {
+    label: 'Impôt sur le revenu (revenus 2025, single)',
+    brackets: FR_BRACKETS_2026.map((b) => ({ upTo: b.max, rate: b.rate })),
+    notes: [
+      `Abattement 10% (min €${FR_ABATTEMENT.min}, max €${FR_ABATTEMENT.max.toLocaleString()}) on net professional income.`,
+      'CEHR (contribution exceptionnelle haut revenus) adds up to 4% above €500k.',
+    ],
+  },
+  socialSecurity: {
+    label: 'Cotisations sociales + CSG/CRDS (employee, simplified flat)',
+    rates: [
+      { label: 'Cotisations (flat approx., non-cadre)', rate: FR_FLAT_COTIS, threshold: 'gross brut' },
+      { label: 'CSG déductible', rate: FR_CSG_DEDUCTIBLE, threshold: '98.25% of gross' },
+      { label: 'CSG non-déductible', rate: FR_CSG_NONDEDUCT, threshold: '98.25% of gross' },
+      { label: 'CRDS', rate: FR_CRDS, threshold: '98.25% of gross' },
+    ],
+  },
+  deductions: [
+    { label: 'Abattement 10% min', amount: FR_ABATTEMENT.min, currency: 'EUR' },
+    { label: 'Abattement 10% max', amount: FR_ABATTEMENT.max, currency: 'EUR' },
+  ],
+  retirementCaps: [
+    { label: 'PER deductible cap (annual)', amount: FR_PER_MAX, currency: 'EUR' },
+  ],
+  localTax: null,
+  simplifications: [
+    'Employee social charges modeled as a flat ~22% of brut (non-cadre approximation).',
+    'Real cotisations are multi-tranche (URSSAF/Agirc-Arrco/etc.) — not separated.',
+    'Single, no children, no quotient familial >1.',
+  ],
+  sources: [
+    { name: 'Impôts.gouv.fr', url: 'https://www.impots.gouv.fr/' },
+    { name: 'URSSAF', url: 'https://www.urssaf.fr/' },
+  ],
+};

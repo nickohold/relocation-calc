@@ -121,3 +121,48 @@ export const compute = ({
     ],
   };
 };
+
+export const meta = {
+  countryCode: 'CH',
+  countryName: 'Switzerland',
+  taxYear: '2026',
+  lastUpdated: '2026-05-08',
+  incomeTax: {
+    label: 'Federal Direct Tax (DBG, single)',
+    brackets: CH_FEDERAL_BRACKETS_SINGLE.map((b) => ({ upTo: b.max, rate: b.rate })),
+    notes: ['Top federal rate decreases above CHF 783,300 by design (max DBG cap).'],
+  },
+  socialSecurity: {
+    label: 'AHV/IV/EO + ALV (employee share)',
+    rates: [
+      { label: 'AHV/IV/EO', rate: CH_SOC_2026.ahv_iv_eo, threshold: 'all gross' },
+      { label: 'ALV (low)', rate: CH_SOC_2026.alv_low, threshold: `up to CHF ${CH_SOC_2026.alv_cap.toLocaleString()}` },
+      { label: 'ALV (solidarity)', rate: CH_SOC_2026.alv_solidarity, threshold: `above CHF ${CH_SOC_2026.alv_cap.toLocaleString()}` },
+    ],
+  },
+  deductions: [
+    { label: 'BVG coordination deduction', amount: CH_BVG_COORD_DEDUCTION, currency: 'CHF' },
+    { label: 'BVG upper limit', amount: CH_BVG_UPPER, currency: 'CHF' },
+  ],
+  retirementCaps: [
+    { label: 'Säule 3a (with PK)', amount: CH_SAULE3A_MAX_WITH_PK, currency: 'CHF' },
+  ],
+  localTax: {
+    label: 'Cantonal + Communal (ZH or GE)',
+    cantons: [
+      { code: 'ZH', label: 'Zurich (Einfache Steuer × multiplier)', multiplier: CH_ZH_MULTIPLIER, brackets: CH_ZH_BRACKETS_EINFACH_SINGLE.map((b) => ({ upTo: b.max, rate: b.rate })) },
+      { code: 'GE', label: 'Geneva ICC (approximated)', multiplier: CH_GE_MULTIPLIER, brackets: CH_GE_BRACKETS_EINFACH_SINGLE.map((b) => ({ upTo: b.max, rate: b.rate })) },
+    ],
+  },
+  simplifications: [
+    'Only ZH and GE modeled. Other 24 cantons not supported.',
+    'Geneva ICC uses simple bracket approximation; the official continuous-formula coefficients vary year-to-year.',
+    'Zurich applies a single combined multiplier (~2.20) to einfache Steuer (canton + Stadt + church-equivalent).',
+    'Auto BVG split (half/half by age band 7/10/15/18%) unless overridden.',
+  ],
+  sources: [
+    { name: 'ESTV — Federal DBG', url: 'https://www.estv.admin.ch/' },
+    { name: 'Kanton Zürich — Steuern', url: 'https://www.zh.ch/de/steuern-finanzen.html' },
+    { name: 'Genève — Impôts particuliers', url: 'https://www.ge.ch/c/impots-particuliers' },
+  ],
+};

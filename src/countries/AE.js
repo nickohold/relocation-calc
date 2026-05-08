@@ -47,3 +47,37 @@ export const compute = ({
     ],
   };
 };
+
+export const meta = {
+  countryCode: 'AE',
+  countryName: 'United Arab Emirates',
+  taxYear: '2026',
+  lastUpdated: '2026-05-08',
+  incomeTax: {
+    label: 'No personal income tax',
+    brackets: [{ upTo: Infinity, rate: 0.00, note: 'UAE has no personal income tax.' }],
+    notes: ['9% Corporate Tax does not apply to employment income.'],
+  },
+  socialSecurity: {
+    label: 'ILOE (unemployment insurance, mandatory for employees)',
+    rates: [
+      { label: 'ILOE (basic salary ≤ AED 16,000/mo)', rate: 0, threshold: 'AED 60/yr fixed' },
+      { label: 'ILOE (basic salary > AED 16,000/mo)', rate: 0, threshold: `AED ${AE_ILOE_ANNUAL}/yr fixed` },
+    ],
+  },
+  deductions: [],
+  retirementCaps: [
+    { label: 'EOSG accrual (years 1–4)', amount: 5.83, currency: '%', note: '21 days/yr of basic salary.' },
+    { label: 'EOSG accrual (year 5+)', amount: 8.33, currency: '%', note: '30 days/yr of basic salary.' },
+  ],
+  localTax: null,
+  simplifications: [
+    'EOSG (End-of-Service Gratuity) modeled as annual accrual on Basic salary; Basic % of gross is configurable.',
+    'No DIFC/ADGM-specific savings schemes modeled.',
+  ],
+  sources: [
+    { name: 'UAE Federal Tax Authority', url: 'https://www.tax.gov.ae/' },
+    { name: 'u.ae — Taxation', url: 'https://u.ae/en/information-and-services/finance-and-investment/taxation' },
+    { name: 'ILOE — Unemployment Insurance', url: 'https://www.iloe.ae/' },
+  ],
+};

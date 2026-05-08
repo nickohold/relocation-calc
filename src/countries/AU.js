@@ -64,3 +64,37 @@ export const compute = ({
     ],
   };
 };
+
+export const meta = {
+  countryCode: 'AU',
+  countryName: 'Australia',
+  taxYear: 'FY 2025-26',
+  lastUpdated: '2026-05-08',
+  incomeTax: {
+    label: 'Income Tax (resident, single)',
+    brackets: AU_BRACKETS.map((b) => ({ upTo: b.max, rate: b.rate })),
+    notes: ['Tax-free threshold $18,200.'],
+  },
+  socialSecurity: {
+    label: 'Medicare Levy + MLS (no separate "social security")',
+    rates: [
+      { label: 'Medicare Levy', rate: AU_MEDICARE_LEVY, threshold: 'income > $32,500' },
+      ...AU_MLS_SINGLE.map((b) => ({ label: 'MLS (single)', rate: b.rate, threshold: b.max === Infinity ? '> $158,000' : `up to $${b.max.toLocaleString()}` })),
+    ],
+  },
+  deductions: [],
+  retirementCaps: [
+    { label: 'Super Guarantee rate (ER)', amount: AU_SUPER_RATE * 100, currency: '%' },
+    { label: 'Concessional contributions cap', amount: AU_SUPER_CONCESSIONAL_CAP, currency: 'AUD' },
+    { label: 'Maximum SG OTE base', amount: AU_MSCB_OTE, currency: 'AUD' },
+  ],
+  localTax: null,
+  simplifications: [
+    'Single, resident; no HELP/HECS, no LITO/LMITO refinements.',
+    'Salary sacrifice fills concessional cap headroom only (avoids Div 293 mechanics).',
+  ],
+  sources: [
+    { name: 'ATO — Individual income tax rates', url: 'https://www.ato.gov.au/rates/individual-income-tax-rates/' },
+    { name: 'ATO — main', url: 'https://www.ato.gov.au/' },
+  ],
+};

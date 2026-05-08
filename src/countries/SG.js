@@ -68,3 +68,43 @@ export const compute = ({
     ],
   };
 };
+
+export const meta = {
+  countryCode: 'SG',
+  countryName: 'Singapore',
+  taxYear: 'YA 2026',
+  lastUpdated: '2026-05-08',
+  incomeTax: {
+    label: 'Income Tax (resident, single)',
+    brackets: SG_BRACKETS.map((b) => ({ upTo: b.max, rate: b.rate })),
+    notes: ['Earned income relief reduces taxable base.'],
+  },
+  socialSecurity: {
+    label: 'CPF (Citizen/PR only — foreigners on EP/S-Pass are exempt)',
+    rates: [
+      { label: 'EE under 55', rate: 0.20, threshold: `monthly OW; annual ceiling S$${SG_CPF.annual_wage_ceiling.toLocaleString()}` },
+      { label: 'ER under 55', rate: 0.17, threshold: 'matches ceiling' },
+      { label: 'EE 55–60', rate: 0.18 },
+      { label: 'ER 55–60', rate: 0.16 },
+      { label: 'EE 60–65', rate: 0.125 },
+      { label: 'ER 60–65', rate: 0.125 },
+    ],
+  },
+  deductions: [
+    { label: 'Earned Income Relief', amount: SG_EARNED_INCOME_RELIEF, currency: 'SGD' },
+  ],
+  retirementCaps: [
+    { label: 'CPF annual wage ceiling', amount: SG_CPF.annual_wage_ceiling, currency: 'SGD' },
+    { label: 'SRS cap (citizen/PR)', amount: SG_SRS_CAP_LOCAL, currency: 'SGD' },
+    { label: 'SRS cap (foreigner)', amount: SG_SRS_CAP_FOREIGN, currency: 'SGD' },
+  ],
+  localTax: null,
+  simplifications: [
+    'CPF rates simplified to age bands; real-world step-downs occur on monthly OW.',
+    'No NS/NSman reliefs, parent reliefs, or course fees relief modeled.',
+  ],
+  sources: [
+    { name: 'IRAS — Inland Revenue Authority of Singapore', url: 'https://www.iras.gov.sg/' },
+    { name: 'CPF Board', url: 'https://www.cpf.gov.sg/' },
+  ],
+};

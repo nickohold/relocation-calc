@@ -71,3 +71,42 @@ export const compute = ({
     ],
   };
 };
+
+export const meta = {
+  countryCode: 'NO',
+  countryName: 'Norway',
+  taxYear: '2026',
+  lastUpdated: '2026-05-08',
+  incomeTax: {
+    label: 'Income Tax (Oslo)',
+    brackets: [
+      { upTo: Infinity, rate: NO_ALMINNELIG_RATE, note: 'Alminnelig inntekt flat (after deductions)' },
+      ...NO_TRINNSKATT.map((b) => ({ upTo: b.max, rate: b.rate, note: 'Trinnskatt (added on top of alminnelig)' })),
+    ],
+    notes: ['Alminnelig 22% applies to taxable income net of personfradrag and minstefradrag. Trinnskatt is additive.'],
+  },
+  socialSecurity: {
+    label: 'Trygdeavgift (employee national insurance)',
+    rates: [
+      { label: 'Trygdeavgift', rate: NO_TRYGDEAVGIFT, threshold: 'all gross' },
+    ],
+  },
+  deductions: [
+    { label: 'Personfradrag', amount: NO_PERSONFRADRAG, currency: 'NOK' },
+    { label: 'Minstefradrag rate', amount: NO_MINSTEFRADRAG_RATE * 100, currency: '%' },
+    { label: 'Minstefradrag cap', amount: NO_MINSTEFRADRAG_CAP, currency: 'NOK' },
+  ],
+  retirementCaps: [
+    { label: 'IPS deductible cap', amount: NO_IPS_CAP, currency: 'NOK' },
+    { label: 'G (folketrygdens grunnbeløp)', amount: NO_G_2025, currency: 'NOK', note: 'Used for OTP coordination thresholds.' },
+  ],
+  localTax: null,
+  simplifications: [
+    'Oslo only.',
+    'OTP modeled with statutory cliff at 7.1G (rate stepup to 18.1%).',
+    'No formueskatt (wealth tax) modeled.',
+  ],
+  sources: [
+    { name: 'Skatteetaten', url: 'https://www.skatteetaten.no/' },
+  ],
+};
