@@ -16,15 +16,15 @@ export const DE_BRACKETS_SINGLE = [
 ];
 
 export const DE_SOLI_RATE = 0.055;
-export const DE_SOLI_FREIGRENZE_TAX = 19950;
+export const DE_SOLI_FREIGRENZE_TAX = 20350;  // 2026 — §3 Abs.3 SolZG 1995 (gesetze-im-internet.de)
 
 export const DE_SOC_2026 = {
   pension: 0.093,
   unemployment: 0.013,
   health_base: 0.073,
   health_zusatz: 0.0145,
-  ltc: 0.017,
-  ltc_childless_surcharge: 0.006,
+  ltc: 0.018,                       // 2026: Pflegeversicherung employee with children (TK; total 3.6% / 2)
+  ltc_childless_surcharge: 0.006,   // Childless 23+ surcharge → 2.4% total childless
   pension_unemp_cap: 101400,
   health_ltc_cap: 69750,
 };

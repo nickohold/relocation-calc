@@ -24,11 +24,12 @@ export const CA_ON_BRACKETS = [
 export const CA_ON_BPA = 12989;
 
 export const CA_BC_BRACKETS = [
-  { max: 50363, rate: 0.0506 }, { max: 100728, rate: 0.077 }, { max: 115648, rate: 0.105 },
+  // 2026 (gov.bc.ca/taxes/income-taxes/personal/tax-rates) — bracket 1 raised 5.06% → 5.60%
+  { max: 50363, rate: 0.056 }, { max: 100728, rate: 0.077 }, { max: 115648, rate: 0.105 },
   { max: 140430, rate: 0.1229 }, { max: 190405, rate: 0.147 }, { max: 265545, rate: 0.168 },
   { max: Infinity, rate: 0.205 },
 ];
-export const CA_BC_BPA = 12932;
+export const CA_BC_BPA = 13216;  // 2026 — gov.bc.ca/taxes/income-taxes/personal/credits/basic
 
 export const CA_QC_BRACKETS = [
   { max: 54345, rate: 0.14 }, { max: 108680, rate: 0.19 },
@@ -41,7 +42,7 @@ export const CA_CPP = {
   ympe: 74600, basicExemption: 3500, rate: 0.0595,
   yampe: 85000, cpp2Rate: 0.04,
 };
-export const CA_QPP = { rate: 0.064, qpp2Rate: 0.04 };
+export const CA_QPP = { rate: 0.063, qpp2Rate: 0.04 };  // 2026: 5.3% base + 1.0% enhancement (retraitequebec.gouv.qc.ca)
 export const CA_EI = {
   rest: { rate: 0.0163, mie: 68900 },
   qc: { rate: 0.013, mie: 68900 },

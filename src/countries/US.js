@@ -103,8 +103,8 @@ export const CONSTANTS = {
   IL_PERSONAL_EXEMPTION: 2925,
   CO_FLAT_RATE: 0.044,
   DC_STD_DEDUCTION: 16100,
-  GA_FLAT_RATE: 0.0499,           // 2026: stepdown from 5.39% per HB 1437 (DOR Sine Die 2026)
-  GA_STD_DEDUCTION: 15000,         // 2026: bumped from $12k → $15k (escalates +$375/yr to $18k)
+  GA_FLAT_RATE: 0.0519,            // TY2026 — DOR confirms rate "remains at 5.19%" (HB 463 cut not signed/effective)
+  GA_STD_DEDUCTION: 12000,         // TY2026 — DOR std deduction page tops out at $12k; $15k change is 2027
   AZ_FLAT_RATE: 0.025,
   AZ_STD_DEDUCTION: 15750,
 };

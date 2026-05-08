@@ -6,10 +6,12 @@
 import { calcBrackets } from '../bracketUtils.js';
 import { FX_USD_PER_UNIT } from '../fx.js';
 
+// IRS 2026 — Orçamento do Estado 2026 (Lei 73-A/2025), Art. 68 CIRS.
+// Verified vs PwC Tax Summaries Portugal (last reviewed 2026-01-05).
 export const PT_BRACKETS_2026 = [
-  { max: 7703,  rate: 0.1325 }, { max: 11623, rate: 0.165 }, { max: 16472, rate: 0.22 },
-  { max: 21321, rate: 0.25 },   { max: 27146, rate: 0.32 },  { max: 39791, rate: 0.355 },
-  { max: 51997, rate: 0.435 },  { max: 81199, rate: 0.45 },  { max: Infinity, rate: 0.48 },
+  { max: 8342,  rate: 0.125 }, { max: 12587, rate: 0.157 }, { max: 17838, rate: 0.212 },
+  { max: 23089, rate: 0.241 }, { max: 29397, rate: 0.311 }, { max: 43090, rate: 0.349 },
+  { max: 46566, rate: 0.431 }, { max: 86634, rate: 0.446 }, { max: Infinity, rate: 0.48 },
 ];
 
 export const PT_SOLIDARITY_SURCHARGE = [

@@ -7,7 +7,7 @@ import { calcBrackets } from '../bracketUtils.js';
 import { FX_USD_PER_UNIT } from '../fx.js';
 
 export const NL_BOX1_2026 = [
-  { max: 38883, rate: 0.357 },
+  { max: 38883, rate: 0.3575 },  // 2026 schijf 1: 8.10% IB + 27.65% premies (belastingdienst.nl)
   { max: 78426, rate: 0.3756 },  // 2026 box-1 bracket 2 cap per belastingdienst.nl
   { max: Infinity, rate: 0.495 },
 ];
