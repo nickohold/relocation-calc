@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, ChevronDown, ChevronRight, ExternalLink, Info } from 'lucide-react';
 import { META } from '../countries.js';
 import { FX_USD_PER_UNIT } from '../fx.js';
+import { fxStatus } from '../fxLive.js';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -31,7 +32,12 @@ const fmtUpTo = (upTo, currency) => {
   return `Up to ${fmtMoney(upTo, currency)}`;
 };
 
-const FX_SOURCE_NOTE = 'May 2026 spot, ECB / oanda mid-market snapshot.';
+const fxSourceNote = () => {
+  const { source, asOf } = fxStatus;
+  if (source === 'live') return `Live · Frankfurter (ECB) · as of ${asOf || 'today'}.`;
+  if (source === 'cache') return `Cached <24h · Frankfurter (ECB) · as of ${asOf || 'today'}.`;
+  return 'Static fallback · May 2026 spot, ECB / oanda mid-market snapshot.';
+};
 
 // ── Building blocks ────────────────────────────────────────────────────────
 
@@ -337,7 +343,7 @@ const FxCard = ({ theme }) => {
       <div className={titleCls}>
         <div className={`text-[10px] font-black uppercase tracking-widest ${accent}`}>Reference</div>
         <div className="text-base font-black">FX rates</div>
-        <div className="text-[10px] opacity-70 mt-0.5">{FX_SOURCE_NOTE}</div>
+        <div className="text-[10px] opacity-70 mt-0.5">{fxSourceNote()}</div>
       </div>
       <div className="p-4">
         <table className="w-full text-left">
