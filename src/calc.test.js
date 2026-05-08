@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
-  calcBrackets, calcBTL, calcPensionCredit, calcIL, calcUS, runEngine,
+  calcBrackets, calcBTL, calcPensionCredit, calcIL, calcUS, runEngine, runComparison,
   FED_BRACKETS, NY_STATE_BRACKETS, NJ_STATE_BRACKETS, NYC_LOCAL_BRACKETS,
-  LOCATIONS, CONSTANTS,
+  LOCATIONS, CONSTANTS, COUNTRIES, MULTI_LOCATIONS, FX_USD_PER_UNIT,
 } from './calc.js';
+import { fromUSD } from './fx.js';
 
 // Tolerance helper for FP comparisons
 const $close = (a, b, eps = 0.5) => Math.abs(a - b) < eps;
@@ -392,5 +393,129 @@ describe('Constants & metadata', () => {
       expect(b.max).toBeGreaterThan(prev);
       prev = b.max;
     }
+  });
+});
+
+// ── Multi-country sanity tests (Phase 1 refactor) ──
+//
+// Each country's effective-tax-rate band at ~$120k USD-equivalent gross is documented
+// from primary-source research; bands are intentionally wide to absorb minor
+// modeling choices (pension toggles, std-deduction nuances).
+describe('Multi-country effective tax bands at ~$120k USD equivalent', () => {
+  const cases = [
+    // [code, locationKey, minPct, maxPct]
+    ['UK', 'UK-LON', 26, 38],
+    ['IE', 'IE-DUB', 30, 42],
+    ['DE', 'DE-BER', 42, 56],
+    ['FR', 'FR-PAR', 38, 52],
+    ['NL', 'NL-AMS', 32, 44],
+    ['CH', 'CH-ZRH', 16, 30],
+    ['CA', 'CA-TOR', 26, 40],
+    ['AU', 'AU-SYD', 24, 36],
+    ['SG', 'SG-SIN', 14, 26],
+    ['JP', 'JP-TYO', 26, 40],
+    ['ES', 'ES-MAD', 28, 42],
+    ['IT', 'IT-MIL', 36, 50],
+    ['PT', 'PT-LIS', 34, 50],
+    ['SE', 'SE-STO', 28, 42],
+    ['DK', 'DK-CPH', 32, 46],
+    ['NO', 'NO-OSL', 26, 40],
+    ['AE', 'AE-DXB', 0, 0.5],
+    ['PL', 'PL-WAW', 32, 46],
+  ];
+
+  for (const [code, locationKey, minPct, maxPct] of cases) {
+    it(`${code}: effective tax rate at $120k USD-equiv is in [${minPct}%, ${maxPct}%]`, () => {
+      const country = COUNTRIES[code];
+      const gross = fromUSD(120000, country.currency);
+      const r = country.compute({ grossLocal: gross, locationKey });
+      const pct = r.effectiveTaxRate * 100;
+      expect(pct).toBeGreaterThanOrEqual(minPct);
+      expect(pct).toBeLessThanOrEqual(maxPct);
+      expect(Number.isFinite(r.netLocal)).toBe(true);
+      expect(Number.isFinite(r.netUSD)).toBe(true);
+    });
+  }
+});
+
+describe('Multi-country registry integrity', () => {
+  it('every LOCATIONS entry has a country in COUNTRIES', () => {
+    for (const [key, loc] of Object.entries(MULTI_LOCATIONS)) {
+      expect(COUNTRIES[loc.country], `${key} has unknown country ${loc.country}`).toBeDefined();
+    }
+  });
+
+  it('every LOCATIONS entry has a defaultRent and name', () => {
+    for (const [key, loc] of Object.entries(MULTI_LOCATIONS)) {
+      expect(typeof loc.defaultRent, `${key} missing defaultRent`).toBe('number');
+      expect(loc.defaultRent).toBeGreaterThan(0);
+      expect(typeof loc.name).toBe('string');
+    }
+  });
+
+  it('FX_USD_PER_UNIT covers all currencies in COUNTRIES', () => {
+    for (const [code, country] of Object.entries(COUNTRIES)) {
+      expect(FX_USD_PER_UNIT[country.currency], `${code} currency ${country.currency} missing FX`).toBeGreaterThan(0);
+    }
+  });
+
+  it('every country in COUNTRIES has at least one location', () => {
+    for (const [code, country] of Object.entries(COUNTRIES)) {
+      expect(country.locations.length, `${code} has no locations`).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('runComparison — symmetric IL→US sanity', () => {
+  it('produces a result with source/dest CountrySideResult shape', () => {
+    const r = runComparison({
+      source: {
+        countryCode: 'IL', locationKey: 'IL-TLV',
+        grossLocal: 15000 * 12, eePensionPct: 6, eeOtherPct: 2.5,
+        rentLocal: 8650, miscBurnLocal: 9000,
+        erPensionPct: 6.5, erSeverancePct: 8.33, erKerenPct: 7.5,
+      },
+      dest: {
+        countryCode: 'US', locationKey: 'US-NYC',
+        grossLocal: 180000, eePensionPct: 6, matchLimitPct: 6,
+        rentLocal: 4500, miscBurnLocal: 900,
+      },
+    });
+    expect(r.source.countryCode).toBe('IL');
+    expect(r.dest.countryCode).toBe('US');
+    expect(Number.isFinite(r.liquidDeltaUSD)).toBe(true);
+    expect(Number.isFinite(r.savingsDeltaUSD)).toBe(true);
+    expect(Number.isFinite(r.liquidDeltaCOLAdjustedUSD)).toBe(true);
+    expect(Array.isArray(r.warnings)).toBe(true);
+  });
+
+  it('IL liquid_USD is approximately consistent with legacy runEngine (within 5%)', () => {
+    const fxRate = FX_USD_PER_UNIT.ILS; // ~0.344
+    const legacy = runEngine({
+      ilGross: 15000, ilEEPension: 6, ilEEKeren: 2.5,
+      ilERPension: 6.5, ilERSeverance: 8.33, ilERKeren: 7.5,
+      ilRent: 8650, ilBurn: 9000,
+      fxRate,
+      selectedLoc: 'NYC',
+      usGrossAnnual: 180000, usRent: 4500, us401kMatchLimit: 6, usMiscBurn: 900,
+    });
+    const newR = runComparison({
+      source: {
+        countryCode: 'IL', locationKey: 'IL-TLV',
+        grossLocal: 15000 * 12, eePensionPct: 6, eeOtherPct: 2.5,
+        rentLocal: 8650, miscBurnLocal: 9000,
+        erPensionPct: 6.5, erSeverancePct: 8.33, erKerenPct: 7.5,
+      },
+      dest: {
+        countryCode: 'US', locationKey: 'US-NYC',
+        grossLocal: 180000, eePensionPct: 6, matchLimitPct: 6,
+        rentLocal: 4500, miscBurnLocal: 900,
+      },
+    });
+    // legacy.ilLiquidFlowUSD is monthly; new is annual.
+    const legacyAnnual = legacy.ilLiquidFlowUSD * 12;
+    const denom = Math.abs(legacyAnnual) || 1;
+    const diff = Math.abs(newR.source.liquidUSD - legacyAnnual) / denom;
+    expect(diff).toBeLessThan(0.05);
   });
 });
