@@ -1,8 +1,71 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { HelpCircle } from 'lucide-react';
 import { COUNTRIES, LOCATIONS } from '../countries.js';
 import { FX_USD_PER_UNIT } from '../fx.js';
 import { fmtAmount, fmtPct } from './formatCurrency.js';
+
+// Per-side gross salary input with annual ↔ monthly toggle. Stores annual in payload.
+const SalaryInput = ({ theme, side, currency, annualValue, onAnnualChange }) => {
+  const storageKey = `relocation-calc:salaryMode:${side}`;
+  const [mode, setMode] = useState(() => {
+    if (typeof window === 'undefined') return 'annual';
+    return window.localStorage.getItem(storageKey) === 'monthly' ? 'monthly' : 'annual';
+  });
+  useEffect(() => {
+    if (typeof window !== 'undefined') window.localStorage.setItem(storageKey, mode);
+  }, [mode, storageKey]);
+
+  const annualNum = Number(annualValue) || 0;
+  const isMonthly = mode === 'monthly';
+  const displayed = isMonthly ? Math.round(annualNum / 12).toString() : String(annualValue);
+  const step = isMonthly ? 500 : 5000;
+
+  const isLight = theme.name === 'Sunrise';
+  const activeCls = isLight ? 'bg-orange-500 text-white' : 'bg-indigo-500 text-white';
+  const inactiveCls = isLight ? 'text-slate-500 hover:text-slate-800' : 'text-slate-500 hover:text-slate-300';
+  const shellCls = isLight ? 'bg-slate-200/50 border border-slate-300/50' : 'bg-white/5 border border-white/10';
+
+  const handleChange = (raw) => {
+    if (isMonthly) {
+      const m = Number(raw) || 0;
+      onAnnualChange(String(Math.round(m * 12)));
+    } else {
+      onAnnualChange(raw);
+    }
+  };
+
+  const modeBtn = (id, label) => (
+    <button
+      type="button"
+      onClick={() => setMode(id)}
+      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all ${mode === id ? activeCls : inactiveCls}`}
+      aria-pressed={mode === id}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5 gap-2">
+        <label className={theme.inputLabel}>
+          {isMonthly ? `Monthly Gross (${currency})` : `Annual Gross (${currency})`}
+        </label>
+        <div className={`flex p-0.5 rounded-md ${shellCls}`}>
+          {modeBtn('annual', 'Yr')}
+          {modeBtn('monthly', 'Mo')}
+        </div>
+      </div>
+      <input
+        type="number"
+        value={displayed}
+        step={step}
+        onChange={(e) => handleChange(e.target.value)}
+        className={theme.inputBox}
+      />
+    </div>
+  );
+};
 
 // Per-country UI hints for which optional fields to render.
 function getCountryUI(code) {
@@ -133,18 +196,13 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, displayCurrenc
           </Field>
         </div>
 
-        <Field
+        <SalaryInput
           theme={theme}
-          label={`Annual Gross (${country?.currency})`}
-          hint="Annual salary before tax, in local currency."
-        >
-          <NumInput
-            theme={theme}
-            value={payload.grossLocal}
-            onChange={(v) => setField('grossLocal', v)}
-            step={1000}
-          />
-        </Field>
+          side={side}
+          currency={country?.currency ?? ''}
+          annualValue={payload.grossLocal}
+          onAnnualChange={(v) => setField('grossLocal', v)}
+        />
 
         {ui.kind === 'US' && (
           <div className="grid grid-cols-2 gap-3">
