@@ -455,8 +455,8 @@ const MethodologyDrawer = ({ theme, open, onClose, sourceCode, destCode }) => {
   // the same centered card carousel — only the size adjusts.
   const backdropCls = 'fixed inset-0 z-[1000] bg-black/40 backdrop-blur-md transition-opacity animate-in fade-in duration-200';
   const cardCls = isLight
-    ? 'relative flex flex-col w-full max-w-[480px] max-h-[85vh] rounded-3xl bg-slate-50 text-slate-800 shadow-2xl border border-slate-200/80 overflow-hidden'
-    : 'relative flex flex-col w-full max-w-[480px] max-h-[85vh] rounded-3xl bg-[#0B0F19] text-slate-200 shadow-2xl border border-white/10 overflow-hidden';
+    ? 'relative z-[1001] flex flex-col w-full max-w-[480px] max-h-[85vh] rounded-3xl bg-slate-50 text-slate-800 shadow-2xl border border-slate-200/80 overflow-hidden pointer-events-auto'
+    : 'relative z-[1001] flex flex-col w-full max-w-[480px] max-h-[85vh] rounded-3xl bg-[#0B0F19] text-slate-200 shadow-2xl border border-white/10 overflow-hidden pointer-events-auto';
 
   const headerCls = isLight
     ? 'flex items-center justify-between px-4 py-3 border-b border-slate-200/80 bg-slate-100/60'
@@ -480,14 +480,15 @@ const MethodologyDrawer = ({ theme, open, onClose, sourceCode, destCode }) => {
     : (isLight ? 'px-3 py-1.5 rounded-md text-xs font-bold text-slate-500 hover:text-slate-800' : 'px-3 py-1.5 rounded-md text-xs font-bold text-slate-500 hover:text-slate-200');
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6 animate-in fade-in zoom-in-95 duration-200"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Methodology details"
-    >
+    <>
       <div className={backdropCls} onClick={onClose} aria-hidden />
-      <div className={cardCls}>
+      <div
+        className="fixed inset-0 z-[1001] flex items-center justify-center p-4 sm:p-6 pointer-events-none animate-in fade-in zoom-in-95 duration-200"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Methodology details"
+      >
+        <div className={cardCls}>
         <div className={headerCls}>
           <div className="min-w-0">
             <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Methodology</div>
@@ -533,8 +534,9 @@ const MethodologyDrawer = ({ theme, open, onClose, sourceCode, destCode }) => {
             <button key={c.key} type="button" aria-label={`Go to ${c.label}`} className={dotCls(activeCard === i)} onClick={() => goToCard(i)} />
           ))}
         </div>
+        </div>
       </div>
-    </div>,
+    </>,
     document.body
   );
 };
