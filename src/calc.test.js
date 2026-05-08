@@ -231,11 +231,11 @@ describe('calcUS — US engine', () => {
     expect(taxesWith).toBeLessThan(taxesNo);
   });
 
-  it('NJ: 401k is NOT pre-tax for state tax (BUG FIX)', () => {
+  it('NJ: 401k IS pre-tax for state tax (per NJ Div. of Taxation GIT-1&2 Jan 2026)', () => {
     const nj_no401k = calcUS({ ...baseUS, targetSavingsUSD: 0, matchLimitPct: 0, location: LOCATIONS.NJ });
     const nj_with401k = calcUS({ ...baseUS, targetSavingsUSD: 12000, matchLimitPct: 0, location: LOCATIONS.NJ });
-    // NJ state tax should be IDENTICAL with or without 401k contribution
-    expect(nj_with401k.stateMonthly).toBeCloseTo(nj_no401k.stateMonthly, 2);
+    // NJ excludes 401(k) employee contributions from taxable wages — state tax must drop with contribution
+    expect(nj_with401k.stateMonthly).toBeLessThan(nj_no401k.stateMonthly);
   });
 
   it('TX: no state or city tax', () => {

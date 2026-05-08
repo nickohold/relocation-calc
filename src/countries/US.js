@@ -110,7 +110,10 @@ export const CONSTANTS = {
 };
 
 // Compute state + city annual tax for a given location and pre-401k gross.
-// `personalAnnual` is the employee 401k contribution. NJ does not allow pre-tax 401k.
+// `personalAnnual` is the employee 401k contribution; treated pre-tax for state in
+// every state we model (incl. NJ — NJ DOES exclude 401(k) employee contributions per
+// NJ Division of Taxation GIT-1&2 January 2026: "Since January 1, 1984, employee
+// contributions to 401(k) Plans are excluded from taxable wages when earned").
 const calcStateCityTax = (grossAnnual, personalAnnual, location) => {
   const stateOrRegion = location.stateOrRegion ?? location.state;
   const subRegion = location.subRegion ?? location.city;
@@ -123,7 +126,9 @@ const calcStateCityTax = (grossAnnual, personalAnnual, location) => {
     stateAnnual = calcBrackets(taxable, NY_STATE_BRACKETS);
     if (subRegion === 'NYC') cityAnnual = calcBrackets(taxable, NYC_LOCAL_BRACKETS);
   } else if (stateOrRegion === 'NJ') {
-    const taxable = Math.max(0, grossAnnual - C.NJ_PERSONAL_EXEMPTION);
+    // NJ conforms to federal on 401(k) pre-tax (NJ Div. of Taxation GIT-1&2 Jan 2026).
+    // 403(b)/457/IRA contributions remain taxable for NJ — out of scope here.
+    const taxable = Math.max(0, grossAnnual - personalAnnual - C.NJ_PERSONAL_EXEMPTION);
     stateAnnual = calcBrackets(taxable, NJ_STATE_BRACKETS);
   } else if (stateOrRegion === 'CA') {
     const taxable = Math.max(0, grossAnnual - personalAnnual - C.CA_STD_DEDUCTION_SINGLE);
@@ -241,7 +246,7 @@ export const compute = ({
   const grossAnnual = grossLocal;
   const location = US_LOCATION_TABLE[locationKey] ?? { stateOrRegion: 'NY', subRegion: 'NYC' };
 
-  // Employee 401k contribution (pre-tax federal & most states except NJ).
+  // Employee 401k contribution (pre-tax federal & all modeled states; NJ DOES conform).
   const personalAnnual = Math.min(grossAnnual * (eePensionPct / 100), C.IRS_401K_LIMIT_ANNUAL);
   const employerAnnual = grossAnnual * (matchLimitPct / 100);
 
