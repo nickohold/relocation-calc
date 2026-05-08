@@ -362,13 +362,6 @@ const App = () => {
               </h1>
               <p className={theme.subTitle}>Compare Two — Multi-Country</p>
             </div>
-            <CurrencyToggle
-              theme={theme}
-              displayMode={displayMode}
-              setDisplayMode={setDisplayMode}
-              sourceCurrency={sourceCurrency}
-              destCurrency={destCurrency}
-            />
           </header>
 
           {/* Two side-by-side panels with swap in middle */}
