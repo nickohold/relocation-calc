@@ -13,6 +13,7 @@ import { LOCATIONS, COUNTRIES } from './countries.js';
 import { FX_USD_PER_UNIT } from './fx.js';
 import ComparePanel from './components/ComparePanel.jsx';
 import CompareSummary from './components/CompareSummary.jsx';
+import UnifiedBreakdown from './components/UnifiedBreakdown.jsx';
 import { pickDisplayCurrency } from './components/formatCurrency.js';
 
 const SOURCE_KEY_STORAGE = 'relocation-calc:sourceKey';
@@ -342,6 +343,12 @@ const App = () => {
             displayCurrency={displayCurrency}
             sourceCurrency={sourceCurrency}
             destCurrency={destCurrency}
+          />
+
+          <UnifiedBreakdown
+            theme={theme}
+            comparison={comparison}
+            displayCurrency={displayCurrency}
           />
 
           <FXFooter theme={theme} sourceCurrency={sourceCurrency} destCurrency={destCurrency} />

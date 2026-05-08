@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, HelpCircle } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { HelpCircle } from 'lucide-react';
 import { COUNTRIES, LOCATIONS } from '../countries.js';
 import { FX_USD_PER_UNIT } from '../fx.js';
 import { fmtAmount, fmtPct } from './formatCurrency.js';
@@ -64,7 +64,6 @@ const SelectBox = ({ theme, value, onChange, options }) => (
 //   erPensionPct, erSeverancePct, erKerenPct, includeSeveranceInSavings,
 //   creditPoints, imputedBenefits }
 const ComparePanel = ({ theme, side, payload, setPayload, result, displayCurrency, headingClass, headingLabel, headingIcon }) => {
-  const [open, setOpen] = useState(false);
   const country = COUNTRIES[payload.countryCode];
   const ui = getCountryUI(payload.countryCode);
 
@@ -223,42 +222,6 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, displayCurrenc
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setOpen(!open)}
-          className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-slate-200 transition-colors"
-          aria-expanded={open}
-        >
-          {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          {open ? 'Hide breakdown' : 'Show breakdown'}
-        </button>
-
-        {open && result && (
-          <div className={theme.tableShell}>
-            <table className="w-full text-left text-xs sm:text-sm">
-              <thead className={theme.tableHead}>
-                <tr>
-                  <th className="p-2 pl-3">Annual line item</th>
-                  <th className="p-2 text-right">Amount (USD)</th>
-                </tr>
-              </thead>
-              <tbody className={theme.tableDivide}>
-                <tr><td className="p-2 pl-3">Gross</td><td className="p-2 text-right">{fmtAmount(grossUSD, displayCurrency)}</td></tr>
-                {result.breakdown.map((b, i) => (
-                  <tr key={i}>
-                    <td className="p-2 pl-3">{b.label}</td>
-                    <td className="p-2 text-right">{fmtAmount(b.amount * FX_USD_PER_UNIT[result.currency], displayCurrency)}</td>
-                  </tr>
-                ))}
-                <tr><td className="p-2 pl-3 font-bold">Net</td><td className="p-2 text-right font-bold">{fmtAmount(netUSD, displayCurrency)}</td></tr>
-                <tr><td className="p-2 pl-3">Rent (annual)</td><td className="p-2 text-right">-{fmtAmount(result.rentLocal * FX_USD_PER_UNIT[result.currency], displayCurrency)}</td></tr>
-                <tr><td className="p-2 pl-3">Misc burn (annual)</td><td className="p-2 text-right">-{fmtAmount(result.miscBurnLocal * FX_USD_PER_UNIT[result.currency], displayCurrency)}</td></tr>
-                <tr><td className="p-2 pl-3 font-bold">Liquid</td><td className="p-2 text-right font-bold">{fmtAmount(result.liquidUSD, displayCurrency)}</td></tr>
-                <tr><td className="p-2 pl-3 font-bold">Total Savings</td><td className="p-2 text-right font-bold">{fmtAmount(result.totalSavingsUSD, displayCurrency)}</td></tr>
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
     </section>
   );
