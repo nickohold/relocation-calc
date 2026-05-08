@@ -1,20 +1,76 @@
 // Sweden tax engine — single, Stockholm, 2026.
-// SIMPLIFIED: grundavdrag and jobbskatteavdrag piecewise functions approximated to single values.
+// Implements the real piecewise grundavdrag and jobbskatteavdrag (under-66) per
+// Skatteverket SKV 433 (Teknisk beskrivning, 2026 utgåva 36).
 // Sources:
 //   - https://www.skatteverket.se/
+//   - https://www.skatteverket.se/download/18.1522bf3f19aea8075ba55c/1766385913260/teknisk-beskrivning-skv-433-2026-utgava-36.pdf
+//   - https://www.skatteverket.se/privat/skatter/beloppochprocent/2026.4.1522bf3f19aea8075ba21.html
 
 import { calcBrackets } from '../bracketUtils.js';
 import { FX_USD_PER_UNIT } from '../fx.js';
 
 export const SE_MUNICIPAL_RATE_STOCKHOLM = 0.3055;
+// Brytpunkt for statlig skatt 2026 = 660,400 SEK (Skatteverket).
 export const SE_NATIONAL_BRACKETS = [
   { max: 643000, rate: 0.00 },
   { max: Infinity, rate: 0.20 },
 ];
-export const SE_GRUNDAVDRAG_DEFAULT = 17400;
-export const SE_JOBBSKATTEAVDRAG_HIGH = 35000;
+export const SE_PBB_2026 = 59200;          // Prisbasbelopp 2026
 export const SE_IBA_2026 = 83400;
 export const SE_THRESHOLD_75 = 7.5 * SE_IBA_2026;
+// Jobbskatteavdrag is reduced against the part of kommunalskatt that excludes
+// begravningsavgift + trossamfund (~1.16 percentage points). See SKV 433 §7.5.2.
+export const SE_KI_OFFSET = 0.0116;
+
+// 2026 grundavdrag (under 66) per SKV 433 §Grundavdrag.
+// Output is rounded UP to nearest SEK 100 and capped by FFI.
+export const calcGrundavdrag2026 = (ffi) => {
+  const PBB = SE_PBB_2026;
+  let ga;
+  if (ffi <= 0.99 * PBB) {
+    // Floor at 0.423 PBB per table; FFI cap applied below.
+    ga = 0.423 * PBB;
+  } else if (ffi <= 2.72 * PBB) {
+    ga = 0.423 * PBB + (ffi - 0.99 * PBB) * 0.20;
+  } else if (ffi <= 3.11 * PBB) {
+    ga = 0.77 * PBB;
+  } else if (ffi <= 7.88 * PBB) {
+    ga = 0.77 * PBB - (ffi - 3.11 * PBB) * 0.10;
+  } else {
+    ga = 0.293 * PBB;
+  }
+  ga = Math.min(ga, Math.max(0, ffi));
+  // Round up to nearest 100.
+  return Math.ceil(ga / 100) * 100;
+};
+
+// 2026 jobbskatteavdrag (under 66) per SKV 433 §7.5.2.
+// Returns the SEK reduction against kommunal income tax. The reduction is
+// (basis - GA) * KI, where KI = kommunalskattesats - 0.0116, and `basis`
+// depends piecewise on arbetsinkomst:
+//   AI ≤ 0.91 PBB:                          basis = AI
+//   0.91 < AI ≤ 3.24 PBB:                   basis = 0.91 PBB + 0.3874 * (AI - 0.91 PBB)
+//   3.24 < AI ≤ 8.08 PBB:                   basis = 1.813 PBB + 0.2510 * (AI - 3.24 PBB)
+//   AI > 8.08 PBB:                          basis = 3.027 PBB
+// Floor at 0; arbetsinkomst rounded down to 100 first; output floored to whole SEK.
+export const calcJobbskatteavdrag2026 = (arbetsinkomst, kommunalRate) => {
+  const PBB = SE_PBB_2026;
+  const AI = Math.floor(Math.max(0, arbetsinkomst) / 100) * 100;
+  let basis;
+  if (AI <= 0.91 * PBB) {
+    basis = AI;
+  } else if (AI <= 3.24 * PBB) {
+    basis = 0.91 * PBB + 0.3874 * (AI - 0.91 * PBB);
+  } else if (AI <= 8.08 * PBB) {
+    basis = 1.813 * PBB + 0.2510 * (AI - 3.24 * PBB);
+  } else {
+    basis = 3.027 * PBB;
+  }
+  const GA = calcGrundavdrag2026(AI);
+  const KI = Math.max(0, kommunalRate - SE_KI_OFFSET);
+  const reduction = Math.max(0, basis - GA) * KI;
+  return Math.floor(reduction);
+};
 
 export const compute = ({
   grossLocal,
@@ -28,11 +84,17 @@ export const compute = ({
   const salaryExchange = grossLocal * (eeSalaryExchangePct / 100);
   const eePension = salaryExchange; // pre-tax for EE
 
-  const taxable = Math.max(0, grossLocal - eePension - SE_GRUNDAVDRAG_DEFAULT);
+  // FFI = arbetsinkomst after pre-tax pension reductions (löneväxling).
+  const ffi = Math.max(0, grossLocal - eePension);
+  const grundavdrag = calcGrundavdrag2026(ffi);
+  const taxable = Math.max(0, ffi - grundavdrag);
 
   const municipal = taxable * SE_MUNICIPAL_RATE_STOCKHOLM;
   const national = calcBrackets(taxable, SE_NATIONAL_BRACKETS);
-  const incomeTax = Math.max(0, national + municipal - SE_JOBBSKATTEAVDRAG_HIGH);
+  const jobbskatteavdrag = calcJobbskatteavdrag2026(ffi, SE_MUNICIPAL_RATE_STOCKHOLM);
+  // Jobbskatteavdrag reduces only kommunal income tax, never below zero.
+  const municipalNet = Math.max(0, municipal - jobbskatteavdrag);
+  const incomeTax = municipalNet + national;
   const socialSec = 0;
 
   const netLocal = grossLocal - incomeTax - socialSec - eePension;
@@ -70,7 +132,7 @@ export const meta = {
     notes: [
       `Stockholm kommunalskatt ${(SE_MUNICIPAL_RATE_STOCKHOLM * 100).toFixed(2)}%. Other municipalities differ.`,
       'Statlig skatt 20% on income above ~SEK 643,000 (national).',
-      `Jobbskatteavdrag (high-income approximation: SEK ${SE_JOBBSKATTEAVDRAG_HIGH.toLocaleString()}) reduces tax.`,
+      'Jobbskatteavdrag computed via real piecewise function (SKV 433 §7.5.2, under-66) — phases in to ~26.1k SEK ceiling at AI ≈ 8.08 × PBB, then phases out.',
     ],
   },
   socialSecurity: {
@@ -78,8 +140,8 @@ export const meta = {
     rates: [],
   },
   deductions: [
-    { label: 'Grundavdrag (default)', amount: SE_GRUNDAVDRAG_DEFAULT, currency: 'SEK', note: 'Approximation; real schedule is piecewise.' },
-    { label: 'Jobbskatteavdrag (high-income approx)', amount: SE_JOBBSKATTEAVDRAG_HIGH, currency: 'SEK' },
+    { label: 'Grundavdrag (piecewise, SKV 433)', amount: 0.77 * SE_PBB_2026, currency: 'SEK', note: 'Max value (~SEK 45,584) shown; real schedule is piecewise on FFI.' },
+    { label: 'Jobbskatteavdrag (piecewise, SKV 433 §7.5.2)', amount: 3.027 * SE_PBB_2026, currency: 'SEK', note: 'Max basis (~SEK 179,198) shown; reduction = (basis − GA) × (KI − 1.16pp).' },
   ],
   retirementCaps: [
     { label: 'IBA 2026 (income base amount)', amount: SE_IBA_2026, currency: 'SEK' },
@@ -88,7 +150,7 @@ export const meta = {
   localTax: null,
   simplifications: [
     'Only Stockholm kommunalskatt rate modeled.',
-    'Grundavdrag and jobbskatteavdrag piecewise functions approximated to single values.',
+    'Grundavdrag and jobbskatteavdrag implemented per SKV 433 (under-66 schedule); over-66 schedule not modeled.',
     'ITP1 modeled as 4.5% under threshold + 30% over.',
   ],
   sources: [
