@@ -519,3 +519,30 @@ describe('runComparison — symmetric IL→US sanity', () => {
     expect(diff).toBeLessThan(0.05);
   });
 });
+
+describe('Country savings sanity — non-US/IL', () => {
+  const sane = (cc, payload, min, max) => {
+    const r = COUNTRIES[cc].compute(payload);
+    expect(r.totalSavingsLocal).toBeGreaterThan(min);
+    expect(r.totalSavingsLocal).toBeLessThan(max);
+  };
+
+  it('UK at £80,000', () => sane('UK', { grossLocal: 80000, eePensionPct: 5, erPensionPct: 3, salarySacrifice: false }, 2000, 15000));
+  it('IE at €100,000 age 35', () => sane('IE', { grossLocal: 100000, eePensionPct: 15, erPensionPct: 5, age: 35 }, 10000, 30000));
+  it('DE at €110,000', () => sane('DE', { grossLocal: 110000, bavPct: 4, erBavPct: 0, riesterFlag: false }, 3000, 20000));
+  it('FR at €100,000', () => sane('FR', { grossLocal: 100000, perPct: 5, erPerPct: 3 }, 5000, 20000));
+  it('NL at €110,000', () => sane('NL', { grossLocal: 110000, eePensionPct: 7.5, erPensionPct: 15.9, lijfrenteAmt: 0 }, 10000, 35000));
+  it('CH at CHF 130,000 age 40', () => sane('CH', { grossLocal: 130000, eeBvgPct: 0, erBvgPct: 0, pillar3aAmt: 7258, buyInsAmt: 0, age: 40, locationKey: 'CH-ZRH' }, 10000, 25000));
+  it('CA at CAD 120,000', () => sane('CA', { grossLocal: 120000, rrspPct: 10, erRrspMatchPct: 3, tfsaAmt: 7000, locationKey: 'CA-TOR' }, 15000, 35000));
+  it('AU at AUD 150,000', () => sane('AU', { grossLocal: 150000, salarySacrificePct: 0 }, 10000, 35000));
+  it('SG at SGD 180,000 local age 35', () => sane('SG', { grossLocal: 180000, srsAmt: 0, isForeigner: false, age: 35 }, 15000, 50000));
+  it('JP at ¥18,000,000', () => sane('JP', { grossLocal: 18000000, iDecoMonthlyJpy: 23000, dcCorpMonthlyJpy: 0, age: 35 }, 500000, 2500000));
+  it('ES at €70,000', () => sane('ES', { grossLocal: 70000, planPensionesAmt: 1500, erPlanEmpleoAmt: 0, locationKey: 'ES-MAD' }, 500, 12000));
+  it('IT at €60,000', () => sane('IT', { grossLocal: 60000, fondoPensioneEePct: 1, fondoPensioneErPct: 1, includeTfrInSavings: true, locationKey: 'IT-MIL' }, 3000, 15000));
+  it('PT at €60,000 age 30', () => sane('PT', { grossLocal: 60000, pprAmt: 2000, age: 30 }, 500, 5000));
+  it('SE at SEK 800,000', () => sane('SE', { grossLocal: 800000, eeSalaryExchangePct: 0 }, 30000, 200000));
+  it('DK at DKK 600,000', () => sane('DK', { grossLocal: 600000, eePensionPct: 4, erPensionPct: 8, aldersopsparingAmt: 0 }, 50000, 120000));
+  it('NO at NOK 900,000', () => sane('NO', { grossLocal: 900000, erOtpPct: 5, eeOtpPct: 0, ipsAmt: 0 }, 20000, 80000));
+  it('AE at AED 400,000', () => sane('AE', { grossLocal: 400000, basicPctOfGross: 60, yearsOfService: 3, includeEosgInSavings: true }, 5000, 30000));
+  it('PL at PLN 200,000', () => sane('PL', { grossLocal: 200000, ppkEePct: 2, ppkErPct: 1.5, ikzeAmt: 0 }, 5000, 15000));
+});

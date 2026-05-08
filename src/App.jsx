@@ -15,6 +15,7 @@ import ComparePanel from './components/ComparePanel.jsx';
 import CompareSummary from './components/CompareSummary.jsx';
 import UnifiedBreakdown from './components/UnifiedBreakdown.jsx';
 import { pickDisplayCurrency } from './components/formatCurrency.js';
+import { PENSION_META } from './components/pensionMeta.js';
 
 const SOURCE_KEY_STORAGE = 'relocation-calc:sourceKey';
 const DEST_KEY_STORAGE = 'relocation-calc:destKey';
@@ -236,14 +237,21 @@ function buildDefaultPayload(locationKey, overrides = {}) {
       ...overrides,
     };
   }
-  // Generic
-  return {
+  // Generic — populate per-country meta field defaults.
+  const meta = PENSION_META[country];
+  const metaDefaults = meta?.fields
+    ? Object.fromEntries(meta.fields.map((f) => [f.key, f.default]))
+    : {};
+  const out = {
     ...base,
     grossLocal: 80000,
     eePensionPct: 5,
     miscBurnLocal: 1000,
+    ...metaDefaults,
     ...overrides,
   };
+  if (meta?.needsAge && out.age === undefined) out.age = 35;
+  return out;
 }
 
 const App = () => {
@@ -303,7 +311,24 @@ const App = () => {
   const coerce = useCallback((p) => {
     const out = { ...p };
     for (const k of ['grossLocal', 'eePensionPct', 'eeOtherPct', 'matchLimitPct', 'rentLocal', 'miscBurnLocal',
-                     'erPensionPct', 'erSeverancePct', 'erKerenPct', 'creditPoints', 'imputedBenefits']) {
+                     'erPensionPct', 'erSeverancePct', 'erKerenPct', 'creditPoints', 'imputedBenefits',
+                     'age',
+                     'bavPct', 'erBavPct',
+                     'perPct', 'erPerPct',
+                     'lijfrenteAmt',
+                     'eeBvgPct', 'erBvgPct', 'pillar3aAmt', 'buyInsAmt',
+                     'rrspPct', 'erRrspMatchPct', 'tfsaAmt',
+                     'salarySacrificePct',
+                     'srsAmt',
+                     'iDecoMonthlyJpy', 'dcCorpMonthlyJpy',
+                     'planPensionesAmt', 'erPlanEmpleoAmt',
+                     'fondoPensioneEePct', 'fondoPensioneErPct',
+                     'pprAmt',
+                     'eeSalaryExchangePct',
+                     'aldersopsparingAmt',
+                     'erOtpPct', 'eeOtpPct', 'ipsAmt',
+                     'basicPctOfGross', 'yearsOfService',
+                     'ppkEePct', 'ppkErPct', 'ikzeAmt']) {
       if (out[k] !== undefined && out[k] !== null && out[k] !== '') {
         const n = Number(out[k]);
         out[k] = Number.isFinite(n) ? n : 0;

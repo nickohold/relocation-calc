@@ -22,31 +22,30 @@ export const FR_CEHR = [
 ];
 
 export const FR_ABATTEMENT = { rate: 0.10, min: 504, max: 14426 };
-export const FR_FLAT_COTIS = 0.22;     // simplification
+export const FR_FLAT_COTIS = 0.22;
 export const FR_CSG_DEDUCTIBLE = 0.068;
 export const FR_CSG_NONDEDUCT = 0.024;
 export const FR_CRDS = 0.005;
+export const FR_PER_MAX = 37680;
 
 export const compute = ({
   grossLocal,
-  eePensionPct = 0,
-  eeOtherPct = 0,
+  perPct = 5,
+  erPerPct = 3,
   rentLocal = 0,
   miscBurnLocal = 0,
 }) => {
-  void eeOtherPct;
-  const eePension = grossLocal * (eePensionPct / 100);
+  const perContribution = Math.min(grossLocal * (perPct / 100), FR_PER_MAX);
+  const erPerContribution = grossLocal * (erPerPct / 100);
+  const eePension = perContribution;
 
-  // Flat 22% employee cotisations approximation (excludes CSG/CRDS).
   const cotisations = grossLocal * FR_FLAT_COTIS;
-  // CSG/CRDS on 98.25% of brut (1.75% abattement).
   const csgBase = grossLocal * 0.9825;
   const csgDed = csgBase * FR_CSG_DEDUCTIBLE;
   const csgNd = csgBase * FR_CSG_NONDEDUCT;
   const crds = csgBase * FR_CRDS;
   const socialSec = cotisations + csgDed + csgNd + crds;
 
-  // Income tax base: gross - cotisations - deductible CSG - 10% abattement on remainder
   const afterCotis = grossLocal - cotisations - csgDed - eePension;
   const abat = Math.min(FR_ABATTEMENT.max, Math.max(FR_ABATTEMENT.min, afterCotis * FR_ABATTEMENT.rate));
   const itBase = Math.max(0, afterCotis - abat);
@@ -56,20 +55,22 @@ export const compute = ({
 
   const netLocal = grossLocal - incomeTax - socialSec - eePension;
   const liquidLocal = netLocal - rentLocal * 12 - miscBurnLocal * 12;
+  const totalSavingsLocal = perContribution + erPerContribution;
   const fx = FX_USD_PER_UNIT.EUR;
   return {
     countryCode: 'FR', currency: 'EUR',
     grossLocal, incomeTax, socialSec, localTax: 0,
     eePensionLocal: eePension, eeOtherDeductions: 0,
-    netLocal, erContributions: 0, totalSavingsLocal: eePension,
+    netLocal, erContributions: erPerContribution, totalSavingsLocal,
     rentLocal: rentLocal * 12, miscBurnLocal: miscBurnLocal * 12,
     liquidLocal,
-    netUSD: netLocal * fx, totalSavingsUSD: eePension * fx, liquidUSD: liquidLocal * fx,
+    netUSD: netLocal * fx, totalSavingsUSD: totalSavingsLocal * fx, liquidUSD: liquidLocal * fx,
     effectiveTaxRate: grossLocal > 0 ? (incomeTax + socialSec) / grossLocal : 0,
     breakdown: [
       { label: 'Impôt sur le revenu', amount: incomeTax, kind: 'tax' },
       { label: 'Cotisations + CSG/CRDS', amount: socialSec, kind: 'social' },
-      { label: 'Pension EE', amount: eePension, kind: 'pension' },
+      { label: 'PER (EE)', amount: perContribution, kind: 'pension' },
+      { label: 'PER Collectif/Obligatoire (ER)', amount: erPerContribution, kind: 'pension' },
     ],
   };
 };

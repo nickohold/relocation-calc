@@ -141,6 +141,34 @@ const NumInput = ({ theme, value, onChange, step = 1, suffix }) => (
   </div>
 );
 
+// Render a single PENSION_META field by kind: pct/amount → NumInput, toggle → checkbox.
+const FieldRenderer = ({ theme, field, payload, setField, setPayload }) => {
+  const value = payload[field.key];
+  if (field.kind === 'toggle') {
+    return (
+      <label className={theme.severanceBox}>
+        <input
+          type="checkbox"
+          checked={!!value}
+          onChange={(e) => setPayload({ ...payload, [field.key]: e.target.checked })}
+          className={theme.severanceCheck}
+        />
+        <span>{field.label}{field.hint && <span className={theme.severanceSub}>{field.hint}</span>}</span>
+      </label>
+    );
+  }
+  return (
+    <Field theme={theme} label={field.label} hint={field.hint}>
+      <NumInput
+        theme={theme}
+        value={value ?? field.default ?? 0}
+        onChange={(v) => setField(field.key, v)}
+        step={field.step ?? 1}
+      />
+    </Field>
+  );
+};
+
 const SelectBox = ({ theme, value, onChange, options }) => (
   <select
     value={value}
@@ -175,6 +203,10 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, displayCurrenc
     const c = COUNTRIES[code];
     const firstLoc = c?.locations?.[0];
     const loc = firstLoc ? LOCATIONS[firstLoc] : null;
+    const meta = PENSION_META[code];
+    const metaDefaults = meta?.fields
+      ? Object.fromEntries(meta.fields.map((f) => [f.key, f.default]))
+      : {};
     setPayload({
       ...payload,
       countryCode: code,
@@ -189,6 +221,8 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, displayCurrenc
       erKerenPct: code === 'IL' ? 7.5 : undefined,
       includeSeveranceInSavings: code === 'IL' ? true : undefined,
       creditPoints: code === 'IL' ? 2.25 : undefined,
+      ...metaDefaults,
+      ...(meta?.needsAge ? { age: payload.age ?? 35 } : {}),
     });
   };
 
@@ -285,11 +319,34 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, displayCurrenc
         )}
 
         {ui.kind === 'GENERIC' && (() => {
-          const meta = PENSION_META[payload.countryCode] ?? { label: 'Pension %', hint: 'Employee retirement contribution as % of gross.' };
+          const meta = PENSION_META[payload.countryCode];
+          if (!meta?.fields) {
+            return (
+              <Field theme={theme} label={meta?.label ?? 'Pension %'} hint={meta?.hint}>
+                <NumInput theme={theme} value={payload.eePensionPct} onChange={(v) => setField('eePensionPct', v)} step={0.5} />
+              </Field>
+            );
+          }
           return (
-            <Field theme={theme} label={meta.label} hint={meta.hint}>
-              <NumInput theme={theme} value={payload.eePensionPct} onChange={(v) => setField('eePensionPct', v)} step={0.5} />
-            </Field>
+            <>
+              {meta.needsAge && (
+                <Field theme={theme} label="Age" hint="Drives age-banded contribution rates.">
+                  <NumInput theme={theme} value={payload.age ?? 35} onChange={(v) => setField('age', v)} step={1} />
+                </Field>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                {meta.fields.map((f) => (
+                  <FieldRenderer
+                    key={f.key}
+                    theme={theme}
+                    field={f}
+                    payload={payload}
+                    setField={setField}
+                    setPayload={setPayload}
+                  />
+                ))}
+              </div>
+            </>
           );
         })()}
 

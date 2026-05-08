@@ -1,6 +1,6 @@
-// United Arab Emirates tax engine — no personal income tax. Mandatory ILOE (Involuntary
-// Loss of Employment) insurance: AED 5/mo for salary ≤ AED 16k, AED 10/mo above.
-// At our income range (>AED 16k/mo), all employees pay AED 120/yr.
+// United Arab Emirates tax engine — no personal income tax.
+// EOSG (End-of-Service Gratuity) is the mandatory employer-side severance — UAE's
+// pitzuyim equivalent. Modeled here as an annual accrual on Basic salary.
 // Sources:
 //   - https://www.tax.gov.ae/
 //   - https://u.ae/en/information-and-services/finance-and-investment/taxation
@@ -8,35 +8,42 @@
 
 import { FX_USD_PER_UNIT } from '../fx.js';
 
-export const AE_ILOE_ANNUAL = 120;  // AED 10/month for salary > AED 16k
+export const AE_ILOE_ANNUAL = 120;
 
 export const compute = ({
   grossLocal,
-  eePensionPct = 0,
-  eeOtherPct = 0,
+  basicPctOfGross = 60,
+  yearsOfService = 3,
+  includeEosgInSavings = true,
   rentLocal = 0,
   miscBurnLocal = 0,
 }) => {
-  void eePensionPct; void eeOtherPct;
-  // ILOE applies only above AED 192k/yr (AED 16k/mo); below that it's AED 60/yr.
   const ilo = grossLocal > 192000 ? AE_ILOE_ANNUAL : 60;
   const socialSec = grossLocal > 0 ? ilo : 0;
+
+  const basic = grossLocal * (basicPctOfGross / 100);
+  // 21 days/yr accrual for first 5 yrs (~5.83% of basic), 30 days/yr after (~8.33%).
+  const accrualPct = yearsOfService < 5 ? 0.0583 : 0.0833;
+  const eosgAccrual = basic * accrualPct;
+
   const netLocal = grossLocal - socialSec;
   const liquidLocal = netLocal - rentLocal * 12 - miscBurnLocal * 12;
+  const totalSavingsLocal = includeEosgInSavings ? eosgAccrual : 0;
   const fx = FX_USD_PER_UNIT.AED;
   return {
     countryCode: 'AE', currency: 'AED',
     grossLocal,
     incomeTax: 0, socialSec, localTax: 0,
     eePensionLocal: 0, eeOtherDeductions: 0,
-    netLocal, erContributions: 0, totalSavingsLocal: 0,
+    netLocal, erContributions: eosgAccrual, totalSavingsLocal,
     rentLocal: rentLocal * 12, miscBurnLocal: miscBurnLocal * 12,
     liquidLocal,
-    netUSD: netLocal * fx, totalSavingsUSD: 0, liquidUSD: liquidLocal * fx,
+    netUSD: netLocal * fx, totalSavingsUSD: totalSavingsLocal * fx, liquidUSD: liquidLocal * fx,
     effectiveTaxRate: grossLocal > 0 ? socialSec / grossLocal : 0,
     breakdown: [
       { label: 'No income tax', amount: 0, kind: 'tax' },
       { label: 'ILOE (unemployment ins.)', amount: socialSec, kind: 'social' },
+      { label: 'EOSG (end-of-service gratuity)', amount: eosgAccrual, kind: 'pension' },
     ],
   };
 };

@@ -148,13 +148,68 @@ export const runComparison = ({ source, dest, options = {} }) => {
       miscBurnLocal: payload.miscBurnLocal ?? 0,
       locationKey: payload.locationKey,
       matchLimitPct: payload.matchLimitPct ?? 0,
-      // IL extras passed through; ignored by other countries
+      // Age (used by IE/CH/SG/JP/PT)
+      age: payload.age,
+      // IL extras
       erPensionPct: payload.erPensionPct,
       erSeverancePct: payload.erSeverancePct,
       erKerenPct: payload.erKerenPct,
       creditPoints: payload.creditPoints,
       includeSeveranceInSavings: payload.includeSeveranceInSavings,
       imputedBenefits: payload.imputedBenefits,
+      // UK
+      salarySacrifice: payload.salarySacrifice,
+      // DE
+      bavPct: payload.bavPct,
+      erBavPct: payload.erBavPct,
+      riesterFlag: payload.riesterFlag,
+      // FR
+      perPct: payload.perPct,
+      erPerPct: payload.erPerPct,
+      // NL
+      lijfrenteAmt: payload.lijfrenteAmt,
+      // CH
+      eeBvgPct: payload.eeBvgPct,
+      erBvgPct: payload.erBvgPct,
+      pillar3aAmt: payload.pillar3aAmt,
+      buyInsAmt: payload.buyInsAmt,
+      // CA
+      rrspPct: payload.rrspPct,
+      erRrspMatchPct: payload.erRrspMatchPct,
+      tfsaAmt: payload.tfsaAmt,
+      // AU
+      salarySacrificePct: payload.salarySacrificePct,
+      // SG
+      srsAmt: payload.srsAmt,
+      isForeigner: payload.isForeigner,
+      // JP
+      iDecoMonthlyJpy: payload.iDecoMonthlyJpy,
+      dcCorpMonthlyJpy: payload.dcCorpMonthlyJpy,
+      // ES
+      planPensionesAmt: payload.planPensionesAmt,
+      erPlanEmpleoAmt: payload.erPlanEmpleoAmt,
+      // IT
+      fondoPensioneEePct: payload.fondoPensioneEePct,
+      fondoPensioneErPct: payload.fondoPensioneErPct,
+      includeTfrInSavings: payload.includeTfrInSavings,
+      // PT
+      pprAmt: payload.pprAmt,
+      // SE
+      eeSalaryExchangePct: payload.eeSalaryExchangePct,
+      // DK
+      aldersopsparingAmt: payload.aldersopsparingAmt,
+      // NO
+      erOtpPct: payload.erOtpPct,
+      eeOtpPct: payload.eeOtpPct,
+      ipsAmt: payload.ipsAmt,
+      // AE
+      basicPctOfGross: payload.basicPctOfGross,
+      yearsOfService: payload.yearsOfService,
+      includeEosgInSavings: payload.includeEosgInSavings,
+      // PL
+      ppkEePct: payload.ppkEePct,
+      ppkErPct: payload.ppkErPct,
+      ikzeAmt: payload.ikzeAmt,
     });
   };
 

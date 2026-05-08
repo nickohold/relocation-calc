@@ -14,21 +14,25 @@ export const DK_TOPTOPSKAT = 0.05;
 export const DK_KOMMUNESKAT_CPH = 0.238;
 export const DK_SKATTELOFT = 0.5207;
 export const DK_RATEPENSION_CAP = 68700;
-export const DK_ATP_EMPLOYEE_ANNUAL = 1188;
+export const DK_ATP_EMPLOYEE_ANNUAL = 1135;
 
 export const compute = ({
   grossLocal,
-  eePensionPct = 0,
-  eeOtherPct = 0,
+  eePensionPct = 4,
+  erPensionPct = 8,
+  aldersopsparingAmt = 0,
   rentLocal = 0,
   miscBurnLocal = 0,
 }) => {
-  void eeOtherPct;
   const am = grossLocal * DK_AM_BIDRAG;
   const atp = DK_ATP_EMPLOYEE_ANNUAL;
 
-  const eePension = Math.min(grossLocal * (eePensionPct / 100), DK_RATEPENSION_CAP);
-  const afterAM = grossLocal - am - atp - eePension;
+  const eeContribution = grossLocal * (eePensionPct / 100);
+  const erContribution = grossLocal * (erPensionPct / 100);
+  const eePensionDeductible = Math.min(eeContribution, DK_RATEPENSION_CAP);
+  const aldersopsparing = Math.max(0, aldersopsparingAmt);
+
+  const afterAM = grossLocal - am - atp - eePensionDeductible;
   const taxBase = Math.max(0, afterAM - DK_PERSONFRADRAG);
 
   const bundskat = taxBase * DK_BUNDSKAT;
@@ -37,29 +41,31 @@ export const compute = ({
   const toptopskat = Math.max(0, taxBase - 2592700) * DK_TOPTOPSKAT;
   const kommune = taxBase * DK_KOMMUNESKAT_CPH;
 
-  // Skatteloft (ceiling): bundskat + kommune + topskat capped at 52.07% of base
   const sumStateLocalTop = bundskat + kommune + topskat;
   const ceiling = taxBase * DK_SKATTELOFT;
   const adjusted = sumStateLocalTop > ceiling ? ceiling : sumStateLocalTop;
   const incomeTax = adjusted + mellemskat + toptopskat;
   const socialSec = am + atp;
 
-  const netLocal = grossLocal - incomeTax - socialSec - eePension;
+  const netLocal = grossLocal - incomeTax - socialSec - eeContribution - aldersopsparing;
   const liquidLocal = netLocal - rentLocal * 12 - miscBurnLocal * 12;
+  const totalSavingsLocal = atp + eeContribution + erContribution + aldersopsparing;
   const fx = FX_USD_PER_UNIT.DKK;
   return {
     countryCode: 'DK', currency: 'DKK',
     grossLocal, incomeTax, socialSec, localTax: 0,
-    eePensionLocal: eePension, eeOtherDeductions: 0,
-    netLocal, erContributions: 0, totalSavingsLocal: eePension,
+    eePensionLocal: eeContribution, eeOtherDeductions: 0,
+    netLocal, erContributions: erContribution, totalSavingsLocal,
     rentLocal: rentLocal * 12, miscBurnLocal: miscBurnLocal * 12,
     liquidLocal,
-    netUSD: netLocal * fx, totalSavingsUSD: eePension * fx, liquidUSD: liquidLocal * fx,
+    netUSD: netLocal * fx, totalSavingsUSD: totalSavingsLocal * fx, liquidUSD: liquidLocal * fx,
     effectiveTaxRate: grossLocal > 0 ? (incomeTax + socialSec) / grossLocal : 0,
     breakdown: [
       { label: 'State + Kommune (capped)', amount: incomeTax, kind: 'tax' },
       { label: 'AM-bidrag + ATP', amount: socialSec, kind: 'social' },
-      { label: 'Ratepension', amount: eePension, kind: 'pension' },
+      { label: 'Occupational pension EE', amount: eeContribution, kind: 'pension' },
+      { label: 'Occupational pension ER', amount: erContribution, kind: 'pension' },
+      ...(aldersopsparing > 0 ? [{ label: 'Aldersopsparing', amount: aldersopsparing, kind: 'pension' }] : []),
     ],
   };
 };

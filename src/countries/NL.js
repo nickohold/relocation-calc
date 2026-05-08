@@ -16,6 +16,9 @@ export const NL_AHK_2026 = {
   max: 3115, full_threshold: 29736, taper_rate: 0.06398, zero_at: 78426,
 };
 
+export const NL_AOW_FRANCHISE = 19172;
+export const NL_PENSION_BASE_CAP = 137800;
+
 const calcAHK = (income) => {
   const C = NL_AHK_2026;
   if (income <= C.full_threshold) return C.max;
@@ -24,7 +27,6 @@ const calcAHK = (income) => {
 };
 
 const calcArbeidskorting = (income) => {
-  // Piecewise per 2026 schedule (simplified).
   if (income <= 11965) return income * 0.08324;
   if (income <= 25845) return 996 + (income - 11965) * 0.31009;
   if (income <= 45592) return 5300 + (income - 25845) * 0.01950;
@@ -34,37 +36,42 @@ const calcArbeidskorting = (income) => {
 
 export const compute = ({
   grossLocal,
-  eePensionPct = 0,
-  eeOtherPct = 0,
+  eePensionPct = 7.5,
+  erPensionPct = 15.9,
+  lijfrenteAmt = 0,
   rentLocal = 0,
   miscBurnLocal = 0,
 }) => {
-  void eeOtherPct;
-  // Pensioenpremie pre-tax, capped pensioengevend salaris €137,800.
-  const eePension = Math.min(grossLocal, 137800) * (eePensionPct / 100);
-  const taxable = Math.max(0, grossLocal - eePension);
+  const pensionBase = Math.max(0, Math.min(grossLocal, NL_PENSION_BASE_CAP) - NL_AOW_FRANCHISE);
+  const eeContribution = pensionBase * (eePensionPct / 100);
+  const erContribution = pensionBase * (erPensionPct / 100);
+  const lijfrente = Math.max(0, lijfrenteAmt);
+
+  const taxable = Math.max(0, grossLocal - eeContribution - lijfrente);
   const grossIT = calcBrackets(taxable, NL_BOX1_2026);
   const ahk = calcAHK(taxable);
   const arbk = Math.max(0, calcArbeidskorting(taxable));
   const incomeTax = Math.max(0, grossIT - ahk - arbk);
 
-  // Box 1 already includes AOW + Anw + WLZ (social) folded in.
   const socialSec = 0;
-  const netLocal = grossLocal - incomeTax - eePension;
+  const netLocal = grossLocal - incomeTax - eeContribution - lijfrente;
   const liquidLocal = netLocal - rentLocal * 12 - miscBurnLocal * 12;
+  const totalSavingsLocal = eeContribution + erContribution + lijfrente;
   const fx = FX_USD_PER_UNIT.EUR;
   return {
     countryCode: 'NL', currency: 'EUR',
     grossLocal, incomeTax, socialSec, localTax: 0,
-    eePensionLocal: eePension, eeOtherDeductions: 0,
-    netLocal, erContributions: 0, totalSavingsLocal: eePension,
+    eePensionLocal: eeContribution, eeOtherDeductions: lijfrente,
+    netLocal, erContributions: erContribution, totalSavingsLocal,
     rentLocal: rentLocal * 12, miscBurnLocal: miscBurnLocal * 12,
     liquidLocal,
-    netUSD: netLocal * fx, totalSavingsUSD: eePension * fx, liquidUSD: liquidLocal * fx,
+    netUSD: netLocal * fx, totalSavingsUSD: totalSavingsLocal * fx, liquidUSD: liquidLocal * fx,
     effectiveTaxRate: grossLocal > 0 ? incomeTax / grossLocal : 0,
     breakdown: [
       { label: 'Box 1 (incl. social)', amount: incomeTax, kind: 'tax' },
-      { label: 'Pension EE', amount: eePension, kind: 'pension' },
+      { label: '2nd-pillar EE', amount: eeContribution, kind: 'pension' },
+      { label: '2nd-pillar ER', amount: erContribution, kind: 'pension' },
+      ...(lijfrente > 0 ? [{ label: 'Lijfrente', amount: lijfrente, kind: 'pension' }] : []),
     ],
   };
 };

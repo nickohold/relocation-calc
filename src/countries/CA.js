@@ -18,30 +18,21 @@ export const CA_FEDERAL_BRACKETS = [
 export const CA_FEDERAL_BPA = 16452;
 
 export const CA_ON_BRACKETS = [
-  { max: 53891, rate: 0.0505 },
-  { max: 107785, rate: 0.0915 },
-  { max: 150000, rate: 0.1116 },
-  { max: 220000, rate: 0.1216 },
-  { max: Infinity, rate: 0.1316 },
+  { max: 53891, rate: 0.0505 }, { max: 107785, rate: 0.0915 },
+  { max: 150000, rate: 0.1116 }, { max: 220000, rate: 0.1216 }, { max: Infinity, rate: 0.1316 },
 ];
 export const CA_ON_BPA = 12989;
 
 export const CA_BC_BRACKETS = [
-  { max: 50363, rate: 0.0506 },
-  { max: 100728, rate: 0.077 },
-  { max: 115648, rate: 0.105 },
-  { max: 140430, rate: 0.1229 },
-  { max: 190405, rate: 0.147 },
-  { max: 265545, rate: 0.168 },
+  { max: 50363, rate: 0.0506 }, { max: 100728, rate: 0.077 }, { max: 115648, rate: 0.105 },
+  { max: 140430, rate: 0.1229 }, { max: 190405, rate: 0.147 }, { max: 265545, rate: 0.168 },
   { max: Infinity, rate: 0.205 },
 ];
 export const CA_BC_BPA = 12932;
 
 export const CA_QC_BRACKETS = [
-  { max: 54345, rate: 0.14 },
-  { max: 108680, rate: 0.19 },
-  { max: 132245, rate: 0.24 },
-  { max: Infinity, rate: 0.2575 },
+  { max: 54345, rate: 0.14 }, { max: 108680, rate: 0.19 },
+  { max: 132245, rate: 0.24 }, { max: Infinity, rate: 0.2575 },
 ];
 export const CA_QC_BPA = 18952;
 export const CA_QC_FEDERAL_ABATEMENT = 0.165;
@@ -56,6 +47,7 @@ export const CA_EI = {
   qc: { rate: 0.013, mie: 68900 },
 };
 export const CA_QPIP = { rate: 0.00494, mie: 98000 };
+export const CA_RRSP_MAX = 33810;
 
 const onSurtax = (onTax) => {
   let sur = 0;
@@ -66,23 +58,24 @@ const onSurtax = (onTax) => {
 
 export const compute = ({
   grossLocal,
-  eePensionPct = 0,
-  eeOtherPct = 0,
+  rrspPct = 10,
+  erRrspMatchPct = 3,
+  tfsaAmt = 7000,
   rentLocal = 0,
   miscBurnLocal = 0,
   locationKey,
 }) => {
-  void eeOtherPct;
-  // RRSP-style: 18% prior earnings up to $33,810. Treat as pre-tax.
-  const eePension = Math.min(grossLocal * (eePensionPct / 100), 33810);
+  const rrspMax = Math.min(grossLocal * 0.18, CA_RRSP_MAX);
+  const rrspContribution = Math.min(grossLocal * (rrspPct / 100), rrspMax);
+  const erRrspContribution = grossLocal * (erRrspMatchPct / 100);
+  const tfsa = Math.max(0, tfsaAmt);
+  const eePension = rrspContribution; // pre-tax
   const taxable = Math.max(0, grossLocal - eePension);
 
-  // Federal
   const fedGross = calcBrackets(taxable, CA_FEDERAL_BRACKETS);
   const fedBPACredit = CA_FEDERAL_BPA * 0.14;
   let fed = Math.max(0, fedGross - fedBPACredit);
 
-  // Provincial
   const isQC = locationKey === 'CA-MTL';
   let provBrackets = CA_ON_BRACKETS;
   let provBPA = CA_ON_BPA;
@@ -96,7 +89,6 @@ export const compute = ({
   if (locationKey === 'CA-TOR') prov += onSurtax(prov);
   if (isQC) fed = fed * (1 - CA_QC_FEDERAL_ABATEMENT);
 
-  // Social
   const cpp = isQC
     ? Math.max(0, Math.min(grossLocal, CA_CPP.ympe) - CA_CPP.basicExemption) * CA_QPP.rate
       + Math.max(0, Math.min(grossLocal, CA_CPP.yampe) - CA_CPP.ympe) * CA_QPP.qpp2Rate
@@ -112,21 +104,24 @@ export const compute = ({
   const localTax = prov;
   const netLocal = grossLocal - incomeTax - localTax - socialSec - eePension;
   const liquidLocal = netLocal - rentLocal * 12 - miscBurnLocal * 12;
+  const totalSavingsLocal = rrspContribution + erRrspContribution + tfsa;
   const fx = FX_USD_PER_UNIT.CAD;
   return {
     countryCode: 'CA', currency: 'CAD',
     grossLocal, incomeTax, socialSec, localTax,
     eePensionLocal: eePension, eeOtherDeductions: 0,
-    netLocal, erContributions: 0, totalSavingsLocal: eePension,
+    netLocal, erContributions: erRrspContribution, totalSavingsLocal,
     rentLocal: rentLocal * 12, miscBurnLocal: miscBurnLocal * 12,
     liquidLocal,
-    netUSD: netLocal * fx, totalSavingsUSD: eePension * fx, liquidUSD: liquidLocal * fx,
+    netUSD: netLocal * fx, totalSavingsUSD: totalSavingsLocal * fx, liquidUSD: liquidLocal * fx,
     effectiveTaxRate: grossLocal > 0 ? (incomeTax + localTax + socialSec) / grossLocal : 0,
     breakdown: [
       { label: 'Federal', amount: fed, kind: 'tax' },
       { label: 'Provincial', amount: prov, kind: 'tax' },
       { label: 'CPP/QPP + EI + QPIP', amount: socialSec, kind: 'social' },
-      { label: 'RRSP', amount: eePension, kind: 'pension' },
+      { label: 'RRSP EE', amount: rrspContribution, kind: 'pension' },
+      { label: 'RRSP/DPSP ER match', amount: erRrspContribution, kind: 'pension' },
+      ...(tfsa > 0 ? [{ label: 'TFSA', amount: tfsa, kind: 'pension' }] : []),
     ],
   };
 };

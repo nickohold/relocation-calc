@@ -23,32 +23,37 @@ export const DE_SOC_2026 = {
   unemployment: 0.013,
   health_base: 0.073,
   health_zusatz: 0.0145,
-  ltc: 0.017,                   // Pflegeversicherung employee share with children (TK 2026)
-  ltc_childless_surcharge: 0.006, // Childless surcharge age 23+ → 2.3% total childless single
+  ltc: 0.017,
+  ltc_childless_surcharge: 0.006,
   pension_unemp_cap: 101400,
   health_ltc_cap: 69750,
 };
 export const DE_WERBUNGSKOSTEN_PAUSCHALE = 1230;
+export const DE_BBG_RV_2026 = 101400;
 
 export const compute = ({
   grossLocal,
-  eePensionPct = 0,
-  eeOtherPct = 0,
+  bavPct = 4,
+  erBavPct = 0,
+  riesterFlag = false,
   rentLocal = 0,
   miscBurnLocal = 0,
 }) => {
-  void eeOtherPct;
   const C = DE_SOC_2026;
-  const eePension = grossLocal * (eePensionPct / 100);
-  // Rürup-style pension deduction (capped at €30,826/yr for simplicity).
-  const pensionDeductible = Math.min(eePension, 30826);
+  const bbg = DE_BBG_RV_2026;
+  const bavTaxFreeCap = 0.08 * bbg; // €8,112
+  // bAV (Entgeltumwandlung) = EE salary-conversion to occupational pension.
+  const bavContribution = Math.min(grossLocal * (bavPct / 100), bbg);
+  const erBavContribution = Math.min(grossLocal * (erBavPct / 100), bbg);
+  const riester = riesterFlag ? 2100 : 0;
+  // EE-side savings = bav (employee). For income tax base, deduct EE bav clamped at tax-free cap + Riester.
+  const pensionDeductible = Math.min(bavContribution, bavTaxFreeCap) + riester;
 
   const taxable = Math.max(0, grossLocal - pensionDeductible - DE_WERBUNGSKOSTEN_PAUSCHALE);
   const grossIT = calcBrackets(taxable, DE_BRACKETS_SINGLE);
   const soli = grossIT > DE_SOLI_FREIGRENZE_TAX ? grossIT * DE_SOLI_RATE : 0;
   const incomeTax = grossIT + soli;
 
-  // Employee social: pension+unemployment capped at BBG-RV; health+ltc at BBG-KV.
   const peuBase = Math.min(grossLocal, C.pension_unemp_cap);
   const hltcBase = Math.min(grossLocal, C.health_ltc_cap);
   const pension = peuBase * C.pension;
@@ -57,22 +62,25 @@ export const compute = ({
   const ltc = hltcBase * (C.ltc + C.ltc_childless_surcharge);
   const socialSec = pension + unemp + health + ltc;
 
-  const netLocal = grossLocal - incomeTax - socialSec - eePension;
+  const netLocal = grossLocal - incomeTax - socialSec - bavContribution;
   const liquidLocal = netLocal - rentLocal * 12 - miscBurnLocal * 12;
+  const totalSavingsLocal = bavContribution + erBavContribution + riester;
   const fx = FX_USD_PER_UNIT.EUR;
   return {
     countryCode: 'DE', currency: 'EUR',
     grossLocal, incomeTax, socialSec, localTax: 0,
-    eePensionLocal: eePension, eeOtherDeductions: 0,
-    netLocal, erContributions: 0, totalSavingsLocal: eePension,
+    eePensionLocal: bavContribution, eeOtherDeductions: 0,
+    netLocal, erContributions: erBavContribution, totalSavingsLocal,
     rentLocal: rentLocal * 12, miscBurnLocal: miscBurnLocal * 12,
     liquidLocal,
-    netUSD: netLocal * fx, totalSavingsUSD: eePension * fx, liquidUSD: liquidLocal * fx,
+    netUSD: netLocal * fx, totalSavingsUSD: totalSavingsLocal * fx, liquidUSD: liquidLocal * fx,
     effectiveTaxRate: grossLocal > 0 ? (incomeTax + socialSec) / grossLocal : 0,
     breakdown: [
       { label: 'Einkommensteuer + Soli', amount: incomeTax, kind: 'tax' },
       { label: 'Sozialversicherung', amount: socialSec, kind: 'social' },
-      { label: 'Pension EE', amount: eePension, kind: 'pension' },
+      { label: 'bAV EE', amount: bavContribution, kind: 'pension' },
+      { label: 'bAV ER', amount: erBavContribution, kind: 'pension' },
+      ...(riester > 0 ? [{ label: 'Riester', amount: riester, kind: 'pension' }] : []),
     ],
   };
 };

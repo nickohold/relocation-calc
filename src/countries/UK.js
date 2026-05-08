@@ -22,6 +22,9 @@ export const UK_NI = {
 };
 
 const UK_PA_FULL = 12570;
+const UK_BAND_LOWER = 6240;
+const UK_BAND_UPPER = 50270;
+const UK_ANNUAL_ALLOWANCE = 60000;
 
 const calcUKTax = (taxableIncome) => {
   // Personal Allowance taper: above £100k, PA reduced by £1 per £2 over.
@@ -30,7 +33,6 @@ const calcUKTax = (taxableIncome) => {
     pa = Math.max(0, UK_PA_FULL - (taxableIncome - 100000) / 2);
   }
   const aboveAllowance = Math.max(0, taxableIncome - pa);
-  // Apply brackets ignoring the zero band (since we already subtracted PA).
   const bands = [
     { max: 50270 - 12570, rate: 0.20 },
     { max: 125140 - 12570, rate: 0.40 },
@@ -47,22 +49,27 @@ const calcUKNI = (gross) => {
 
 export const compute = ({
   grossLocal,
-  eePensionPct = 0,
-  eeOtherPct = 0,
+  eePensionPct = 5,
+  erPensionPct = 3,
+  salarySacrifice = false,
   rentLocal = 0,
   miscBurnLocal = 0,
 }) => {
-  void eeOtherPct;
-  const eePension = grossLocal * (eePensionPct / 100);
-  // Pension treated as occupational (pre-tax only, NOT pre-NI). Salary sacrifice = future toggle.
-  const taxableIncome = Math.max(0, grossLocal - eePension);
-  const incomeTax = calcUKTax(taxableIncome);
-  const ni = calcUKNI(grossLocal);
+  const band = Math.max(0, Math.min(grossLocal, UK_BAND_UPPER) - UK_BAND_LOWER);
+  const eeContribution = band * (eePensionPct / 100);
+  const erContribution = band * (erPensionPct / 100);
 
-  const netLocal = grossLocal - incomeTax - ni - eePension;
+  // Pension reduces income tax base; salary sacrifice also reduces NI on EE portion.
+  const taxableIncome = Math.max(0, grossLocal - eeContribution);
+  const incomeTax = calcUKTax(taxableIncome);
+  const niBase = salarySacrifice ? Math.max(0, grossLocal - eeContribution) : grossLocal;
+  const ni = calcUKNI(niBase);
+
+  const netLocal = grossLocal - incomeTax - ni - eeContribution;
   const fx = FX_USD_PER_UNIT.GBP;
   const liquidLocal = netLocal - rentLocal * 12 - miscBurnLocal * 12;
-  const totalSavingsLocal = eePension; // no employer match modeled by default
+  // Annual Allowance £60k cap on combined contributions for tax-relief purposes.
+  const totalSavingsLocal = Math.min(eeContribution + erContribution, UK_ANNUAL_ALLOWANCE);
 
   return {
     countryCode: 'UK', currency: 'GBP',
@@ -70,10 +77,10 @@ export const compute = ({
     incomeTax,
     socialSec: ni,
     localTax: 0,
-    eePensionLocal: eePension,
+    eePensionLocal: eeContribution,
     eeOtherDeductions: 0,
     netLocal,
-    erContributions: 0,
+    erContributions: erContribution,
     totalSavingsLocal,
     rentLocal: rentLocal * 12,
     miscBurnLocal: miscBurnLocal * 12,
@@ -85,7 +92,8 @@ export const compute = ({
     breakdown: [
       { label: 'Income Tax', amount: incomeTax, kind: 'tax' },
       { label: 'National Insurance', amount: ni, kind: 'social' },
-      { label: 'Pension EE', amount: eePension, kind: 'pension' },
+      { label: 'Workplace pension EE', amount: eeContribution, kind: 'pension' },
+      { label: 'Workplace pension ER', amount: erContribution, kind: 'pension' },
     ],
   };
 };
