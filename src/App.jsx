@@ -11,6 +11,7 @@ import {
 import { runComparison } from './calc';
 import { LOCATIONS, COUNTRIES } from './countries.js';
 import { FX_USD_PER_UNIT } from './fx.js';
+import { loadLiveFxRates, fxStatus } from './fxLive.js';
 import ComparePanel from './components/ComparePanel.jsx';
 import CompareSummary from './components/CompareSummary.jsx';
 import UnifiedBreakdown from './components/UnifiedBreakdown.jsx';
@@ -319,6 +320,15 @@ const App = () => {
     }
   }, [activeLayout]);
 
+  // Load live FX rates once on mount; bump fxRev when they arrive so memoized
+  // comparison + footer re-render with the fresh values.
+  const [fxRev, setFxRev] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    loadLiveFxRates().then(() => { if (!cancelled) setFxRev((r) => r + 1); });
+    return () => { cancelled = true; };
+  }, []);
+
   // Coerce numeric fields before passing to engine.
   const coerce = useCallback((p) => {
     const out = { ...p };
@@ -353,7 +363,7 @@ const App = () => {
     source: coerce(sourcePayload),
     dest: coerce(destPayload),
     options: { matchSourceSavings },
-  }), [sourcePayload, destPayload, matchSourceSavings, coerce]);
+  }), [sourcePayload, destPayload, matchSourceSavings, coerce, fxRev]);
 
   const sourceCurrency = COUNTRIES[sourcePayload.countryCode]?.currency || 'USD';
   const destCurrency = COUNTRIES[destPayload.countryCode]?.currency || 'USD';
@@ -584,9 +594,12 @@ const CurrencyToggle = ({ theme, displayMode, setDisplayMode, sourceCurrency, de
 const FXFooter = ({ theme, sourceCurrency, destCurrency }) => {
   const rates = [...new Set(['USD', sourceCurrency, destCurrency])]
     .filter((c) => c !== 'USD' && FX_USD_PER_UNIT[c]);
+  const sourceLabel = fxStatus.source === 'live' ? 'Live (Frankfurter / ECB)'
+    : fxStatus.source === 'cache' ? 'Cached <24h (Frankfurter / ECB)'
+    : 'Static fallback';
   return (
     <div className={`text-[10px] uppercase tracking-widest font-bold opacity-60 ${theme.footerText} flex flex-wrap gap-3 justify-center`}>
-      <span>FX as of May 2026</span>
+      <span>FX {fxStatus.asOf || 'May 2026'} · {sourceLabel}</span>
       {rates.map((c) => (
         <span key={c}>1 {c} = ${FX_USD_PER_UNIT[c].toFixed(4)} USD</span>
       ))}
