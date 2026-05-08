@@ -501,14 +501,6 @@ const App = () => {
               onOpen={() => setMethodologyOpen(true)}
             />
           </div>
-          <a
-            href={`https://github.com/nickohold/relocation-calc/commit/${__APP_SHA__}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[10px] font-mono tracking-widest uppercase hover:underline"
-          >
-            {__APP_VERSION__} · {__APP_SHA__} · {__APP_BUILD_DATE__}
-          </a>
         </footer>
       </div>
       <MethodologyDrawer
