@@ -2,16 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { FX_USD_PER_UNIT } from '../fx.js';
 import { fmtAmount } from './formatCurrency.js';
+import BreakdownRow from './BreakdownRow.jsx';
 
-// Sum the source/dest breakdown items that match the predicate; convert each to USD.
-const sumByKind = (result, predicate) => {
-  if (!result) return 0;
-  const fx = FX_USD_PER_UNIT[result.currency] ?? 1;
-  return (result.breakdown ?? [])
-    .filter(predicate)
-    .reduce((a, b) => a + (b.amount * fx), 0);
-};
-
+// Convert each breakdown entry of a side into USD.
 const itemsByKind = (result, predicate) => {
   if (!result) return [];
   const fx = FX_USD_PER_UNIT[result.currency] ?? 1;
@@ -20,7 +13,8 @@ const itemsByKind = (result, predicate) => {
     .map((b) => ({ label: b.label, amountUSD: b.amount * fx, kind: b.kind }));
 };
 
-// Merge a list of source-items and dest-items by label (insertion order preserved).
+// Merge source-items and dest-items by label, source-first insertion order.
+// Missing side stays undefined (rendered as —).
 const mergeItems = (sourceItems, destItems) => {
   const order = [];
   const sMap = {};
@@ -40,115 +34,33 @@ const mergeItems = (sourceItems, destItems) => {
   }));
 };
 
-const fmtCell = (v, displayCurrency) =>
-  v == null ? <span className="opacity-30">—</span> : fmtAmount(v, displayCurrency);
-
-const fmtDelta = (delta, displayCurrency, isExpense = false) => {
-  if (delta == null || delta === 0) return <span className="opacity-30">—</span>;
-  // For expenses, smaller (more negative) absolute spend is "better" — but we display raw signed delta.
-  const cls = delta > 0
-    ? (isExpense ? 'text-rose-500' : 'text-emerald-500')
-    : (isExpense ? 'text-emerald-500' : 'text-rose-500');
-  return (
-    <span className={cls}>
-      {delta > 0 ? '+' : ''}{fmtAmount(delta, displayCurrency)}
-    </span>
-  );
-};
-
-const TopRow = ({ label, sourceUSD, destUSD, displayCurrency, open, onToggle, accentBg, accentText, deltaPosClass, deltaNegClass }) => {
-  const delta = (destUSD ?? 0) - (sourceUSD ?? 0);
-  return (
-    <tr className={`${accentBg} cursor-pointer transition-colors`} onClick={onToggle}>
-      <td className="p-3 pl-4 sm:pl-6">
-        <span className={`inline-flex items-center justify-center w-4 h-4 mr-2 align-middle ${accentText}`}>
-          {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        </span>
-        <span className={`font-black uppercase text-[10px] sm:text-xs tracking-widest ${accentText}`}>{label}</span>
-      </td>
-      <td className="p-3 sm:p-4 text-slate-500 font-bold">{fmtCell(sourceUSD, displayCurrency)}</td>
-      <td className={`p-3 sm:p-4 font-black ${accentText}`}>{fmtCell(destUSD, displayCurrency)}</td>
-      <td className={`p-3 pr-4 sm:pr-6 text-right font-black ${delta >= 0 ? deltaPosClass : deltaNegClass}`}>
-        {delta === 0 ? <span className="opacity-30">—</span> : `${delta > 0 ? '+' : ''}${fmtAmount(delta, displayCurrency)}`}
-      </td>
-    </tr>
-  );
-};
-
-const SubGroupRow = ({ label, sourceUSD, destUSD, displayCurrency, open, onToggle, isExpense }) => {
-  const delta = (destUSD ?? 0) - (sourceUSD ?? 0);
-  return (
-    <tr className="bg-slate-50/30 dark:bg-white/[0.01] cursor-pointer hover:bg-slate-100/50 dark:hover:bg-white/[0.03]" onClick={onToggle}>
-      <td className="p-2.5 pl-8">
-        <span className="inline-flex items-center justify-center w-3 h-3 mr-2 align-middle opacity-60">
-          {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        </span>
-        <span className="font-bold text-sm">{label}</span>
-      </td>
-      <td className="p-2.5 text-sm">{fmtCell(sourceUSD == null ? null : -sourceUSD, displayCurrency)}</td>
-      <td className="p-2.5 text-sm">{fmtCell(destUSD == null ? null : -destUSD, displayCurrency)}</td>
-      <td className="p-2.5 pr-4 sm:pr-6 text-right text-sm">
-        {fmtDelta(-delta, displayCurrency, isExpense)}
-      </td>
-    </tr>
-  );
-};
-
-const LeafRow = ({ label, sourceUSD, destUSD, displayCurrency, sub = false, isExpense = false }) => {
-  const delta = (destUSD ?? 0) - (sourceUSD ?? 0);
-  return (
-    <tr className="hover:bg-slate-50/30 dark:hover:bg-white/[0.02]">
-      <td className={`p-2 ${sub ? 'pl-12' : 'pl-8'} text-sm opacity-80`}>{label}</td>
-      <td className="p-2 text-sm tabular-nums">{fmtCell(sourceUSD, displayCurrency)}</td>
-      <td className="p-2 text-sm tabular-nums">{fmtCell(destUSD, displayCurrency)}</td>
-      <td className="p-2 pr-4 sm:pr-6 text-right text-sm tabular-nums">
-        {fmtDelta(delta, displayCurrency, isExpense)}
-      </td>
-    </tr>
-  );
-};
-
-const NetRow = ({ label, sourceUSD, destUSD, displayCurrency }) => {
-  const delta = (destUSD ?? 0) - (sourceUSD ?? 0);
-  return (
-    <tr className="bg-slate-100/70 dark:bg-white/[0.04] border-y border-slate-300/40 dark:border-white/10">
-      <td className="p-3 pl-6 text-sm font-bold">{label}</td>
-      <td className="p-3 text-sm font-bold tabular-nums">{fmtCell(sourceUSD, displayCurrency)}</td>
-      <td className="p-3 text-sm font-bold tabular-nums">{fmtCell(destUSD, displayCurrency)}</td>
-      <td className={`p-3 pr-4 sm:pr-6 text-right text-sm font-bold tabular-nums ${delta >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-        {delta === 0 ? <span className="opacity-30">—</span> : `${delta > 0 ? '+' : ''}${fmtAmount(delta, displayCurrency)}`}
-      </td>
-    </tr>
-  );
-};
-
 const UnifiedBreakdown = ({ theme, comparison, displayCurrency }) => {
-  const [bankOpen, setBankOpen] = useState(true);
+  // Defaults match main: all closed initially.
+  const [bankOpen, setBankOpen] = useState(false);
   const [taxesOpen, setTaxesOpen] = useState(false);
   const [expensesOpen, setExpensesOpen] = useState(false);
-  const [savingsOpen, setSavingsOpen] = useState(true);
+  const [savingsOpen, setSavingsOpen] = useState(false);
 
   const { source, dest } = comparison ?? {};
   if (!source && !dest) return null;
 
-  // Aggregates per side, all in USD.
-  const sourceFx = source ? FX_USD_PER_UNIT[source.currency] : 1;
-  const destFx = dest ? FX_USD_PER_UNIT[dest.currency] : 1;
+  // FX → USD per side. All amounts below are in USD; `fmt` maps USD → displayCurrency.
+  const sourceFx = source ? (FX_USD_PER_UNIT[source.currency] ?? 1) : 1;
+  const destFx = dest ? (FX_USD_PER_UNIT[dest.currency] ?? 1) : 1;
 
-  const grossSourceUSD = source ? source.grossLocal * sourceFx : null;
-  const grossDestUSD = dest ? dest.grossLocal * destFx : null;
-  const netSourceUSD = source?.netUSD ?? null;
-  const netDestUSD = dest?.netUSD ?? null;
-  const liquidSourceUSD = source?.liquidUSD ?? null;
-  const liquidDestUSD = dest?.liquidUSD ?? null;
-  const savingsSourceUSD = source?.totalSavingsUSD ?? null;
-  const savingsDestUSD = dest?.totalSavingsUSD ?? null;
+  const fmt = (usd) => fmtAmount(usd ?? 0, displayCurrency);
+  // Cell formatter for the bank/savings top rows: show — for nullish.
+  const cell = (usd) => (usd == null ? <span className="opacity-30">—</span> : fmtAmount(usd, displayCurrency));
 
-  const taxesSourceUSD = sumByKind(source, (b) => b.kind === 'tax' || b.kind === 'social');
-  const taxesDestUSD = sumByKind(dest, (b) => b.kind === 'tax' || b.kind === 'social');
-
-  const expensesSourceUSD = source ? (source.rentLocal + source.miscBurnLocal) * sourceFx : 0;
-  const expensesDestUSD = dest ? (dest.rentLocal + dest.miscBurnLocal) * destFx : 0;
+  // Aggregates (USD).
+  const grossSource = source ? source.grossLocal * sourceFx : 0;
+  const grossDest = dest ? dest.grossLocal * destFx : 0;
+  const netSource = source?.netUSD ?? 0;
+  const netDest = dest?.netUSD ?? 0;
+  const liquidSource = source?.liquidUSD ?? null;
+  const liquidDest = dest?.liquidUSD ?? null;
+  const savingsSource = source?.totalSavingsUSD ?? null;
+  const savingsDest = dest?.totalSavingsUSD ?? null;
 
   const taxItems = useMemo(() => mergeItems(
     itemsByKind(source, (b) => b.kind === 'tax' || b.kind === 'social'),
@@ -160,84 +72,118 @@ const UnifiedBreakdown = ({ theme, comparison, displayCurrency }) => {
     itemsByKind(dest, (b) => b.kind === 'pension'),
   ), [source, dest]);
 
+  // Sums for the expandable section "header" rows.
+  const taxesSource = taxItems.reduce((a, it) => a + (it.sourceUSD ?? 0), 0);
+  const taxesDest = taxItems.reduce((a, it) => a + (it.destUSD ?? 0), 0);
+
+  const rentSource = source ? source.rentLocal * sourceFx : 0;
+  const rentDest = dest ? dest.rentLocal * destFx : 0;
+  const miscSource = source ? source.miscBurnLocal * sourceFx : 0;
+  const miscDest = dest ? dest.miscBurnLocal * destFx : 0;
+  const expensesSource = rentSource + miscSource;
+  const expensesDest = rentDest + miscDest;
+
+  // Top-row deltas (raw signed: dest − source).
+  const liquidDelta = (liquidDest ?? 0) - (liquidSource ?? 0);
+  const savingsDelta = (savingsDest ?? 0) - (savingsSource ?? 0);
+  const netDelta = netDest - netSource;
+
   return (
     <div className={theme.tableShell}>
       <table className="w-full text-left text-xs sm:text-sm min-w-[560px]">
         <thead className={theme.tableHead}>
           <tr>
-            <th className="p-3 pl-4 sm:pl-6">Annual Breakdown ({displayCurrency})</th>
+            <th className="p-3 pl-4 sm:p-4 sm:pl-6">Annual Breakdown ({displayCurrency})</th>
             <th className="p-3 sm:p-4">Source</th>
             <th className="p-3 sm:p-4">Destination</th>
-            <th className="p-3 pr-4 sm:pr-6 text-right">Δ (Dest − Source)</th>
+            <th className="p-3 pr-4 sm:p-4 sm:pr-6 text-right">Δ (Dest − Source)</th>
           </tr>
         </thead>
         <tbody className={theme.tableDivide}>
-          {/* Bank Balance roll-up */}
-          <TopRow
-            label="Annual Liquid (Bank balance)"
-            sourceUSD={liquidSourceUSD}
-            destUSD={liquidDestUSD}
-            displayCurrency={displayCurrency}
-            open={bankOpen}
-            onToggle={() => setBankOpen(!bankOpen)}
-            accentBg="bg-orange-50/50 dark:bg-yellow-400/5 border-t-2 border-orange-200/80 dark:border-yellow-400/30 hover:bg-orange-100/50"
-            accentText="text-orange-800 dark:text-yellow-300"
-            deltaPosClass="text-emerald-600 dark:text-emerald-400"
-            deltaNegClass="text-rose-600 dark:text-rose-400"
-          />
+          {/* Bank balance roll-up */}
+          <tr className={theme.bankRow} onClick={() => setBankOpen(!bankOpen)}>
+            <td className={theme.bankRowLabel}>
+              <span className={theme.bankRowChevron}>
+                {bankOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              </span>
+              Annual Liquid (Bank balance)
+            </td>
+            <td className={theme.bankRowSource}>{cell(liquidSource)}</td>
+            <td className={theme.bankRowDest}>{cell(liquidDest)}</td>
+            <td className={`p-3 pr-4 sm:p-5 sm:pr-6 text-right font-black ${liquidDelta >= 0 ? theme.bankDeltaPos : theme.bankDeltaNeg}`}>
+              {liquidDelta > 0 ? '+' : ''}{fmt(liquidDelta)}
+            </td>
+          </tr>
           {bankOpen && (
             <>
-              <LeafRow label="Gross Pay" sourceUSD={grossSourceUSD} destUSD={grossDestUSD} displayCurrency={displayCurrency} />
+              <BreakdownRow theme={theme} fmt={fmt} label="Gross Pay" source={grossSource} dest={grossDest} />
 
-              <SubGroupRow
+              <BreakdownRow
+                theme={theme}
+                fmt={fmt}
                 label="Taxes & Social"
-                sourceUSD={taxesSourceUSD}
-                destUSD={taxesDestUSD}
-                displayCurrency={displayCurrency}
-                open={taxesOpen}
-                onToggle={() => setTaxesOpen(!taxesOpen)}
+                source={-taxesSource}
+                dest={-taxesDest}
                 isExpense
+                expandable
+                expanded={taxesOpen}
+                onToggle={() => setTaxesOpen(!taxesOpen)}
               />
               {taxesOpen && taxItems.map((it) => (
-                <LeafRow
+                <BreakdownRow
                   key={`tax-${it.label}`}
+                  theme={theme}
+                  fmt={fmt}
                   label={it.label}
-                  sourceUSD={it.sourceUSD == null ? null : -it.sourceUSD}
-                  destUSD={it.destUSD == null ? null : -it.destUSD}
-                  displayCurrency={displayCurrency}
-                  sub
+                  source={it.sourceUSD == null ? 0 : -it.sourceUSD}
+                  dest={it.destUSD == null ? 0 : -it.destUSD}
                   isExpense
+                  variant="sub"
                 />
               ))}
 
-              <NetRow label="Net Take-Home" sourceUSD={netSourceUSD} destUSD={netDestUSD} displayCurrency={displayCurrency} />
+              <tr className={theme.netRow}>
+                <td className={theme.netRowLabel}>
+                  <span className="inline-flex items-center justify-center w-4 h-4 mr-2 align-middle" />
+                  Net Take-Home
+                </td>
+                <td className={theme.netRowSource}>{fmt(netSource)}</td>
+                <td className={theme.netRowDest}>{fmt(netDest)}</td>
+                <td className={`p-3 pr-4 sm:p-4 sm:pr-6 text-right text-sm font-semibold ${netDelta >= 0 ? theme.deltaPos : theme.deltaNeg}`}>
+                  {netDelta > 0 ? '+' : ''}{fmt(netDelta)}
+                </td>
+              </tr>
 
-              <SubGroupRow
+              <BreakdownRow
+                theme={theme}
+                fmt={fmt}
                 label="Living Expenses"
-                sourceUSD={expensesSourceUSD}
-                destUSD={expensesDestUSD}
-                displayCurrency={displayCurrency}
-                open={expensesOpen}
-                onToggle={() => setExpensesOpen(!expensesOpen)}
+                source={-expensesSource}
+                dest={-expensesDest}
                 isExpense
+                expandable
+                expanded={expensesOpen}
+                onToggle={() => setExpensesOpen(!expensesOpen)}
               />
               {expensesOpen && (
                 <>
-                  <LeafRow
+                  <BreakdownRow
+                    theme={theme}
+                    fmt={fmt}
                     label="Rent (annual)"
-                    sourceUSD={source ? -source.rentLocal * sourceFx : null}
-                    destUSD={dest ? -dest.rentLocal * destFx : null}
-                    displayCurrency={displayCurrency}
-                    sub
+                    source={-rentSource}
+                    dest={-rentDest}
                     isExpense
+                    variant="sub"
                   />
-                  <LeafRow
+                  <BreakdownRow
+                    theme={theme}
+                    fmt={fmt}
                     label="Misc burn (annual)"
-                    sourceUSD={source ? -source.miscBurnLocal * sourceFx : null}
-                    destUSD={dest ? -dest.miscBurnLocal * destFx : null}
-                    displayCurrency={displayCurrency}
-                    sub
+                    source={-miscSource}
+                    dest={-miscDest}
                     isExpense
+                    variant="sub"
                   />
                 </>
               )}
@@ -245,25 +191,27 @@ const UnifiedBreakdown = ({ theme, comparison, displayCurrency }) => {
           )}
 
           {/* Savings roll-up */}
-          <TopRow
-            label="Annual Savings"
-            sourceUSD={savingsSourceUSD}
-            destUSD={savingsDestUSD}
-            displayCurrency={displayCurrency}
-            open={savingsOpen}
-            onToggle={() => setSavingsOpen(!savingsOpen)}
-            accentBg="bg-indigo-50/60 dark:bg-indigo-400/5 border-t-2 border-indigo-200/80 dark:border-indigo-400/30 hover:bg-indigo-100/50"
-            accentText="text-indigo-800 dark:text-indigo-300"
-            deltaPosClass="text-emerald-600 dark:text-emerald-400"
-            deltaNegClass="text-rose-600 dark:text-rose-400"
-          />
+          <tr className={theme.savingsRow} onClick={() => setSavingsOpen(!savingsOpen)}>
+            <td className={theme.savingsRowLabel}>
+              <span className={theme.savingsRowChevron}>
+                {savingsOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              </span>
+              Annual Savings
+            </td>
+            <td className={theme.savingsRowSource}>{cell(savingsSource)}</td>
+            <td className={theme.savingsRowDest}>{cell(savingsDest)}</td>
+            <td className={`p-3 pr-4 sm:p-5 sm:pr-6 text-right font-black ${savingsDelta >= 0 ? theme.savingsDeltaPos : theme.savingsDeltaNeg}`}>
+              {savingsDelta > 0 ? '+' : ''}{fmt(savingsDelta)}
+            </td>
+          </tr>
           {savingsOpen && pensionItems.length > 0 && pensionItems.map((it) => (
-            <LeafRow
+            <BreakdownRow
               key={`pension-${it.label}`}
+              theme={theme}
+              fmt={fmt}
               label={it.label}
-              sourceUSD={it.sourceUSD}
-              destUSD={it.destUSD}
-              displayCurrency={displayCurrency}
+              source={it.sourceUSD ?? 0}
+              dest={it.destUSD ?? 0}
             />
           ))}
           {savingsOpen && pensionItems.length === 0 && (
