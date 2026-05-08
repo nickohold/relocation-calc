@@ -132,7 +132,6 @@ const UnifiedBreakdown = ({
             <div className={`flex p-1 rounded-lg ${shellCls}`}>
               {currencyBtn('source', `Source (${sourceCurrency})`)}
               {currencyBtn('dest', `Dest (${destCurrency})`)}
-              {currencyBtn('USD', '$ USD')}
             </div>
             <span className="text-[9px] uppercase tracking-widest font-black opacity-50">Display currency</span>
           </div>

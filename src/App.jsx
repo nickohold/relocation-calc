@@ -263,9 +263,9 @@ const App = () => {
     return buildDefaultPayload(key);
   });
   const [displayMode, setDisplayMode] = useState(() => {
-    if (typeof window === 'undefined') return 'USD';
+    if (typeof window === 'undefined') return 'source';
     const stored = window.localStorage.getItem(DISPLAY_MODE_STORAGE);
-    return ['source', 'dest', 'USD'].includes(stored) ? stored : 'USD';
+    return ['source', 'dest'].includes(stored) ? stored : 'source';
   });
 
   useEffect(() => {
