@@ -6,6 +6,15 @@ import {
 } from './calc.js';
 import { fromUSD } from './fx.js';
 import { calcESt2026 } from './countries/DE.js';
+import { calcUKTax } from './countries/UK.js';
+import { IT_NATIONAL_BRACKETS_2026 } from './countries/IT.js';
+import { CH_FEDERAL_BRACKETS_SINGLE } from './countries/CH.js';
+import {
+  JP_INHABITANT_BASIC_DEDUCTION, JP_BASIC_DEDUCTION,
+  JP_EMPLOYMENT_INCOME_DEDUCTION_CAP, JP_INHABITANT_FLAT_RATE, JP_INHABITANT_PER_CAPITA,
+} from './countries/JP.js';
+import { ES_STATE_BRACKETS, ES_MAD_BRACKETS, ES_PERSONAL_ALLOWANCE } from './countries/ES.js';
+import { NO_G_2025 } from './countries/NO.js';
 
 describe('calcBrackets — progressive bracket math', () => {
   it('returns 0 for zero income', () => {
@@ -565,6 +574,120 @@ describe('FR — cadre/non-cadre cotisation toggle', () => {
     expect(cadreField).toBeDefined();
     expect(cadreField.default).toBe(true);
     expect(cadreField.kind).toBe('toggle');
+  });
+});
+
+// ── Tax-accuracy batch 2: locks corrected engine values ──
+describe('UK — 45% additional-rate band under PA taper', () => {
+  it('does not start the 45% band before £125,140 once PA is tapered', () => {
+    // £120k: pa = 12,570 − (120,000−100,000)/2 = 2,570 → aboveAllowance = 117,430.
+    // 20% × 37,700 = 7,540; 40% × (117,430 − 37,700) = 31,892; 45% × 0 (117,430 < 122,570) = 0.
+    // Correct income tax = £39,432. The old code (40% ceiling 112,570) charged £39,675 —
+    // £243 too much here, up to ~£628 just below £125,140.
+    expect(calcUKTax(120000)).toBeCloseTo(39432, 2);
+  });
+
+  it('45% applies only above £125,140 of total income (PA fully tapered)', () => {
+    // At £125,140, pa = 0 → aboveAllowance = 125,140. 40% band runs to 125,140 − 0.
+    // 7,540 + 40% × 87,440 = 7,540 + 34,976 = 42,516. No 45% yet.
+    expect(calcUKTax(125140)).toBeCloseTo(42516, 2);
+  });
+
+  it('is unchanged below £100k (full PA, no taper)', () => {
+    // £88,261: pa = 12,570 → aboveAllowance = 75,691. 7,540 + 40% × 37,991 = 22,736.4.
+    expect(calcUKTax(88261)).toBeCloseTo(7540 + 0.40 * (75691 - 37700), 2);
+  });
+});
+
+describe('NO — employer OTP upper-band rate is the input (capped at 18.1%)', () => {
+  const G = NO_G_2025;
+  const tier1Base = 7.1 * G - G;       // 1G..7.1G
+  const tier2Base = 12 * G - 7.1 * G;  // 7.1G..12G
+
+  it('uses the actual 5% input on the 7.1G–12G band, not a forced 18.1%', () => {
+    const r = COUNTRIES.NO.compute({ grossLocal: 12 * G, erOtpPct: 5, eeOtpPct: 0, ipsAmt: 0 });
+    // tier1 × 5% + tier2 × 5% — NOT tier2 × 18.1% (which booked phantom pension).
+    expect(r.erContributions).toBeCloseTo((tier1Base + tier2Base) * 0.05, 1);
+  });
+
+  it('caps the upper-band employer rate at the 18.1% legal maximum', () => {
+    const r = COUNTRIES.NO.compute({ grossLocal: 12 * G, erOtpPct: 20, eeOtpPct: 0, ipsAmt: 0 });
+    expect(r.erContributions).toBeCloseTo(tier1Base * 0.20 + tier2Base * 0.181, 1);
+  });
+});
+
+describe('IT — second IRPEF band is 35% (3-rate schedule)', () => {
+  it('taxes the €28k–€50k band at 35%, not 33%', () => {
+    expect(IT_NATIONAL_BRACKETS_2026[1].rate).toBe(0.35);
+    // brackets(50,000) = 28,000 × 23% + 22,000 × 35% = 6,440 + 7,700 = 14,140.
+    expect(calcBrackets(50000, IT_NATIONAL_BRACKETS_2026)).toBeCloseTo(14140, 2);
+  });
+});
+
+describe('CH — AHV/ALV social contributions deducted from the taxable base', () => {
+  it('nets out socialSec (not just pension) before the federal tariff', () => {
+    const r = COUNTRIES.CH.compute({ grossLocal: 150000, age: 35, locationKey: 'CH-ZRH' });
+    const correctBase = 150000 - r.eePensionLocal - r.socialSec;
+    expect(r.incomeTax).toBeCloseTo(calcBrackets(correctBase, CH_FEDERAL_BRACKETS_SINGLE), 2);
+    // Strictly lower than the old base (pension only), proving socialSec is now deducted.
+    const oldBase = 150000 - r.eePensionLocal;
+    expect(r.incomeTax).toBeLessThan(calcBrackets(oldBase, CH_FEDERAL_BRACKETS_SINGLE));
+  });
+});
+
+describe('JP — inhabitant tax uses the ¥430k residence basic deduction', () => {
+  it('computes residence-tax base with ¥430k, not the national ¥580k', () => {
+    const r = COUNTRIES.JP.compute({ grossLocal: 18000000, iDecoMonthlyJpy: 23000, dcCorpMonthlyJpy: 0, age: 35 });
+    const inhabitantBase = 18000000 - JP_EMPLOYMENT_INCOME_DEDUCTION_CAP
+      - JP_INHABITANT_BASIC_DEDUCTION - r.socialSec - r.eePensionLocal;
+    const expected = inhabitantBase * JP_INHABITANT_FLAT_RATE + JP_INHABITANT_PER_CAPITA;
+    expect(r.localTax).toBeCloseTo(expected, 2);
+    // Higher than the old (national 580k) base by exactly (580k−430k)×10% = ¥15,000.
+    const oldBase = 18000000 - JP_EMPLOYMENT_INCOME_DEDUCTION_CAP
+      - JP_BASIC_DEDUCTION - r.socialSec - r.eePensionLocal;
+    const oldInhabitant = oldBase * JP_INHABITANT_FLAT_RATE + JP_INHABITANT_PER_CAPITA;
+    expect(r.localTax - oldInhabitant).toBeCloseTo(15000, 2);
+  });
+});
+
+describe('ES — mínimo personal applied as a bottom-rate credit', () => {
+  it('credits the mínimo at the lowest bracket rate, not as a base deduction', () => {
+    const r = COUNTRIES.ES.compute({ grossLocal: 111000, planPensionesAmt: 1500, erPlanEmpleoAmt: 0, locationKey: 'ES-MAD' });
+    const ss = Math.min(111000, 61214.40) * 0.065;
+    const base = 111000 - 1500 - ss; // mínimo NOT subtracted from base
+    const expected =
+      Math.max(0, calcBrackets(base, ES_STATE_BRACKETS) - calcBrackets(ES_PERSONAL_ALLOWANCE, ES_STATE_BRACKETS))
+      + Math.max(0, calcBrackets(base, ES_MAD_BRACKETS) - calcBrackets(ES_PERSONAL_ALLOWANCE, ES_MAD_BRACKETS));
+    expect(r.incomeTax).toBeCloseTo(expected, 2);
+    // Credit relief (~bottom-rate) is smaller than the old base-deduction relief
+    // (~marginal), so corrected tax is strictly higher.
+    const oldBase = base - ES_PERSONAL_ALLOWANCE;
+    const oldTax = calcBrackets(oldBase, ES_STATE_BRACKETS) + calcBrackets(oldBase, ES_MAD_BRACKETS);
+    expect(r.incomeTax).toBeGreaterThan(oldTax);
+  });
+});
+
+describe('runComparison — matchSourceSavings dead-lever warning', () => {
+  const source = {
+    countryCode: 'IL', locationKey: 'IL-TLV',
+    grossLocal: 50000 * 12, eePensionPct: 6, eeOtherPct: 2.5,
+    rentLocal: 0, miscBurnLocal: 0,
+    erPensionPct: 6.5, erSeverancePct: 8.33, erKerenPct: 7.5,
+  };
+  const dest = {
+    countryCode: 'CH', locationKey: 'CH-ZRH',
+    grossLocal: 80000, eePensionPct: 0,
+    rentLocal: 0, miscBurnLocal: 0,
+  };
+
+  it('warns when the destination ignores the generic pension lever', () => {
+    const r = runComparison({ source, dest, options: { matchSourceSavings: true } });
+    expect(r.warnings.some((w) => /auto-match/i.test(w))).toBe(true);
+  });
+
+  it('adds no such warning when matchSourceSavings is off', () => {
+    const r = runComparison({ source, dest });
+    expect(r.warnings.some((w) => /auto-match/i.test(w))).toBe(false);
   });
 });
 

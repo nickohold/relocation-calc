@@ -17,6 +17,7 @@ export const JP_RECONSTRUCTION_SURTAX = 0.021;
 export const JP_INHABITANT_FLAT_RATE = 0.10;
 export const JP_INHABITANT_PER_CAPITA = 5000;
 export const JP_BASIC_DEDUCTION = 580000;
+export const JP_INHABITANT_BASIC_DEDUCTION = 430000; // residence-tax basic deduction (lower than national)
 export const JP_EMPLOYMENT_INCOME_DEDUCTION_CAP = 1950000;
 export const JP_HEALTH_RATE = 0.04955;
 export const JP_PENSION_RATE = 0.0915;
@@ -48,11 +49,14 @@ export const compute = ({
   const dcCorpAnnual = Math.min(Math.max(0, dcCorpMonthlyJpy) * 12, dcRoom);
   const eePension = iDecoAnnual + dcCorpAnnual;
 
-  const taxable = Math.max(0,
+  const nationalTaxable = Math.max(0,
     grossLocal - JP_EMPLOYMENT_INCOME_DEDUCTION_CAP - JP_BASIC_DEDUCTION - socialSec - eePension);
-  const nationalIT = calcBrackets(taxable, JP_NATIONAL_BRACKETS);
+  // Inhabitant (residence) tax uses its own ¥430k basic deduction, not the national ¥580k one.
+  const inhabitantTaxable = Math.max(0,
+    grossLocal - JP_EMPLOYMENT_INCOME_DEDUCTION_CAP - JP_INHABITANT_BASIC_DEDUCTION - socialSec - eePension);
+  const nationalIT = calcBrackets(nationalTaxable, JP_NATIONAL_BRACKETS);
   const surtax = nationalIT * JP_RECONSTRUCTION_SURTAX;
-  const inhabitant = taxable * JP_INHABITANT_FLAT_RATE + JP_INHABITANT_PER_CAPITA;
+  const inhabitant = inhabitantTaxable * JP_INHABITANT_FLAT_RATE + JP_INHABITANT_PER_CAPITA;
 
   const incomeTax = nationalIT + surtax;
   const localTax = inhabitant;
@@ -101,7 +105,8 @@ export const meta = {
     ],
   },
   deductions: [
-    { label: 'Basic deduction', amount: JP_BASIC_DEDUCTION, currency: 'JPY' },
+    { label: 'Basic deduction (national)', amount: JP_BASIC_DEDUCTION, currency: 'JPY' },
+    { label: 'Basic deduction (inhabitant tax)', amount: JP_INHABITANT_BASIC_DEDUCTION, currency: 'JPY' },
     { label: 'Employment income deduction (cap)', amount: JP_EMPLOYMENT_INCOME_DEDUCTION_CAP, currency: 'JPY' },
   ],
   retirementCaps: [
