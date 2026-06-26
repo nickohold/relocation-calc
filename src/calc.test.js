@@ -5,6 +5,7 @@ import {
   LOCATIONS, CONSTANTS, COUNTRIES, MULTI_LOCATIONS, FX_USD_PER_UNIT,
 } from './calc.js';
 import { fromUSD } from './fx.js';
+import { calcESt2026 } from './countries/DE.js';
 
 describe('calcBrackets — progressive bracket math', () => {
   it('returns 0 for zero income', () => {
@@ -404,7 +405,7 @@ describe('Multi-country effective tax bands at ~$120k USD equivalent', () => {
     ['UK', 'UK-LON', 26, 38],
     ['IE', 'IE-DUB', 30, 42],
     ['DE', 'DE-BER', 42, 56],
-    ['FR', 'FR-PAR', 38, 52],
+    ['FR', 'FR-PAR', 34, 44],
     ['NL', 'NL-AMS', 32, 44],
     ['CH', 'CH-ZRH', 16, 30],
     ['CA', 'CA-TOR', 26, 40],
@@ -471,33 +472,20 @@ describe('DE — §32a EStG 2026 ESt vs published Grundtabelle', () => {
   const within1pct = (actual, expected) =>
     Math.abs(actual - expected) / expected < 0.01;
 
-  // Helper: run compute() with no pension/Werbungskosten side effects we can't account for here.
-  // Werbungskosten-Pauschale (€1,230) is auto-applied; expected ESt below is computed
-  // on (gross − 1230) per §32a 2026 formula and matches Grundtabelle entries.
-  const estOnTaxable = (taxable) => {
-    // Inline duplicate of calcESt2026 for double-checking — keeps the test independent of the file.
-    if (taxable <= 12348) return 0;
-    if (taxable <= 17799) {
-      const y = (taxable - 12348) / 10000;
-      return Math.floor((914.51 * y + 1400) * y);
-    }
-    if (taxable <= 69878) {
-      const z = (taxable - 17799) / 10000;
-      return Math.floor((173.10 * z + 2397) * z + 1034.87);
-    }
-    if (taxable <= 277825) return Math.floor(0.42 * taxable - 11135.63);
-    return Math.floor(0.45 * taxable - 19470.38);
-  };
-
-  // Cross-check the formula at three salary points — these match published Grundtabelle 2026.
+  // Assert against the SHIPPED calcESt2026 (imported from DE.js) — not an inline copy — so a
+  // wrong coefficient in the real §32a tariff fails the suite. Expected values are independent
+  // published Grundtabelle 2026 entries (Bundesfinanzministerium / finanz-tools.de).
+  it('zone-2 reference: zvE €15,000 → ESt ≈ €435 (Grundtabelle 2026)', () => {
+    expect(within1pct(calcESt2026(15000), 435)).toBe(true);
+  });
   it('zone-3 reference: zvE €50,000 → ESt ≈ €10,548 (Grundtabelle 2026)', () => {
-    expect(within1pct(estOnTaxable(50000), 10548)).toBe(true);
+    expect(within1pct(calcESt2026(50000), 10548)).toBe(true);
   });
   it('zone-4 reference: zvE €80,000 → ESt ≈ €22,464', () => {
-    expect(within1pct(estOnTaxable(80000), 22464)).toBe(true);
+    expect(within1pct(calcESt2026(80000), 22464)).toBe(true);
   });
   it('zone-4 reference: zvE €150,000 → ESt ≈ €51,864', () => {
-    expect(within1pct(estOnTaxable(150000), 51864)).toBe(true);
+    expect(within1pct(calcESt2026(150000), 51864)).toBe(true);
   });
 
   // End-to-end via compute(): no bAV, no Riester, just §32a + soli + social.
@@ -563,9 +551,9 @@ describe('FR — cadre/non-cadre cotisation toggle', () => {
   it('cadre default produces higher cotisations than non-cadre at €90k', () => {
     const cadre = COUNTRIES.FR.compute({ grossLocal: 90000, perPct: 5, erPerPct: 3, isCadre: true });
     const noncadre = COUNTRIES.FR.compute({ grossLocal: 90000, perPct: 5, erPerPct: 3, isCadre: false });
-    // Cadre rate (25%) − non-cadre (22%) = 3% × €90k = €2,700 extra cotisations.
-    // (Some of that is offset by lower IT base via CSG-déductible chain, so net delta is smaller.)
-    expect(cadre.socialSec - noncadre.socialSec).toBeCloseTo(0.03 * 90000, 0);
+    // Contributory rate: cadre 15% − non-cadre 11.5% = 3.5% × €90k = €3,150 extra cotisations.
+    // CSG/CRDS are identical on both sides, so the whole delta is contributory.
+    expect(cadre.socialSec - noncadre.socialSec).toBeCloseTo(0.035 * 90000, 0);
     // Net is lower under cadre (more taken).
     expect(cadre.netLocal).toBeLessThan(noncadre.netLocal);
   });
