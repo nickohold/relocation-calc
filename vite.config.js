@@ -20,6 +20,11 @@ const date = new Date().toISOString().slice(0, 10)
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // Vitest transforms with esbuild; force the React 17+ automatic JSX runtime there
+  // so test files mounting JSX components don't need React in scope. The production
+  // build uses oxc + plugin-react (which already emit the automatic runtime), so this
+  // is scoped to test runs to avoid an "esbuild options ignored" build warning.
+  esbuild: process.env.VITEST ? { jsx: 'automatic' } : undefined,
   define: {
     __APP_VERSION__: JSON.stringify(`v${pkg.version}`),
     __APP_SHA__: JSON.stringify(sha),

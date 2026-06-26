@@ -405,30 +405,34 @@ describe('Constants & metadata', () => {
 
 // ── Multi-country sanity tests (Phase 1 refactor) ──
 //
-// Each country's effective-tax-rate band at ~$120k USD-equivalent gross is documented
-// from primary-source research; bands are intentionally wide to absorb minor
-// modeling choices (pension toggles, std-deduction nuances).
+// Each country's effective-tax-rate band at ~$120k USD-equivalent gross.
+// REGRESSION LOCK: the windows below were tightened to ~±2pp around the CURRENT
+// engine output (computed and sanity-checked against the documented primary-source
+// bands, which were wider). These intentionally pin current behavior so a future
+// coefficient regression (wrong bracket, dropped deduction, FX shift) fails the suite,
+// rather than silently passing inside a 12-point window. Do NOT loosen these bands.
+// Comment shows the measured engine value the band brackets.
 describe('Multi-country effective tax bands at ~$120k USD equivalent', () => {
   const cases = [
-    // [code, locationKey, minPct, maxPct]
-    ['UK', 'UK-LON', 26, 38],
-    ['IE', 'IE-DUB', 30, 42],
-    ['DE', 'DE-BER', 42, 56],
-    ['FR', 'FR-PAR', 34, 44],
-    ['NL', 'NL-AMS', 32, 44],
-    ['CH', 'CH-ZRH', 16, 30],
-    ['CA', 'CA-TOR', 26, 40],
-    ['AU', 'AU-SYD', 24, 36],
-    ['SG', 'SG-SIN', 14, 26],
-    ['JP', 'JP-TYO', 26, 40],
-    ['ES', 'ES-MAD', 28, 42],
-    ['IT', 'IT-MIL', 36, 50],
-    ['PT', 'PT-LIS', 34, 50],
-    ['SE', 'SE-STO', 28, 42],
-    ['DK', 'DK-CPH', 32, 46],
-    ['NO', 'NO-OSL', 26, 40],
-    ['AE', 'AE-DXB', 0, 0.5],
-    ['PL', 'PL-WAW', 32, 46],
+    // [code, locationKey, minPct, maxPct]  // measured engine output
+    ['UK', 'UK-LON', 27, 31],   // 29.04
+    ['IE', 'IE-DUB', 32, 36],   // 33.81
+    ['DE', 'DE-BER', 47, 51],   // 48.64
+    ['FR', 'FR-PAR', 36, 40],   // 37.57
+    ['NL', 'NL-AMS', 32, 37],   // 34.26
+    ['CH', 'CH-ZRH', 16, 19],   // 17.05
+    ['CA', 'CA-TOR', 26, 30],   // 27.77
+    ['AU', 'AU-SYD', 27, 31],   // 29.25
+    ['SG', 'SG-SIN', 18, 22],   // 19.69
+    ['JP', 'JP-TYO', 32, 36],   // 33.84
+    ['ES', 'ES-MAD', 33, 37],   // 35.14
+    ['IT', 'IT-MIL', 41, 45],   // 43.02
+    ['PT', 'PT-LIS', 44, 48],   // 45.78
+    ['SE', 'SE-STO', 32, 36],   // 33.86
+    ['DK', 'DK-CPH', 35, 39],   // 36.74
+    ['NO', 'NO-OSL', 30, 34],   // 32.20
+    ['AE', 'AE-DXB', 0, 0.5],   // 0.03 (no income tax; already tight)
+    ['PL', 'PL-WAW', 38, 42],   // 40.40
   ];
 
   for (const [code, locationKey, minPct, maxPct] of cases) {
@@ -664,6 +668,77 @@ describe('ES — mínimo personal applied as a bottom-rate credit', () => {
     const oldBase = base - ES_PERSONAL_ALLOWANCE;
     const oldTax = calcBrackets(oldBase, ES_STATE_BRACKETS) + calcBrackets(oldBase, ES_MAD_BRACKETS);
     expect(r.incomeTax).toBeGreaterThan(oldTax);
+  });
+});
+
+// ── Reference vectors against published/derivable authoritative figures ──
+//
+// These assert the SHIPPED engine within ~1-2% of a number sourced from (or directly
+// derivable from) the tax authority's own published rates. A wrong coefficient fails.
+describe('Reference vectors — published authority figures', () => {
+  it('UK HMRC: £50,000 salary → income tax £7,486 (2025/26 rUK)', () => {
+    // PA £12,570; £37,430 of basic-rate band at 20% = £7,486. Matches HMRC
+    // "Estimate your Income Tax" / gov.uk/income-tax-rates for a £50k earner.
+    expect(calcUKTax(50000)).toBeCloseTo(7486, 2);
+  });
+
+  it('AU ATO: $100,000 income → income tax $20,788 + Medicare levy $2,000 (FY2025-26)', () => {
+    // ATO resident rates: 16%×(45,000−18,200) + 30%×(100,000−45,000) = 4,288 + 16,500 = 20,788.
+    // Medicare levy 2% × 100,000 = 2,000; MLS nil below $101k. Matches ATO simple tax calc.
+    const r = COUNTRIES.AU.compute({ grossLocal: 100000, salarySacrificePct: 0 });
+    expect(r.incomeTax).toBeCloseTo(20788, 0);
+    expect(r.socialSec).toBeCloseTo(2000, 0);
+  });
+
+  it('US IRS: $100,000 single, 2026 → federal income tax $13,170', () => {
+    // Std deduction $16,100 → taxable $83,900. 2026 brackets (Rev. Proc. 2025-32, post-OBBBA):
+    // 10%×12,400 + 12%×(50,400−12,400) + 22%×(83,900−50,400) = 1,240 + 4,560 + 7,370 = 13,170.
+    const taxable = 100000 - CONSTANTS.FED_STANDARD_DEDUCTION_SINGLE;
+    expect(calcBrackets(taxable, FED_BRACKETS)).toBeCloseTo(13170, 0);
+  });
+
+  it('IT Agenzia delle Entrate: €60,000 IRPEF gross-bracket tax = €18,440 (2026 3-rate)', () => {
+    // 23%×28,000 + 35%×(50,000−28,000) + 43%×(60,000−50,000) = 6,440 + 7,700 + 4,300 = 18,440.
+    expect(calcBrackets(60000, IT_NATIONAL_BRACKETS_2026)).toBeCloseTo(18440, 2);
+  });
+});
+
+describe('runComparison — unknown-country guard', () => {
+  const goodDest = {
+    countryCode: 'US', locationKey: 'US-NYC',
+    grossLocal: 180000, eePensionPct: 6, matchLimitPct: 6,
+    rentLocal: 4500, miscBurnLocal: 900,
+  };
+
+  it('returns null for the bad side and pushes an "Unknown country" warning', () => {
+    const r = runComparison({
+      source: { countryCode: 'ZZ', locationKey: 'ZZ-XXX', grossLocal: 100000 },
+      dest: goodDest,
+    });
+    expect(r.source).toBeNull();
+    expect(r.dest.countryCode).toBe('US');
+    expect(r.warnings.some((w) => /Unknown country: ZZ/.test(w))).toBe(true);
+  });
+
+  it('does not crash and yields finite deltas when a side is unknown (null → 0 fallback)', () => {
+    const r = runComparison({
+      source: { countryCode: 'ZZ', locationKey: 'ZZ-XXX', grossLocal: 100000 },
+      dest: goodDest,
+    });
+    // liquidDeltaUSD = dest.liquidUSD − (null ?? 0)
+    expect(r.liquidDeltaUSD).toBeCloseTo(r.dest.liquidUSD, 6);
+    expect(Number.isFinite(r.savingsDeltaUSD)).toBe(true);
+    expect(Number.isFinite(r.takeHomeDeltaPctOfGross)).toBe(true);
+  });
+
+  it('warns for both sides when both countries are unknown', () => {
+    const r = runComparison({
+      source: { countryCode: 'ZZ', grossLocal: 100000 },
+      dest: { countryCode: 'QQ', grossLocal: 100000 },
+    });
+    expect(r.source).toBeNull();
+    expect(r.dest).toBeNull();
+    expect(r.warnings.filter((w) => /Unknown country/.test(w)).length).toBe(2);
   });
 });
 
