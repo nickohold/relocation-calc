@@ -457,7 +457,7 @@ const MethodologyDrawer = ({ theme, open, onClose, sourceCode, destCode }) => {
   if (!open || typeof document === 'undefined') return null;
 
   // Centered modal with backdrop-blurred page behind. Cards swipe horizontally
-  // (mobile gesture) or via tabs/dots/arrow keys (desktop). All viewports use
+  // (mobile gesture) or via tabs/dots (desktop). All viewports use
   // the same centered card carousel — only the size adjusts.
   const backdropCls = 'fixed inset-0 z-[1000] bg-black/40 backdrop-blur-md transition-opacity animate-in fade-in duration-200';
   const cardCls = isLight
@@ -506,9 +506,9 @@ const MethodologyDrawer = ({ theme, open, onClose, sourceCode, destCode }) => {
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center justify-center gap-1 px-4 py-2 border-b border-slate-200/60 dark:border-white/5">
+        <div role="tablist" aria-label="Methodology sections" className="flex items-center justify-center gap-1 px-4 py-2 border-b border-slate-200/60 dark:border-white/5">
           {cards.map((c, i) => (
-            <button key={c.key} type="button" className={tabBtnCls(activeCard === i)} onClick={() => goToCard(i)}>
+            <button key={c.key} type="button" role="tab" aria-selected={activeCard === i} className={tabBtnCls(activeCard === i)} onClick={() => goToCard(i)}>
               {c.label}
             </button>
           ))}
