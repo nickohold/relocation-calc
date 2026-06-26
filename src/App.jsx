@@ -1,8 +1,7 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   ShieldCheck,
   Target,
-  HelpCircle,
   LayoutGrid,
   Sun,
   Coffee,
@@ -363,6 +362,9 @@ const App = () => {
     source: coerce(sourcePayload),
     dest: coerce(destPayload),
     options: { matchSourceSavings },
+    // fxRev is an intentional dep: it bumps when live FX arrives to force a recompute,
+    // even though it isn't read inside the memo body.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [sourcePayload, destPayload, matchSourceSavings, coerce, fxRev]);
 
   const sourceCurrency = COUNTRIES[sourcePayload.countryCode]?.currency || 'USD';
@@ -535,52 +537,6 @@ const LayoutButton = ({ icon, label, id, active, set }) => {
     else baseClass += "text-slate-500 hover:text-slate-300 hover:bg-white/5";
   }
   return <button onClick={() => set(id)} className={baseClass}>{icon} {label}</button>;
-};
-
-const CurrencyToggle = ({ theme, displayMode, setDisplayMode, sourceCurrency, destCurrency }) => {
-  const isLight = theme.name === 'Sunrise';
-  const activeCls = isLight
-    ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
-    : 'bg-indigo-500 text-white shadow';
-  const inactiveCls = isLight
-    ? 'text-slate-500 hover:text-slate-800'
-    : 'text-slate-500 hover:text-slate-300';
-  const shellCls = isLight
-    ? 'bg-slate-200/50 border border-slate-300/50'
-    : 'bg-white/5 border border-white/10';
-  const captionCls = isLight ? 'text-slate-400' : 'text-slate-500';
-
-  const btn = (id, label) => (
-    <button
-      onClick={() => setDisplayMode(id)}
-      className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-        displayMode === id ? activeCls : inactiveCls
-      }`}
-      aria-pressed={displayMode === id}
-    >
-      {label}
-    </button>
-  );
-
-  return (
-    <div className="flex flex-col items-start md:items-end gap-1">
-      <div className="flex items-center gap-1.5">
-        <div className={`flex p-1 rounded-lg ${shellCls}`}>
-          {btn('source', `Source (${sourceCurrency})`)}
-          {btn('dest', `Dest (${destCurrency})`)}
-          {btn('USD', '$ USD')}
-        </div>
-        <div className="relative group inline-block">
-          <HelpCircle size={12} className={theme.tooltipIcon} />
-          <div className={theme.tooltipBox}>
-            All numbers are converted via flat FX rate. Cost-of-living differences are NOT reflected in the toggle — see the COL-adjusted delta below for that.
-            <div className={theme.tooltipArrow}></div>
-          </div>
-        </div>
-      </div>
-      <span className={`text-[10px] uppercase tracking-widest font-bold ${captionCls}`}>Display currency</span>
-    </div>
-  );
 };
 
 const FXFooter = ({ theme, sourceCurrency, destCurrency }) => {

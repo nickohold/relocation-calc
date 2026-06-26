@@ -1,4 +1,3 @@
-import React from 'react';
 import { fmtAmount } from './formatCurrency.js';
 
 // Three toggles previously embedded in UnifiedBreakdown's header.

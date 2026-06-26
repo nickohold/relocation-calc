@@ -1,4 +1,3 @@
-import React from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
 // Ported verbatim from main's `Row` component, with IL→source / US→dest renames.

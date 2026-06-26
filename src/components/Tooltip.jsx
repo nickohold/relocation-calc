@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { HelpCircle } from 'lucide-react';
 

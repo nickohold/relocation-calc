@@ -1,13 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   calcBrackets, calcBTL, calcPensionCredit, calcIL, calcUS, runEngine, runComparison,
-  FED_BRACKETS, NY_STATE_BRACKETS, NJ_STATE_BRACKETS, NYC_LOCAL_BRACKETS,
+  FED_BRACKETS, NY_STATE_BRACKETS,
   LOCATIONS, CONSTANTS, COUNTRIES, MULTI_LOCATIONS, FX_USD_PER_UNIT,
 } from './calc.js';
 import { fromUSD } from './fx.js';
-
-// Tolerance helper for FP comparisons
-const $close = (a, b, eps = 0.5) => Math.abs(a - b) < eps;
 
 describe('calcBrackets — progressive bracket math', () => {
   it('returns 0 for zero income', () => {
@@ -330,8 +327,8 @@ describe('runEngine — end-to-end', () => {
   });
 });
 
-// Reference-payslip regression: a known-good 2026 Israeli slip, gross ₪32,000
-// All deduction figures from the slip itself.
+// Reference-payslip regression: a known-good 2026 Israeli slip, gross ₪32,000.
+// Anonymized real-world vector — locks the engine to verified deduction figures.
 describe('Reference payslip — 2026', () => {
   const slip = calcIL({
     gross: 32000,

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { FX_USD_PER_UNIT } from '../fx.js';
 import { fmtAmount } from './formatCurrency.js';
@@ -45,6 +45,19 @@ const UnifiedBreakdown = ({
   const [savingsOpen, setSavingsOpen] = useState(false);
 
   const { source, dest } = comparison ?? {};
+
+  // Hooks must run on every render — keep these above the early return below.
+  // itemsByKind null-guards each side, so both-null just yields empty arrays.
+  const taxItems = useMemo(() => mergeItems(
+    itemsByKind(source, (b) => b.kind === 'tax' || b.kind === 'social'),
+    itemsByKind(dest, (b) => b.kind === 'tax' || b.kind === 'social'),
+  ), [source, dest]);
+
+  const pensionItems = useMemo(() => mergeItems(
+    itemsByKind(source, (b) => b.kind === 'pension'),
+    itemsByKind(dest, (b) => b.kind === 'pension'),
+  ), [source, dest]);
+
   if (!source && !dest) return null;
 
   // FX → USD per side. All amounts below are in USD; `fmt` maps USD → displayCurrency.
@@ -66,16 +79,6 @@ const UnifiedBreakdown = ({
   const liquidDest = dest?.liquidUSD ?? null;
   const savingsSource = source?.totalSavingsUSD ?? null;
   const savingsDest = dest?.totalSavingsUSD ?? null;
-
-  const taxItems = useMemo(() => mergeItems(
-    itemsByKind(source, (b) => b.kind === 'tax' || b.kind === 'social'),
-    itemsByKind(dest, (b) => b.kind === 'tax' || b.kind === 'social'),
-  ), [source, dest]);
-
-  const pensionItems = useMemo(() => mergeItems(
-    itemsByKind(source, (b) => b.kind === 'pension'),
-    itemsByKind(dest, (b) => b.kind === 'pension'),
-  ), [source, dest]);
 
   // Sums for the expandable section "header" rows.
   const taxesSource = taxItems.reduce((a, it) => a + (it.sourceUSD ?? 0), 0);

@@ -1,7 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { COUNTRIES, LOCATIONS, META } from '../countries.js';
-import { FX_USD_PER_UNIT } from '../fx.js';
-import { fmtAmount, fmtLocal, fmtPct } from './formatCurrency.js';
+import { fmtLocal, fmtPct } from './formatCurrency.js';
 import { PENSION_META } from './pensionMeta.js';
 import Tooltip from './Tooltip.jsx';
 
@@ -73,13 +72,6 @@ const SalaryInput = ({ theme, currency, annualValue, onAnnualChange, hint, mode,
     </div>
   );
 };
-
-// Per-country UI hints for which optional fields to render.
-function getCountryUI(code) {
-  if (code === 'IL') return { kind: 'IL' };
-  if (code === 'US') return { kind: 'US' };
-  return { kind: 'GENERIC' };
-}
 
 const Field = ({ theme, label, children, hint }) => (
   <div className="min-w-0">
@@ -161,7 +153,6 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, headingClass, 
   // the breakdown table and comparison-summary cards, not these per-side headlines.
   const localCurrency = COUNTRIES[payload.countryCode]?.currency || 'USD';
   const country = COUNTRIES[payload.countryCode];
-  const ui = getCountryUI(payload.countryCode);
 
   // Per-side Yr/Mo state — drives both the salary input AND the headline KPIs.
   const salaryStorageKey = `relocation-calc:salaryMode:${side}`;
@@ -222,9 +213,6 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, headingClass, 
     const v = raw === '' ? '' : Number(raw);
     setPayload({ ...payload, [field]: Number.isNaN(v) ? raw : v });
   };
-
-  const grossUSD = result ? (result.grossLocal * FX_USD_PER_UNIT[result.currency]) : 0;
-  const netUSD = result?.netUSD ?? 0;
 
   return (
     <section className={theme.sectionCard}>
