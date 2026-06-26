@@ -103,7 +103,10 @@ export const compute = ({
 
   const incomeTax = fed;
   const localTax = prov;
-  const netLocal = grossLocal - incomeTax - localTax - socialSec - eePension;
+  // TFSA is post-tax savings funded out of take-home: subtract it from net so the same
+  // dollars aren't both saved (in totalSavingsLocal) and left as liquid. Mirrors how NL
+  // treats post-tax lijfrente. RRSP (eePension) is already pre-tax and subtracted above.
+  const netLocal = grossLocal - incomeTax - localTax - socialSec - eePension - tfsa;
   const liquidLocal = netLocal - rentLocal * 12 - miscBurnLocal * 12;
   const totalSavingsLocal = rrspContribution + erRrspContribution + tfsa;
   const fx = FX_USD_PER_UNIT.CAD;
@@ -168,7 +171,7 @@ export const meta = {
   simplifications: [
     'Only ON / BC / QC provinces modeled.',
     'BPA modeled as credit at lowest bracket rate (federal taper above ~$173k not applied).',
-    'TFSA modeled as already-taxed savings (no IT impact).',
+    'TFSA modeled as already-taxed savings (no IT impact); funded from take-home, so it reduces liquid cash flow and is counted once as savings.',
   ],
   sources: [
     { name: 'CRA — federal', url: 'https://www.canada.ca/en/revenue-agency.html' },

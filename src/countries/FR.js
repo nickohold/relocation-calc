@@ -26,10 +26,13 @@ export const FR_CEHR = [
 ];
 
 export const FR_ABATTEMENT = { rate: 0.10, min: 509, max: 14555 };  // 2026 (revenus 2025) per service-public.gouv.fr
-// Flat employee-side cotisation rate. Cadre includes additional Agirc-Arrco T1 (~3.15%),
-// APEC (0.024%), CEG/CET (~1.0% blended), and prévoyance/cadre-specific lines.
-export const FR_FLAT_COTIS_NONCADRE = 0.22;
-export const FR_FLAT_COTIS_CADRE = 0.25;
+// Flat CONTRIBUTORY employee cotisations salariales ONLY — retraite Sécu (plafonnée 6.9% +
+// déplafonnée 0.4%), Agirc-Arrco T1 ~3.15%, CEG ~0.86%; cadre adds CET 0.14%, APEC 0.024%
+// and T2 exposure. CSG/CRDS (~9.5%) are added SEPARATELY in compute() — they must NOT be
+// folded in here or they double-count. Total employee charge ≈ contributory + CSG/CRDS ≈
+// 21% (non-cadre) / 24-25% (cadre), matching real French payroll.
+export const FR_FLAT_COTIS_NONCADRE = 0.115;
+export const FR_FLAT_COTIS_CADRE = 0.15;
 export const FR_FLAT_COTIS = FR_FLAT_COTIS_NONCADRE; // legacy alias (kept for callers)
 export const FR_CSG_DEDUCTIBLE = 0.068;
 export const FR_CSG_NONDEDUCT = 0.024;
@@ -116,7 +119,7 @@ export const meta = {
   ],
   localTax: null,
   simplifications: [
-    'Employee social charges modeled as a flat rate; cadre/non-cadre selectable (cadre ~25%, non-cadre ~22%) — defaults to cadre for senior tech.',
+    'Employee social charges = flat contributory cotisations (cadre 15% / non-cadre 11.5%) PLUS CSG/CRDS (~9.5% of 98.25% of gross), totalling ~24-25% cadre / ~21% non-cadre — defaults to cadre for senior tech.',
     'Real cotisations are multi-tranche (URSSAF/Agirc-Arrco/APEC/CEG/CET) — not separated.',
     'Single, no children, no quotient familial >1.',
   ],
