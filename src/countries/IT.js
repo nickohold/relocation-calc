@@ -7,7 +7,8 @@ import { calcBrackets } from '../bracketUtils.js';
 import { FX_USD_PER_UNIT } from '../fx.js';
 
 export const IT_NATIONAL_BRACKETS_2026 = [
-  { max: 28000, rate: 0.23 }, { max: 50000, rate: 0.33 }, { max: Infinity, rate: 0.43 },
+  // 2025 three-rate schedule (made permanent): 23% / 35% / 43%.
+  { max: 28000, rate: 0.23 }, { max: 50000, rate: 0.35 }, { max: Infinity, rate: 0.43 },
 ];
 
 export const IT_LOMBARDY_BRACKETS = [

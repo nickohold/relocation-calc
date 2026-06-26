@@ -34,7 +34,9 @@ export const compute = ({
   const tier1 = Math.max(0, Math.min(grossLocal, 7.1 * G) - G);
   const tier2 = Math.max(0, Math.min(grossLocal, 12 * G) - 7.1 * G);
   const erTier1 = tier1 * (erOtpPct / 100);
-  const erTier2 = tier2 * (Math.max(erOtpPct, 18.1) / 100);
+  // 18.1% is the LEGAL CAP on the 7.1G–12G band, not a floor. Use the actual
+  // input rate, capped. (Flooring at 18.1% booked phantom employer pension.)
+  const erTier2 = tier2 * (Math.min(erOtpPct, 18.1) / 100);
   const erContribution = erTier1 + erTier2;
   const eeContribution = (tier1 + tier2) * (eeOtpPct / 100);
   const ipsCapped = Math.min(Math.max(0, ipsAmt), NO_IPS_CAP);
@@ -103,7 +105,7 @@ export const meta = {
   localTax: null,
   simplifications: [
     'Oslo only.',
-    'OTP modeled with statutory cliff at 7.1G (rate stepup to 18.1%).',
+    'OTP modeled with statutory cliff at 7.1G; employer rate on the 7.1G–12G band is the input rate capped at the 18.1% legal maximum.',
     'No formueskatt (wealth tax) modeled.',
   ],
   sources: [

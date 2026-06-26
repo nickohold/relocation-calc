@@ -82,9 +82,15 @@ export const compute = ({
   const pillar3a = Math.min(Math.max(0, pillar3aAmt), CH_SAULE3A_MAX_WITH_PK);
   const buyIns = Math.max(0, buyInsAmt);
 
-  // Pre-tax IT base: bvgEe + pillar3a + buyIns are all deductible.
+  const ahv = grossLocal * C.ahv_iv_eo;
+  const alv = Math.min(grossLocal, C.alv_cap) * C.alv_low
+    + Math.max(0, grossLocal - C.alv_cap) * C.alv_solidarity;
+  const socialSec = ahv + alv;
+
+  // Pre-tax IT base: bvgEe + pillar3a + buyIns AND the mandatory AHV/IV/EO + ALV
+  // social contributions are all deductible from taxable income.
   const eePension = bvgEe + pillar3a + buyIns;
-  const taxable = Math.max(0, grossLocal - eePension);
+  const taxable = Math.max(0, grossLocal - eePension - socialSec);
   const fed = calcBrackets(taxable, CH_FEDERAL_BRACKETS_SINGLE);
 
   let cantonal = 0;
@@ -93,11 +99,6 @@ export const compute = ({
   } else if (locationKey === 'CH-GVA') {
     cantonal = calcBrackets(taxable, CH_GE_BRACKETS_EINFACH_SINGLE) * CH_GE_MULTIPLIER;
   }
-
-  const ahv = grossLocal * C.ahv_iv_eo;
-  const alv = Math.min(grossLocal, C.alv_cap) * C.alv_low
-    + Math.max(0, grossLocal - C.alv_cap) * C.alv_solidarity;
-  const socialSec = ahv + alv;
 
   const incomeTax = fed;
   const localTax = cantonal;

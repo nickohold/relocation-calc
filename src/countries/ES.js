@@ -43,10 +43,15 @@ export const compute = ({
   const eePension = planContribution;
   const ss = Math.min(grossLocal, ES_SS_BASE_CAP_ANNUAL) * ES_SS_RATE;
 
-  const taxable = Math.max(0, grossLocal - eePension - erPlanContribution - ss - ES_PERSONAL_ALLOWANCE);
-  const stateTax = calcBrackets(taxable, ES_STATE_BRACKETS);
+  // Spanish IRPF: the mínimo personal y familiar is NOT subtracted from the base.
+  // It is relieved as a tax credit at the lowest bracket rate, computed per scale as
+  // brackets(base) − brackets(mínimo), for both the state and the regional portions.
+  const taxable = Math.max(0, grossLocal - eePension - erPlanContribution - ss);
   const regionalBrackets = locationKey === 'ES-BCN' ? ES_CAT_BRACKETS : ES_MAD_BRACKETS;
-  const regionalTax = calcBrackets(taxable, regionalBrackets);
+  const stateTax = Math.max(0,
+    calcBrackets(taxable, ES_STATE_BRACKETS) - calcBrackets(ES_PERSONAL_ALLOWANCE, ES_STATE_BRACKETS));
+  const regionalTax = Math.max(0,
+    calcBrackets(taxable, regionalBrackets) - calcBrackets(ES_PERSONAL_ALLOWANCE, regionalBrackets));
 
   const incomeTax = stateTax + regionalTax;
   const socialSec = ss;

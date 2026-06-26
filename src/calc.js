@@ -232,6 +232,11 @@ export const runComparison = ({ source, dest, options = {} }) => {
       let neededPct = currentPct;
       if (savingsPerPctUSD > 0) {
         neededPct = currentPct + (targetSavingsUSD - currentSavingsUSD) / savingsPerPctUSD;
+      } else {
+        // The probe moved nothing: this country's compute() does not read eePensionPct
+        // (CH/CA/AU/SG/JP drive pension off their own params), so savings can't be
+        // auto-matched via this lever. Warn instead of reporting the full gap as a cap hit.
+        warnings.push(`Cannot auto-match savings for ${dest.countryCode}: its retirement contributions aren't driven by the generic pension % lever. Showing the unadjusted savings gap of $${Math.round(targetSavingsUSD - currentSavingsUSD).toLocaleString()}.`);
       }
       const maxPct = MAX_PENSION_PCT_BY_COUNTRY[dest.countryCode] ?? 100;
       const clampedPct = Math.min(neededPct, maxPct);

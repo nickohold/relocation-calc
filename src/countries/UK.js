@@ -26,16 +26,20 @@ const UK_BAND_LOWER = 6240;
 const UK_BAND_UPPER = 50270;
 const UK_ANNUAL_ALLOWANCE = 60000;
 
-const calcUKTax = (taxableIncome) => {
+export const calcUKTax = (taxableIncome) => {
   // Personal Allowance taper: above £100k, PA reduced by £1 per £2 over.
   let pa = UK_PA_FULL;
   if (taxableIncome > 100000) {
     pa = Math.max(0, UK_PA_FULL - (taxableIncome - 100000) / 2);
   }
   const aboveAllowance = Math.max(0, taxableIncome - pa);
+  // Bands are expressed in "income above the (tapered) allowance" space.
+  // Basic-rate band is a fixed £37,700 wide; the additional-rate threshold is
+  // £125,140 of TOTAL income, so in above-allowance space it is 125,140 − pa.
+  // Using the full PA here would start the 45% band early once PA is tapered.
   const bands = [
     { max: 50270 - 12570, rate: 0.20 },
-    { max: 125140 - 12570, rate: 0.40 },
+    { max: 125140 - pa, rate: 0.40 },
     { max: Infinity, rate: 0.45 },
   ];
   return calcBrackets(aboveAllowance, bands);
