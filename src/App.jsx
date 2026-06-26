@@ -31,7 +31,7 @@ const THEMES = {
     pageBg: 'bg-slate-100',
     rootText: 'text-slate-800',
     switcherShell: 'bg-slate-200/50 border-slate-300/50',
-    footerText: 'text-slate-400',
+    footerText: 'text-slate-600',
     kofiBtn: 'bg-orange-500 text-white shadow-orange-500/30 hover:bg-orange-600',
 
     headerBorder: 'border-b border-orange-200/50 pb-6',
@@ -546,7 +546,7 @@ const FXFooter = ({ theme, sourceCurrency, destCurrency }) => {
     : fxStatus.source === 'cache' ? 'Cached <24h (Frankfurter / ECB)'
     : 'Static fallback';
   return (
-    <div className={`text-[10px] uppercase tracking-widest font-bold opacity-60 ${theme.footerText} flex flex-wrap gap-3 justify-center`}>
+    <div className={`text-[10px] uppercase tracking-widest font-bold ${theme.footerText} flex flex-wrap gap-3 justify-center`}>
       <span>FX {fxStatus.asOf || 'May 2026'} · {sourceLabel}</span>
       {rates.map((c) => (
         <span key={c}>1 {c} = ${FX_USD_PER_UNIT[c].toFixed(4)} USD</span>

@@ -10,7 +10,7 @@ import { calcBrackets } from '../bracketUtils.js';
 import { FX_USD_PER_UNIT } from '../fx.js';
 
 export const SE_MUNICIPAL_RATE_STOCKHOLM = 0.3055;
-// Brytpunkt for statlig skatt 2026 = 660,400 SEK (Skatteverket).
+// Brytpunkt for statlig skatt 2026 = 643,000 SEK (Skatteverket).
 export const SE_NATIONAL_BRACKETS = [
   { max: 643000, rate: 0.00 },
   { max: Infinity, rate: 0.20 },

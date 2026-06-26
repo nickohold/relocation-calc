@@ -17,7 +17,7 @@ const KpiCell = ({ theme, label, hint, children }) => (
 );
 
 // Per-side gross salary input with annual ↔ monthly toggle. Stores annual in payload.
-const SalaryInput = ({ theme, currency, annualValue, onAnnualChange, hint, mode, setMode }) => {
+const SalaryInput = ({ theme, currency, annualValue, onAnnualChange, hint, mode, setMode, id }) => {
   const annualNum = Number(annualValue) || 0;
   const isMonthly = mode === 'monthly';
   const displayed = isMonthly ? Math.round(annualNum / 12).toString() : String(annualValue);
@@ -52,7 +52,7 @@ const SalaryInput = ({ theme, currency, annualValue, onAnnualChange, hint, mode,
     <div>
       <div className="flex items-center justify-between mb-1.5 gap-2 min-w-0">
         <div className="flex items-center gap-1 min-w-0">
-          <label className={`${theme.inputLabel} leading-tight`}>
+          <label htmlFor={id} className={`${theme.inputLabel} leading-tight`}>
             {isMonthly ? `Monthly Gross (${currency})` : `Annual Gross (${currency})`}
           </label>
           {hint && <span className="flex-shrink-0"><Tooltip theme={theme} text={hint} iconSize={12} /></span>}
@@ -63,6 +63,7 @@ const SalaryInput = ({ theme, currency, annualValue, onAnnualChange, hint, mode,
         </div>
       </div>
       <input
+        id={id}
         type="number"
         value={displayed}
         step={step}
@@ -73,19 +74,20 @@ const SalaryInput = ({ theme, currency, annualValue, onAnnualChange, hint, mode,
   );
 };
 
-const Field = ({ theme, label, children, hint }) => (
+const Field = ({ theme, label, children, hint, htmlFor }) => (
   <div className="min-w-0">
     <div className="flex items-start mb-1.5 gap-1 min-w-0">
-      <label className={`${theme.inputLabel} flex-1 min-w-0 leading-tight`}>{label}</label>
+      <label htmlFor={htmlFor} className={`${theme.inputLabel} flex-1 min-w-0 leading-tight`}>{label}</label>
       {hint && <span className="flex-shrink-0 mt-0.5"><Tooltip theme={theme} text={hint} iconSize={12} /></span>}
     </div>
     {children}
   </div>
 );
 
-const NumInput = ({ theme, value, onChange, step = 1, suffix }) => (
+const NumInput = ({ theme, value, onChange, step = 1, suffix, id }) => (
   <div className="relative">
     <input
+      id={id}
       type="number"
       value={value}
       step={step}
@@ -101,7 +103,7 @@ const NumInput = ({ theme, value, onChange, step = 1, suffix }) => (
 );
 
 // Render a single PENSION_META field by kind: pct/amount → NumInput, toggle → checkbox.
-const FieldRenderer = ({ theme, field, payload, setField, setPayload }) => {
+const FieldRenderer = ({ theme, field, payload, setField, setPayload, idBase }) => {
   const value = payload[field.key];
   if (field.kind === 'toggle') {
     return (
@@ -120,8 +122,9 @@ const FieldRenderer = ({ theme, field, payload, setField, setPayload }) => {
     );
   }
   return (
-    <Field theme={theme} label={field.label} hint={field.hint}>
+    <Field theme={theme} label={field.label} hint={field.hint} htmlFor={`${idBase}-${field.key}`}>
       <NumInput
+        id={`${idBase}-${field.key}`}
         theme={theme}
         value={value ?? field.default ?? 0}
         onChange={(v) => setField(field.key, v)}
@@ -131,8 +134,9 @@ const FieldRenderer = ({ theme, field, payload, setField, setPayload }) => {
   );
 };
 
-const SelectBox = ({ theme, value, onChange, options }) => (
+const SelectBox = ({ theme, value, onChange, options, id }) => (
   <select
+    id={id}
     value={value}
     onChange={(e) => onChange(e.target.value)}
     className={theme.inputBox}
@@ -153,6 +157,7 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, headingClass, 
   // the breakdown table and comparison-summary cards, not these per-side headlines.
   const localCurrency = COUNTRIES[payload.countryCode]?.currency || 'USD';
   const country = COUNTRIES[payload.countryCode];
+  const idBase = `cmp-${side}`;
 
   // Per-side Yr/Mo state — drives both the salary input AND the headline KPIs.
   const salaryStorageKey = `relocation-calc:salaryMode:${side}`;
@@ -219,16 +224,18 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, headingClass, 
       <h3 className={headingClass}>{headingIcon} {headingLabel}</h3>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <Field theme={theme} label="Country">
+          <Field theme={theme} label="Country" htmlFor={`${idBase}-country`}>
             <SelectBox
+              id={`${idBase}-country`}
               theme={theme}
               value={payload.countryCode}
               onChange={handleCountry}
               options={countryOptions}
             />
           </Field>
-          <Field theme={theme} label="City">
+          <Field theme={theme} label="City" htmlFor={`${idBase}-city`}>
             <SelectBox
+              id={`${idBase}-city`}
               theme={theme}
               value={payload.locationKey || ''}
               onChange={handleCity}
@@ -238,6 +245,7 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, headingClass, 
         </div>
 
         <SalaryInput
+          id={`${idBase}-gross`}
           theme={theme}
           currency={country?.currency ?? ''}
           annualValue={payload.grossLocal}
@@ -251,16 +259,16 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, headingClass, 
           const meta = PENSION_META[payload.countryCode];
           if (!meta?.fields) {
             return (
-              <Field theme={theme} label={meta?.label ?? 'Pension %'} hint={meta?.hint}>
-                <NumInput theme={theme} value={payload.eePensionPct} onChange={(v) => setField('eePensionPct', v)} step={0.5} />
+              <Field theme={theme} label={meta?.label ?? 'Pension %'} hint={meta?.hint} htmlFor={`${idBase}-eePensionPct`}>
+                <NumInput id={`${idBase}-eePensionPct`} theme={theme} value={payload.eePensionPct} onChange={(v) => setField('eePensionPct', v)} step={0.5} />
               </Field>
             );
           }
           return (
             <>
               {meta.needsAge && (
-                <Field theme={theme} label="Age" hint="Drives age-banded contribution rates.">
-                  <NumInput theme={theme} value={payload.age ?? 35} onChange={(v) => setField('age', v)} step={1} />
+                <Field theme={theme} label="Age" hint="Drives age-banded contribution rates." htmlFor={`${idBase}-age`}>
+                  <NumInput id={`${idBase}-age`} theme={theme} value={payload.age ?? 35} onChange={(v) => setField('age', v)} step={1} />
                 </Field>
               )}
               <div className="grid grid-cols-2 gap-3">
@@ -272,6 +280,7 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, headingClass, 
                     payload={payload}
                     setField={setField}
                     setPayload={setPayload}
+                    idBase={idBase}
                   />
                 ))}
               </div>
@@ -280,11 +289,11 @@ const ComparePanel = ({ theme, side, payload, setPayload, result, headingClass, 
         })()}
 
         <div className="grid grid-cols-2 gap-3">
-          <Field theme={theme} label={`Monthly Rent (${country?.currency})`} hint="Default pre-filled from city; override if needed.">
-            <NumInput theme={theme} value={payload.rentLocal} onChange={(v) => setField('rentLocal', v)} step={50} />
+          <Field theme={theme} label={`Monthly Rent (${country?.currency})`} hint="Default pre-filled from city; override if needed." htmlFor={`${idBase}-rentLocal`}>
+            <NumInput id={`${idBase}-rentLocal`} theme={theme} value={payload.rentLocal} onChange={(v) => setField('rentLocal', v)} step={50} />
           </Field>
-          <Field theme={theme} label={`Monthly Misc Burn (${country?.currency})`} hint="Food, transit, leisure, utilities not in rent.">
-            <NumInput theme={theme} value={payload.miscBurnLocal} onChange={(v) => setField('miscBurnLocal', v)} step={50} />
+          <Field theme={theme} label={`Monthly Misc Burn (${country?.currency})`} hint="Food, transit, leisure, utilities not in rent." htmlFor={`${idBase}-miscBurnLocal`}>
+            <NumInput id={`${idBase}-miscBurnLocal`} theme={theme} value={payload.miscBurnLocal} onChange={(v) => setField('miscBurnLocal', v)} step={50} />
           </Field>
         </div>
 

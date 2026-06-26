@@ -2,7 +2,7 @@
 
 **Source of truth for all calculations.** If the code disagrees with this document, one of them is wrong — file an issue.
 
-Last reviewed: 2026-05-07 · Tax year basis: **2026** (US, post-OBBBA) / **2026** (Israel, post-March-2026 widening)
+Last reviewed: 2026-05-08 · Tax year basis: **2026** (US, post-OBBBA) / **2026** (Israel, post-March-2026 widening)
 
 ---
 
@@ -23,7 +23,7 @@ All values live in `src/calc.js → CONSTANTS`.
 
 | Constant | Value | Source / Year |
 |---|---|---|
-| FX rate (default) | 1 ILS = 0.27 USD | Editable in UI; static default. **Not live.** |
+| FX rate (default) | 1 ILS = 0.27 USD | Editable in UI; **live** ECB/Frankfurter fetch, static snapshot fallback. |
 | US 401(k) elective deferral limit | $24,500/yr | IRS 2026 (under 50) |
 | Federal standard deduction (single) | $16,100 | IRS 2026 (post-OBBBA) |
 | Social Security wage base | $184,500 | SSA 2026 |
@@ -169,7 +169,7 @@ total_invested = employer + personal
 ### 3.2 FICA
 
 ```
-SS_tax        = min(gross_annual, 168,600) × 6.2%
+SS_tax        = min(gross_annual, 184,500) × 6.2%
 medicare      = gross_annual × 1.45%
 add_medicare  = max(0, gross_annual − 200,000) × 0.9%
 FICA_annual   = SS_tax + medicare + add_medicare
@@ -270,7 +270,7 @@ The model is **directional**, not a tax filing. These are the explicit gaps:
 - **YTD-cumulative withholding:** Israeli employer payroll uses the cumulative method (`חישוב מצטבר`) per the MoF monthly deductions booklet. Each month, the employer recomputes YTD tax owed and subtracts what was already withheld YTD; the difference becomes that month's withholding. This engine computes a single steady-state month in isolation. Effects: (a) any single payslip can diverge by hundreds of shekels in either direction even when both calculations are correct; (b) months following a tax-law change (e.g. April 2026 after the 31.3.2026 bracket-widening law) absorb retroactive YTD reconciliation and can look especially anomalous. Annual totals reconcile, monthly snapshots will not. This engine is not designed to predict a specific month's slip — it is designed for comparative relocation decisions across full annual outcomes.
 
 ### 5.2 US side
-- **Filing status:** single only. Standard deduction is single-filer 2024.
+- **Filing status:** single only. Standard deduction is single-filer 2026.
 - **Equity comp / RSUs:** **not modeled.** This is the biggest blind spot for a tech offer — total comp in NYC tech is often 30–50% RSUs.
 - **Health insurance premium:** not modeled. Typical US employer plan: $150–400/mo pre-tax payroll deduction. Net take-home is overstated.
 - **HSA / FSA / commuter benefits:** not modeled.
@@ -280,7 +280,7 @@ The model is **directional**, not a tax filing. These are the explicit gaps:
 
 ### 5.3 Comparison framing
 - **Lifestyle-lock assumption:** We assume Tel Aviv lifestyle in ILS, converted at FX, equals an equivalent US lifestyle. This is **PPP-naive** — a ₪9,000/mo Tel Aviv lifestyle is realistically more like $4,500–5,500/mo NYC, not $2,430. The "Other Expenses ($)" input is a partial offset for this.
-- **FX is static.** No live rate. Stale defaults silently lie when the rate drifts.
+- **FX is live with static fallback.** Rates are fetched from Frankfurter (ECB-based, `src/fxLive.js`), cached in localStorage for 24h, and fall back to the hardcoded May 2026 snapshot in `src/fx.js` when the fetch fails or runs offline. The UI footer surfaces which source is in use (live / cache / static).
 - **Withdrawal tax not modeled.** $1 in keren ≠ $1 in 401(k). Different ages, tax rates, liquidity at distribution.
 - **One-time move costs:** visa, NY broker fee, security deposit, shipping, COBRA gap — not modeled.
 
@@ -288,7 +288,7 @@ The model is **directional**, not a tax filing. These are the explicit gaps:
 
 ## 6. Multi-Country Support (Phase 1)
 
-`src/countries/<CODE>.js` files implement a `compute(input) → CountrySideResult` function for each supported country. `src/countries.js` aggregates them into a `COUNTRIES` registry plus a `LOCATIONS` map (44 cities, 20 countries). FX rates live in `src/fx.js` (USD per 1 unit of local currency, May 2026 snapshot).
+`src/countries/<CODE>.js` files implement a `compute(input) → CountrySideResult` function for each supported country. `src/countries.js` aggregates them into a `COUNTRIES` registry plus a `LOCATIONS` map (53 cities, 20 countries). FX rates live in `src/fx.js` (USD per 1 unit of local currency, May 2026 snapshot) and are refreshed at runtime by the live fetch in `src/fxLive.js`.
 
 The legacy IL→US `runEngine(inputs)` is preserved unchanged. A new symmetric `runComparison({ source, dest })` accepts any country pair and returns annualized results in local + USD.
 
@@ -330,7 +330,7 @@ The following are intentional simplifications, not bugs:
 7. **Singapore** CPF defaults to citizen/PR rates. Foreign-worker treatment (no CPF) OUT OF SCOPE.
 8. **Japan** 2025-reform basic deduction phase-down at very high incomes (>¥23.5M) ignored.
 9. **Quebec** federal abatement applied as 16.5% reduction of federal tax (after BPA credit).
-10. **Israel** constants partially refreshed for 2026; credit point value (`242 → 254`) and BTL ceilings (`7703 → 7522`, `51910 → 50695`) pending payslip-regression test refresh — kept at 2025 values to preserve existing test suite.
+10. **Israel** constants are the verified 2026 values: credit point value ₪242/mo, BTL low/high threshold ₪7,703/mo, BTL ceiling ₪51,910/mo (`src/countries/IL.js`, confirmed against btl.gov.il and PwC Israel 2026, matched to a real 4/2026 payslip). Earlier draft figures (254, 7522, 50695) were researched proposals that turned out to be wrong and were never shipped.
 11. **UAE** treated as zero-tax for all employees (correct for non-GCC nationals; GCC nationals have small social contributions, OUT OF SCOPE).
 12. **Poland** PPK voluntary employee pension contribution and rate variation by health insurance not modeled.
 
@@ -367,7 +367,7 @@ When you change a top-level input, follow the arrows to predict downstream effec
 | 2026-05-06 | Lifestyle had a non-monotonic "U-curve" — at 4% match the answer peaked, but went down both above and below | Removed forced "match employer dollar-for-dollar" strategy; now `personal = max(0, target − employer)` |
 | 2026-05-06 | NJ state tax incorrectly treated 401k as pre-tax (NJ does not conform to federal) | NJ taxable now uses gross with no `personal_annual` subtraction |
 | 2026-05-08 | Reverted the 2026-05-06 NJ "fix" — it was based on a wrong premise. Per NJ Div. of Taxation GIT-1&2 (Jan 2026), NJ DOES exclude 401(k) employee contributions from taxable wages (since 1984). NJ only diverges from federal on 403(b)/457/IRA. | NJ branch in `calcStateCityTax` now subtracts `personal_annual` from the bracket base. Test flipped to assert state tax DROPS with 401k contribution. Verified via gemini-verify + NJ.gov primary source. |
-| 2026-05-08 | Second gemini-verify pass surfaced 5 confirmed discrepancies. | (1) GA flat rate 5.19% → 4.99% and std deduction $12k → $15k (GA DOR Sine Die 2026). (2) ES Catalonia: replaced 9-bracket structure with the 8-bracket post-Decree-law-5/2025 schedule (first rate 10.5% → 9.5%). (3) PT IRS: replaced bracket thresholds and rates with Orçamento do Estado 2026 values (rates dropped 0.3pp on brackets 2-5; thresholds +3.51%). (4) DE Pflegeversicherung: employee LTC base 2.4% → 1.7% (with-children TK rate); childless surcharge 0.6% unchanged → 2.3% childless total (was 3.0%). (5) AE: added mandatory ILOE unemployment insurance (AED 120/yr at our income range). |
+| 2026-05-08 | Second gemini-verify pass surfaced 5 confirmed discrepancies. | (1) GA flat rate 5.19% → 4.99% and std deduction $12k → $15k (GA DOR Sine Die 2026). (2) ES Catalonia: replaced 9-bracket structure with the 8-bracket post-Decree-law-5/2025 schedule (first rate 10.5% → 9.5%). (3) PT IRS: replaced bracket thresholds and rates with Orçamento do Estado 2026 values (rates dropped 0.3pp on brackets 2-5; thresholds +3.51%). (4) DE Pflegeversicherung: employee LTC base 2.4% → 1.8% (with-children TK rate); childless surcharge 0.6% unchanged → 2.4% childless total (was 3.0%). (5) AE: added mandatory ILOE unemployment insurance (AED 120/yr at our income range). |
 | 2026-05-06 | Israeli pension tax credit (35% × min(EE, 7%)) was missing — overstated IL tax | Added `calcPensionCredit` |
 | 2026-05-06 | Severance pitzuim (8.33%) always counted as savings, inflating US 401k target | Added `includeSeveranceInSavings` toggle |
 | 2026-05-06 | No IRS $23,500 cap on personal 401k contribution | Cap enforced; surplus surfaces as `wealthGap` with UI warning |
